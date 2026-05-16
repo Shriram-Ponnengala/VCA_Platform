@@ -1,0 +1,316 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.title {
+  font-size: 2.5rem;
+  color: var(--primary);
+  margin: 0;
+  font-family: var(--font-serif);
+}
+
+.subtitle {
+  font-size: 1rem;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.roleSwitcher {
+  background-color: var(--cream);
+  padding: 6px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--secondary);
+}
+
+.roleSelect {
+  background: transparent;
+  border: none;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--primary);
+  cursor: pointer;
+  outline: none;
+  text-transform: uppercase;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+
+@media (max-width: 1200px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  background: white;
+  border-radius: var(--radius);
+  border: 1px solid var(--cream);
+  box-shadow: var(--shadow-subtle);
+  padding: 32px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  border-top: 4px solid var(--cream);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 25px -5px rgba(85, 30, 25, 0.1);
+  border-top-color: var(--secondary);
+}
+
+.lockedCard {
+  background-color: #f8fafc;
+  border-color: #e2e8f0;
+  opacity: 0.7;
+}
+
+.lockedCard .idBadge, .lockedCard .activeBadge {
+  background-color: #e2e8f0;
+  color: #94a3b8;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.adminActions {
+  position: relative;
+}
+
+.moreBtn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.moreBtn:hover {
+  background-color: var(--cream);
+  color: var(--primary);
+}
+
+.actionMenu {
+  position: absolute;
+  right: 0;
+  top: 40px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+}
+
+.actionMenu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.actionMenu button:hover:not(:disabled) {
+  background-color: var(--cream);
+  color: var(--primary);
+}
+
+.actionMenu button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.actionMenu .deleteAction {
+  color: #ef4444;
+}
+
+.actionMenu .deleteAction:hover {
+  background-color: #fef2f2;
+}
+
+
+.idBadge {
+  width: 40px;
+  height: 40px;
+  background-color: var(--cream);
+  color: var(--primary);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.25rem;
+}
+
+.activeBadge {
+  background-color: var(--cream);
+  color: var(--primary);
+  padding: 4px 14px;
+  border-radius: 99px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.codeLabel {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--secondary);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.progName {
+  font-size: 1.75rem;
+  color: var(--primary);
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 700;
+}
+
+.cardFooter {
+  margin-top: auto;
+  border-top: 1px solid var(--cream);
+  padding-top: 24px;
+}
+
+.viewSyllabusBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  height: 48px;
+  border-radius: var(--radius);
+  font-weight: 700;
+  font-size: 0.9375rem;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.viewSyllabusBtn:hover:not(:disabled) {
+  background-color: #3d1512;
+  box-shadow: 0 4px 12px rgba(85, 30, 25, 0.2);
+}
+
+.viewSyllabusBtn:disabled {
+  background-color: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.addBtn {
+  background-color: var(--primary) !important;
+  color: white !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  border-radius: 10px !important;
+  font-weight: 700 !important;
+  padding: 0 16px !important;
+}
+
+.modalForm {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 10px 0;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.input {
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  font-size: 0.9375rem;
+  transition: all 0.2s;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(85, 30, 25, 0.05);
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.saveBtn {
+  background-color: var(--primary) !important;
+  color: white !important;
+}

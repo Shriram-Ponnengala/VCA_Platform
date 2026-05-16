@@ -1,0 +1,267 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding-bottom: 80px;
+}
+
+.title {
+  font-size: 2.5rem;
+  color: #3D1A0E;
+  margin: 0;
+}
+
+.subtitle {
+  font-size: 1rem;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.searchSection {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.searchWrapper {
+  flex: 1;
+  position: relative;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 14px 14px 14px 48px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: #3D1A0E;
+}
+
+.addBtn {
+  background-color: #3D1A0E !important;
+  color: white !important;
+  padding: 0 24px !important;
+  height: 52px;
+  border-radius: 12px !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700 !important;
+}
+
+.filterBar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 16px 24px;
+  background-color: white;
+  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+}
+
+.filterLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  font-size: 0.875rem;
+  color: #3D1A0E;
+}
+
+.dropdowns {
+  display: flex;
+  gap: 12px;
+}
+
+.dropdownWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.filterSelect {
+  appearance: none;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 36px 8px 16px;
+  font-size: 0.875rem;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+}
+
+.filterSelect:focus {
+  outline: none;
+  border-color: #3D1A0E;
+}
+
+.selectIcon {
+  position: absolute;
+  right: 12px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+
+.tableWrapper {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #f1f5f9;
+  /* Removed overflow: hidden to allow action menu to overflow */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  position: relative;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.table th {
+  padding: 20px 24px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #3D1A0E;
+  letter-spacing: 0.1em;
+  border-bottom: 1px solid #f1f5f9;
+  background-color: #fafaf9;
+}
+
+.table td {
+  padding: 20px 24px;
+  font-size: 0.9375rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #475569;
+}
+
+.studentNameCell {
+  display: flex;
+  flex-direction: column;
+}
+
+.studentName {
+  font-weight: 800;
+  color: #3D1A0E;
+}
+
+.studentEmail {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.statusBadge {
+  background-color: #EADBC8;
+  color: #3D1A0E;
+  padding: 4px 12px;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.clickableRow {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.clickableRow:hover {
+  background-color: #fafaf9;
+}
+
+.actionsCell {
+  position: relative;
+}
+
+.actionBtn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.actionBtn:hover {
+  background-color: #f1f5f9;
+  color: #3D1A0E;
+}
+
+.actionMenu {
+  position: absolute;
+  right: 24px;
+  top: 50px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  z-index: 1000;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+}
+
+.actionMenu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.actionMenu button:hover {
+  background-color: #fafaf9;
+  color: #3D1A0E;
+}
+
+.actionMenu .deleteAction {
+  color: #ef4444;
+}
+
+.actionMenu .deleteAction:hover {
+  background-color: #fef2f2;
+  color: #ef4444;
+}
+
+.toast {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  background-color: #3D1A0E;
+  color: white;
+  padding: 16px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  animation: slideUp 0.3s ease-out;
+  z-index: 2000;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+

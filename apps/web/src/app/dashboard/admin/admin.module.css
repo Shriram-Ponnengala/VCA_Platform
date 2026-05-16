@@ -1,0 +1,122 @@
+.container {
+  padding: 32px;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 24px;
+  margin-bottom: 40px;
+}
+
+.statCard {
+  background: var(--cream);
+  padding: 24px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: var(--shadow-subtle);
+  border: 1px solid var(--secondary);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.statCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(85, 30, 25, 0.1);
+}
+
+.statIcon {
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.5);
+  color: var(--secondary);
+}
+
+.statLabel {
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+  opacity: 0.6;
+}
+
+.statValue {
+  color: var(--primary);
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 4px 0 0 0;
+}
+
+.recentActivity {
+  background: white;
+  padding: 32px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-subtle);
+  border: 1px solid var(--cream);
+}
+
+.sectionTitle {
+  color: var(--primary);
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 32px;
+  font-family: var(--font-serif);
+}
+
+.activityList {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.activityItem {
+  display: flex;
+  gap: 16px;
+  position: relative;
+}
+
+.activityItem:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 24px;
+  bottom: -12px;
+  width: 2px;
+  background: var(--cream);
+}
+
+.activityDot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  margin-top: 6px;
+  z-index: 1;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px var(--cream);
+}
+
+.activityContent {
+  flex: 1;
+}
+
+.activityText {
+  color: var(--primary);
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.activityTime {
+  color: #64748b;
+  font-size: 0.8rem;
+  display: block;
+  margin-top: 4px;
+  font-weight: 400;
+}

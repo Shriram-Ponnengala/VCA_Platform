@@ -1,0 +1,167 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.title {
+  font-size: 2.5rem;
+  color: var(--primary);
+  margin: 0;
+  font-family: var(--font-serif);
+}
+
+.subtitle {
+  font-size: 1rem;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.addBtn {
+  height: 48px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 32px;
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  background: white;
+  border-radius: var(--radius);
+  border: 1px solid var(--cream);
+  box-shadow: var(--shadow-subtle);
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: all 0.3s ease;
+  border-top: 4px solid var(--cream);
+}
+
+.card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 25px -5px rgba(85, 30, 25, 0.1);
+  border-top-color: var(--secondary);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.batchPrimary {
+  margin-bottom: 24px;
+}
+
+.batchName {
+  font-size: 1.5rem;
+  color: var(--primary);
+  margin: 0 0 6px 0;
+  font-family: var(--font-serif);
+  font-weight: 700;
+}
+
+.coachName {
+  font-size: 0.95rem;
+  color: #64748b;
+  margin: 0;
+  font-weight: 500;
+}
+
+.divider {
+  width: 100%;
+  height: 1px;
+  background-color: var(--cream);
+  margin-bottom: 24px;
+  opacity: 0.5;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detailLabel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #94a3b8;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.detailLabel svg {
+  color: var(--secondary);
+}
+
+.detailValue {
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 0.95rem;
+}
+
+.dayPills {
+  display: flex;
+  gap: 6px;
+}
+
+.dayPill {
+  background-color: var(--cream);
+  color: var(--primary);
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.cardFooter {
+  margin-top: 24px;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--cream);
+  padding-top: 16px;
+}
+
+.arrowBtn {
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.arrowBtn:hover {
+  background-color: var(--cream);
+  color: var(--primary);
+  transform: translateX(4px);
+}

@@ -1,0 +1,37 @@
+.header {
+  background-color: #ffffff;
+  padding: 1.5rem 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end; /* Move user info to right */
+  border-bottom: none;
+}
+
+/* Hide the title in the header as it's handled in the dashboard content */
+.title {
+  display: none;
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.userName {
+  display: none; /* Hide name to match screenshot exactly */
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: var(--muted);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  border: 1px solid rgba(85, 30, 25, 0.05);
+}

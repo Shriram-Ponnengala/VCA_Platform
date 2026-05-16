@@ -1,0 +1,10 @@
+{
+  "name": "@vca/ui",
+  "version": "0.1.0",
+  "main": "src/index.ts",
+  "dependencies": {
+    "lucide-react": "^0.470.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  }
+}

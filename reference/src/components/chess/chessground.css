@@ -1,0 +1,178 @@
+/* src/components/chess/chessground.css */
+
+.cg-wrap {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: block;
+  user-select: none;
+}
+
+cg-container {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: block;
+  top: 0;
+}
+
+cg-board {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  line-height: 0;
+  background-size: cover;
+  display: block;
+}
+
+.cg-wrap.manipulable cg-board {
+  cursor: pointer;
+}
+
+cg-board square {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 12.5%;
+  height: 12.5%;
+  pointer-events: none;
+}
+
+cg-board square.move-dest {
+  pointer-events: auto;
+}
+
+cg-board piece {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 12.5%;
+  height: 12.5%;
+  background-size: cover;
+  z-index: 2;
+  will-change: transform;
+  pointer-events: none;
+}
+
+cg-board piece.dragging {
+  cursor: move;
+  z-index: 11 !important;
+}
+
+piece.anim {
+  z-index: 8;
+}
+
+piece.fading {
+  z-index: 1;
+  opacity: 0.5;
+}
+
+/* Legal move destinations (dots) */
+square.move-dest {
+  background: radial-gradient(rgba(20, 85, 30, 0.5) 19%, rgba(0, 0, 0, 0) 20%);
+  pointer-events: auto;
+}
+
+square.move-dest:hover {
+  background: radial-gradient(rgba(20, 85, 30, 0.5) 29%, rgba(0, 0, 0, 0) 30%);
+}
+
+square.premove-dest {
+  background: radial-gradient(rgba(20, 30, 85, 0.5) 19%, rgba(0, 0, 0, 0) 20%);
+}
+
+square.oc.move-dest {
+  background: radial-gradient(transparent 0%, transparent 79%, rgba(20, 85, 30, 0.3) 80%);
+}
+
+square.oc.premove-dest {
+  background: radial-gradient(transparent 0%, transparent 79%, rgba(20, 30, 85, 0.2) 80%);
+}
+
+/* Arrows and Shapes */
+.cg-shapes {
+  overflow: visible !important;
+  opacity: 0.6;
+}
+
+.cg-shapes line {
+  stroke-width: 0.15;
+  stroke-linecap: round;
+}
+
+.cg-shapes line.green { stroke: rgba(20, 255, 20, 0.7); }
+.cg-shapes line.blue { stroke: rgba(20, 20, 255, 0.7); }
+.cg-shapes line.red { stroke: rgba(255, 20, 20, 0.7); }
+.cg-shapes line.yellow { stroke: rgba(255, 255, 20, 0.7); }
+
+.vca-theme cg-board {
+  background-color: #f0d9b5;
+}
+
+/* Square colors */
+.vca-theme square.white { background-color: #f0d9b5; }
+.vca-theme square.black { background-color: #b58863; }
+
+/* Last move highlight */
+square.last-move {
+  background-color: rgba(155, 199, 0, 0.41);
+}
+
+/* Selection highlight */
+square.selected {
+  background-color: rgba(20, 85, 30, 0.5);
+}
+
+/* Check highlight */
+square.check {
+  background: radial-gradient(ellipse at center, rgba(255, 0, 0, 1) 0%, rgba(231, 0, 0, 1) 25%, rgba(169, 0, 0, 0) 89%, rgba(158, 0, 0, 0) 100%);
+}
+
+/* Piece sets - Using Lichess assets for now */
+.cburnett piece.pawn.white { background-image: url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wP.svg'); }
+.cburnett piece.bishop.white { background-image: url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wB.svg'); }
+.cburnett piece.knight.white { background-image: url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wN.svg'); }
+.cburnett piece.rook.white { background-image: url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wR.svg'); }
+.cburnett piece.queen.white { background-image: url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wQ.svg'); }
+.cburnett piece.king.white { background-image: url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wK.svg'); }
+.cburnett piece.pawn.black { background-image: url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bP.svg'); }
+.cburnett piece.bishop.black { background-image: url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bB.svg'); }
+.cburnett piece.knight.black { background-image: url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bN.svg'); }
+.cburnett piece.rook.black { background-image: url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bR.svg'); }
+.cburnett piece.queen.black { background-image: url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bQ.svg'); }
+.cburnett piece.king.black { background-image: url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bK.svg'); }
+
+/* Coordinates */
+coords {
+  position: absolute;
+  display: flex;
+  pointer-events: none;
+  opacity: 0.8;
+  font-family: sans-serif;
+  font-size: 10px;
+  color: #64748b;
+}
+
+coords.ranks {
+  right: 2px;
+  top: 0;
+  flex-flow: column-reverse;
+  height: 100%;
+  width: 12px;
+}
+
+coords.files {
+  bottom: 2px;
+  left: 0;
+  flex-flow: row;
+  width: 100%;
+  height: 12px;
+  padding-left: 2px;
+}
+
+coord {
+  flex: 1 1 auto;
+}

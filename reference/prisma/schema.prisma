@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String       @id @default(uuid())
+  username     String       @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime     @default(now())
+
+  firstName    String?
+  middleName   String?
+  lastName     String?
+  email        String?      @unique
+  mobile       String?
+  countryCode  String?
+  dob          String?
+  country      String?
+  city         String?
+  
+  student      Student?
+  coach        Coach?
+}
+
+model Student {
+  id           String       @id @default(uuid())
+  userId       String       @unique
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  parentFirstName    String?
+  parentMiddleName   String?
+  parentLastName     String?
+  secParentFirstName  String?
+  secParentMiddleName String?
+  secParentLastName   String?
+
+  attendance   Attendance[]
+  enrollments  Enrollment[]
+}
+
+model Coach {
+  id           String       @id @default(uuid())
+  userId       String       @unique
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  specialization String?
+  bio            String?
+
+  classes      Class[]
+}
+
+model Class {
+  id           String       @id @default(uuid())
+  className    String
+  coachId      String?      // Optional for restore
+  program      String?      
+  type         String?      
+  startDate    String?      
+  days         String[]     
+  startTime    String?      
+  endTime      String?      
+  status       String       @default("active")
+  createdAt    DateTime     @default(now())
+  
+  coach        Coach?       @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  attendance   Attendance[]
+  enrollments  Enrollment[]
+}
+
+model Enrollment {
+  id        String @id @default(uuid())
+  studentId String? // Optional for restore
+  classId   String
+  class     Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student   Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, classId])
+}
+
+model Attendance {
+  id        String   @id @default(uuid())
+  classId   String
+  studentId String? // Optional for restore
+  date      DateTime @db.Date
+  status    String
+  markedBy  String
+  timestamp DateTime @default(now())
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student   Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, studentId, date])
+}
+
+model Program {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  code        String?
+  order       Int      @default(0)
+  description String?
+  topics      Json?
+  createdAt   DateTime @default(now())
+}
+
+enum Role {
+  ADMIN
+  COACH
+  STUDENT
+}

@@ -1,0 +1,446 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.backLink {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.875rem;
+  width: fit-content;
+  transition: color 0.2s;
+}
+
+.backLink:hover {
+  color: #3D1A0E;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  background: white;
+  padding: 32px;
+  border-radius: 24px;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.titleArea {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.title {
+  font-family: var(--font-serif);
+  font-size: 2.5rem;
+  color: #3D1A0E;
+  margin: 0;
+}
+
+.activeBadge {
+  background-color: #EADBC8;
+  color: #3D1A0E;
+  padding: 4px 12px;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.metaInfo {
+  display: flex;
+  gap: 24px;
+  color: #475569;
+}
+
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9375rem;
+}
+
+.metaItem strong {
+  color: #3D1A0E;
+}
+
+.actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.markAttBtn {
+  background-color: #3D1A0E;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.markAttBtn:hover {
+  opacity: 0.9;
+}
+
+.editBtn {
+  background-color: transparent;
+  color: #3D1A0E;
+  border: 1.5px solid #3D1A0E;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.editBtn:hover {
+  background-color: #fafaf9;
+}
+
+.deleteBtn {
+  background-color: transparent;
+  color: #ef4444;
+  border: none;
+  padding: 10px 16px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.deleteBtn:hover {
+  color: #dc2626;
+  text-decoration: underline;
+}
+
+/* Main Content Layout */
+.mainContent {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 32px;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .mainContent {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Left Column */
+.leftCol {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.section {
+  background: white;
+  border-radius: 24px;
+  border: 1px solid #f1f5f9;
+  padding: 32px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.sectionTitle {
+  font-family: var(--font-sans);
+  font-size: 1.25rem;
+  color: #3D1A0E;
+  margin: 0;
+  font-weight: 700;
+}
+
+.addStudentBtn {
+  background-color: transparent;
+  color: #3D1A0E;
+  border: 1px solid #e2e8f0;
+  padding: 6px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.addStudentBtn:hover {
+  border-color: #3D1A0E;
+  background-color: #fafaf9;
+}
+
+.studentList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.studentCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border: 1px solid #f1f5f9;
+  border-radius: 16px;
+  transition: all 0.2s;
+}
+
+.studentCard:hover {
+  border-color: #e2e8f0;
+  background-color: #fafaf9;
+}
+
+.studentInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.studentName {
+  font-weight: 700;
+  color: #3D1A0E;
+  margin: 0;
+}
+
+.studentEmail {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.removeBtn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 8px;
+  opacity: 0;
+  transition: all 0.2s;
+}
+
+.studentCard:hover .removeBtn {
+  opacity: 1;
+}
+
+.removeBtn:hover {
+  color: #ef4444;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 40px 0;
+  color: #94a3b8;
+  font-size: 0.9375rem;
+}
+
+.addStudentSearchArea {
+  background: #fafaf9;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.searchWrapper {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.searchInnerInput {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  font-size: 0.9rem;
+}
+
+.searchInnerInput:focus {
+  outline: none;
+  border-color: #3D1A0E;
+}
+
+.closeSearch {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.studentSearchResults {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.searchResultItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: white;
+  border-radius: 10px;
+  border: 1px solid #f1f5f9;
+}
+
+.resultInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.resultName {
+  font-weight: 700;
+  color: #3D1A0E;
+  font-size: 0.875rem;
+}
+
+.resultEmail {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.quickAddBtn {
+  background-color: #3D1A0E;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.noResults {
+  text-align: center;
+  font-size: 0.875rem;
+  color: #94a3b8;
+  padding: 8px 0;
+}
+
+
+/* History Table */
+.historyTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.historyTable th {
+  text-align: left;
+  padding: 12px 16px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.historyTable td {
+  padding: 16px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.9375rem;
+  color: #1e293b;
+}
+
+.historyRow {
+  transition: background-color 0.2s;
+}
+
+.historyRow:hover {
+  background-color: #fafaf9;
+  cursor: pointer;
+}
+
+/* Right Column - Schedule Details */
+.schedulePanel {
+  background-color: #fafaf9;
+  border: 2px solid #EADBC8;
+  border-radius: 24px;
+  padding: 32px;
+  position: sticky;
+  top: 32px;
+}
+
+.schedulePanelTitle {
+  font-family: var(--font-sans);
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: #3D1A0E;
+  margin: 0 0 24px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.scheduleList {
+  display: flex;
+  flex-direction: column;
+}
+
+.scheduleItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.scheduleItem:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.scheduleLabel {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.scheduleValue {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #3D1A0E;
+  text-align: right;
+}
+
+.dayPills {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.dayPill {
+  background-color: #EADBC8;
+  color: #3D1A0E;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
