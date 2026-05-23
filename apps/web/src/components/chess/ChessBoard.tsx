@@ -122,9 +122,9 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
         drawable: {
           enabled: true,
           visible: true,
-          eraseOnClick: true,
+          eraseOnClick: false,
           onChange: handleDraw,
-          autoShapes: arrows as any,
+          shapes: arrows as any,
         },
         animation: {
           enabled: true,
@@ -178,7 +178,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           }
         },
         drawable: {
-          autoShapes: arrows as any,
+          shapes: arrows as any,
         }
       });
     }

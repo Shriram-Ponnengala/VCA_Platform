@@ -37,6 +37,7 @@ export function Sidebar({ role, username }: SidebarProps) {
   const coachLinks = [
     { name: 'Dashboard', href: '/dashboard/coach', icon: LayoutDashboard },
     { name: 'Attendance', href: '/dashboard/coach/attendance', icon: Users },
+    { name: 'Settings', href: '/dashboard/coach/settings', icon: Settings },
   ];
 
   const studentLinks = [

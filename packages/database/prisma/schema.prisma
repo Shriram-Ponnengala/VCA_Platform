@@ -23,6 +23,11 @@ model User {
   dob          String?
   country      String?
   city         String?
+  profilePhoto String?
+  address         String?
+  fideProfile     String?
+  lichessProfile  String?
+  chesscomProfile String?
   
   student      Student?
   coach        Coach?
@@ -36,9 +41,13 @@ model Student {
   parentFirstName    String?
   parentMiddleName   String?
   parentLastName     String?
+  parentEmail        String?
+  parentMobile       String?
   secParentFirstName  String?
   secParentMiddleName String?
   secParentLastName   String?
+  secParentEmail      String?
+  secParentMobile     String?
 
   attendance   Attendance[]
   enrollments  Enrollment[]

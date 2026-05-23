@@ -32,7 +32,8 @@ export class UsersService {
     // Filter to only include fields present in the User model
     const allowedUserFields = [
       'username', 'passwordHash', 'role', 'firstName', 'middleName', 
-      'lastName', 'email', 'mobile', 'countryCode', 'dob', 'country', 'city'
+      'lastName', 'email', 'mobile', 'countryCode', 'dob', 'country', 'city', 'profilePhoto',
+      'address', 'fideProfile', 'lichessProfile', 'chesscomProfile'
     ];
 
     // Handle password hashing
@@ -53,7 +54,9 @@ export class UsersService {
     // Handle profile-specific data separately for nested creation
     const { 
       parentFirstName, parentMiddleName, parentLastName,
+      parentEmail, parentMobile,
       secParentFirstName, secParentMiddleName, secParentLastName,
+      secParentEmail, secParentMobile,
       specialization, bio
     } = data;
 
@@ -64,9 +67,13 @@ export class UsersService {
           parentFirstName: parentFirstName || '',
           parentMiddleName: parentMiddleName || '',
           parentLastName: parentLastName || '',
+          parentEmail: parentEmail || '',
+          parentMobile: parentMobile || '',
           secParentFirstName: secParentFirstName || '',
           secParentMiddleName: secParentMiddleName || '',
           secParentLastName: secParentLastName || '',
+          secParentEmail: secParentEmail || '',
+          secParentMobile: secParentMobile || '',
         }
       };
     } else if (data.role === 'COACH') {
@@ -87,7 +94,8 @@ export class UsersService {
     // Filter to only include fields present in the User model
     const allowedUserFields = [
       'username', 'passwordHash', 'role', 'firstName', 'middleName', 
-      'lastName', 'email', 'mobile', 'countryCode', 'dob', 'country', 'city'
+      'lastName', 'email', 'mobile', 'countryCode', 'dob', 'country', 'city', 'profilePhoto',
+      'address', 'fideProfile', 'lichessProfile', 'chesscomProfile'
     ];
 
     if (data.password) {
@@ -107,7 +115,9 @@ export class UsersService {
     // Handle profile-specific data separately for nested update
     const { 
       parentFirstName, parentMiddleName, parentLastName,
+      parentEmail, parentMobile,
       secParentFirstName, secParentMiddleName, secParentLastName,
+      secParentEmail, secParentMobile,
       specialization, bio
     } = data;
 
@@ -120,9 +130,13 @@ export class UsersService {
       if (parentFirstName !== undefined) studentUpdate.parentFirstName = parentFirstName;
       if (parentMiddleName !== undefined) studentUpdate.parentMiddleName = parentMiddleName;
       if (parentLastName !== undefined) studentUpdate.parentLastName = parentLastName;
+      if (parentEmail !== undefined) studentUpdate.parentEmail = parentEmail;
+      if (parentMobile !== undefined) studentUpdate.parentMobile = parentMobile;
       if (secParentFirstName !== undefined) studentUpdate.secParentFirstName = secParentFirstName;
       if (secParentMiddleName !== undefined) studentUpdate.secParentMiddleName = secParentMiddleName;
       if (secParentLastName !== undefined) studentUpdate.secParentLastName = secParentLastName;
+      if (secParentEmail !== undefined) studentUpdate.secParentEmail = secParentEmail;
+      if (secParentMobile !== undefined) studentUpdate.secParentMobile = secParentMobile;
 
       if (Object.keys(studentUpdate).length > 0) {
         updateData.student = { update: studentUpdate };

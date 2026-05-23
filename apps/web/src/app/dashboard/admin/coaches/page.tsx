@@ -30,7 +30,7 @@ export default function CoachesPage() {
       mobile,
       bio,
       specialization: bio || 'Coach',
-      username: data.username || data.email, // Ensure username is present
+      username: data.username,
     };
 
     try {

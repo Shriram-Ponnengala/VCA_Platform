@@ -8,6 +8,6 @@ export class BatchesController {
   async create(req: Request, res: Response) { try { res.json(await service.create(req.body)); } catch (e:any) { res.status(500).json({ error: e.message }); } }
   async update(req: Request, res: Response) { try { res.json(await service.update(req.params.id as string, req.body)); } catch (e:any) { res.status(500).json({ error: e.message }); } }
   async delete(req: Request, res: Response) { try { res.json(await service.delete(req.params.id as string)); } catch (e:any) { res.status(500).json({ error: e.message }); } }
-  async enrollStudent(req: Request, res: Response) { try { res.json(await service.enroll(req.params.id, req.body.studentId)); } catch (e:any) { res.status(500).json({ error: e.message }); } }
-  async unenrollStudent(req: Request, res: Response) { try { res.json(await service.unenroll(req.params.id, req.body.studentId)); } catch (e:any) { res.status(500).json({ error: e.message }); } }
+  async enrollStudent(req: Request, res: Response) { try { res.json(await service.enroll(req.params.id as string, req.body.studentId)); } catch (e:any) { res.status(500).json({ error: e.message }); } }
+  async unenrollStudent(req: Request, res: Response) { try { res.json(await service.unenroll(req.params.id as string, req.body.studentId)); } catch (e:any) { res.status(500).json({ error: e.message }); } }
 }

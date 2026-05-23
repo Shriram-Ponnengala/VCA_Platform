@@ -94,7 +94,7 @@ export function useChessRoom(roomId: string): UseChessRoomReturn {
         });
 
         socket.on('connect_error', (err) => {
-          console.error('[ChessRoom] Connection error:', err.message);
+          console.warn('[ChessRoom] Connection warning:', err.message);
           setIsConnected(false);
         });
 

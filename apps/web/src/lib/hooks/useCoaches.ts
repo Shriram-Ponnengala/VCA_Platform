@@ -112,20 +112,17 @@ export function useCoaches() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...coachData,
-          username: coachData.email.split('@')[0], // Generate username from email
           role: 'COACH'
         }),
       });
       if (!res.ok) {
         const err = await res.json();
-        console.error('[Hook] useCoaches: Add failed:', err.error);
         throw new Error(err.error || 'Failed to add coach');
       }
       console.log('[Hook] useCoaches: Coach added successfully');
       await fetchCoaches();
       return true;
     } catch (error: any) {
-      console.error('[Hook] useCoaches: Add error:', error.message);
       throw error;
     }
   };

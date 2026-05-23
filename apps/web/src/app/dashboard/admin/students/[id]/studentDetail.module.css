@@ -99,6 +99,13 @@
   font-weight: 800;
 }
 
+.username {
+  font-size: 1rem;
+  color: #64748b;
+  margin: 4px 0 0 0;
+  font-weight: 600;
+}
+
 .role {
   font-size: 0.75rem;
   font-weight: 800;

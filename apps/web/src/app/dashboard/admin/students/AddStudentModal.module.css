@@ -95,6 +95,77 @@
   width: 100%;
 }
 
+.photoUploadContainer {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 8px;
+}
+
+.photoPreview {
+  width: 80px;
+  height: 80px;
+  border-radius: 16px;
+  background-color: #f1f5f9;
+  border: 1px dashed #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  transition: all 0.2s;
+}
+
+.photoPreview:hover {
+  border-color: #3D1A0E;
+}
+
+.photoIcon {
+  color: #94a3b8;
+}
+
+.photoOverlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(61, 26, 14, 0.6);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.photoPreview:hover .photoOverlay {
+  opacity: 1;
+}
+
+.photoInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.photoLabel {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #3D1A0E;
+}
+
+.photoSubtext {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
 .row3 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

@@ -64,16 +64,14 @@ export default function UsersPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingUser) {
-      const success = await updateUser(editingUser.id, { 
+      await updateUser(editingUser.id, { 
         username: formData.username, 
         role: formData.role as any,
         password: formData.password || undefined
       });
-      if (success) {
-        setToast({ message: 'User updated successfully!', type: 'success' });
-        setIsModalOpen(false);
-        setEditingUser(null);
-      }
+      setToast({ message: 'User updated successfully!', type: 'success' });
+      setIsModalOpen(false);
+      setEditingUser(null);
     } else {
       const newUserId = await addUser({ 
         username: formData.username, 

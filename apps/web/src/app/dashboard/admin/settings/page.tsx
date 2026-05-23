@@ -67,6 +67,10 @@ export default function SettingsPage() {
     localStorage.setItem('vca_settings_account', JSON.stringify(account));
     localStorage.setItem('vca_settings_scheduling', JSON.stringify(scheduling));
     localStorage.setItem('vca_settings_branding', JSON.stringify(branding));
+    
+    // Dispatch event to update globally immediately
+    window.dispatchEvent(new Event('vca-branding-updated'));
+    
     setToastMessage('Settings saved successfully!');
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
@@ -121,7 +125,7 @@ export default function SettingsPage() {
               onClick={() => setActiveTab('branding')}
             >
               <Clock size={18} />
-              <span>Scheduling & Branding</span>
+              <span>Other Settings</span>
             </button>
           </nav>
         </aside>
@@ -258,78 +262,6 @@ export default function SettingsPage() {
           {activeTab === 'branding' && (
             <div className={styles.tabContent}>
               <div className={styles.brandingGrid}>
-                <div className={styles.card}>
-                  <h3 className={styles.cardTitle}>Scheduling Defaults</h3>
-                  <div className={styles.form}>
-                    <div className={styles.row3}>
-                      <div className={styles.fieldGroup}>
-                        <label>DEFAULT TIME ZONE</label>
-                        <select 
-                          className={styles.select}
-                          value={scheduling.timezone}
-                          onChange={(e) => setScheduling({ ...scheduling, timezone: e.target.value })}
-                        >
-                          <option>America/New_York</option>
-                          <option>Asia/Kolkata</option>
-                          <option>Europe/London</option>
-                        </select>
-                      </div>
-                      <div className={styles.fieldGroup}>
-                        <label>DEFAULT CLASS DURATION</label>
-                        <select 
-                          className={styles.select}
-                          value={scheduling.duration}
-                          onChange={(e) => setScheduling({ ...scheduling, duration: e.target.value })}
-                        >
-                          <option>60 Minutes</option>
-                          <option>90 Minutes</option>
-                          <option>120 Minutes</option>
-                        </select>
-                      </div>
-                      <div className={styles.fieldGroup}>
-                        <label>BUFFER BETWEEN CLASSES</label>
-                        <select 
-                          className={styles.select}
-                          value={scheduling.buffer}
-                          onChange={(e) => setScheduling({ ...scheduling, buffer: e.target.value })}
-                        >
-                          <option>0 Minutes</option>
-                          <option>15 Minutes</option>
-                          <option>30 Minutes</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div className={styles.fieldGroup}>
-                      <label>DEFAULT WORKING DAYS</label>
-                      <div className={styles.dayPills}>
-                        {['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map(day => (
-                          <button 
-                            key={day} 
-                            type="button"
-                            className={`${styles.dayPill} ${scheduling.workingDays.includes(day) ? styles.activeDay : ''}`}
-                            onClick={() => {
-                              const newDays = scheduling.workingDays.includes(day)
-                                ? scheduling.workingDays.filter(d => d !== day)
-                                : [...scheduling.workingDays, day];
-                              setScheduling({ ...scheduling, workingDays: newDays });
-                            }}
-                          >
-                            {day}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className={styles.fieldGroup}>
-                      <label>DEFAULT START TIME SLOTS (COMMA SEPARATED)</label>
-                      <input 
-                        type="text" 
-                        value={scheduling.startSlots} 
-                        onChange={(e) => setScheduling({ ...scheduling, startSlots: e.target.value })}
-                        className={styles.input} 
-                      />
-                    </div>
-                  </div>
-                </div>
                 
                 <div className={styles.brandingRow}>
                   <div className={styles.card}>

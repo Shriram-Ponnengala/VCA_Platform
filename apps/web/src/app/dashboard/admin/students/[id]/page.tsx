@@ -93,11 +93,19 @@ export default function StudentProfilePage() {
 
       <div className={styles.profilePanel}>
         <div className={styles.leftProfile}>
-          <div className={styles.avatar}>
-            <User size={64} />
+          <div 
+            className={styles.avatar} 
+            style={{ 
+              backgroundImage: student.profilePhoto ? `url(${student.profilePhoto})` : 'none',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center'
+            }}
+          >
+            {!student.profilePhoto && <User size={64} />}
           </div>
           <div className={styles.profileInfo}>
             <h1 className={styles.name}>{student.name}</h1>
+            {student.username && <p className={styles.username}>@{student.username}</p>}
             <p className={styles.role}>STUDENT</p>
             <p className={styles.programTag}>Enrolled in: {student.program || 'No Program'}</p>
           </div>

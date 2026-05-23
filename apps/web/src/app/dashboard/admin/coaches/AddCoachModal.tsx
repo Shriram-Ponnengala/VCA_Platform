@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, User, Upload } from 'lucide-react';
 import { COUNTRIES, CITIES_BY_COUNTRY } from '@/lib/data';
+import { DOBSelect } from '@/components/ui/DOBSelect';
 import styles from './AddCoachModal.module.css';
 
 interface AddCoachModalProps {
@@ -16,6 +17,7 @@ export function AddCoachModal({ isOpen, onClose, onSave, initialData }: AddCoach
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [formData, setFormData] = useState({
+    username: '',
     firstName: '',
     middleName: '',
     lastName: '',
@@ -23,8 +25,12 @@ export function AddCoachModal({ isOpen, onClose, onSave, initialData }: AddCoach
     email: '',
     countryCode: '+91',
     mobile: '',
+    address: '',
     country: 'India',
     city: '',
+    fideProfile: '',
+    lichessProfile: '',
+    chesscomProfile: '',
     bio: ''
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -34,6 +40,7 @@ export function AddCoachModal({ isOpen, onClose, onSave, initialData }: AddCoach
       document.body.style.overflow = 'hidden';
       if (initialData) {
         setFormData({
+          username: initialData.username || '',
           firstName: initialData.firstName || '',
           middleName: initialData.middleName || '',
           lastName: initialData.lastName || '',
@@ -41,17 +48,24 @@ export function AddCoachModal({ isOpen, onClose, onSave, initialData }: AddCoach
           email: initialData.email || '',
           countryCode: initialData.countryCode || '+91',
           mobile: initialData.mobile || '',
+          address: initialData.address || '',
           country: initialData.country || 'India',
           city: initialData.city || '',
+          fideProfile: initialData.fideProfile || '',
+          lichessProfile: initialData.lichessProfile || '',
+          chesscomProfile: initialData.chesscomProfile || '',
           bio: initialData.bio || ''
         });
         setPhotoPreview(initialData.photo || null);
       } else {
         // Reset form on new registration
         setFormData({
+          username: '',
           firstName: '', middleName: '', lastName: '',
           dob: '', email: '', countryCode: '+91', mobile: '',
-          country: 'India', city: '', bio: ''
+          address: '', country: 'India', city: '', 
+          fideProfile: '', lichessProfile: '', chesscomProfile: '',
+          bio: ''
         });
         setPhotoPreview(null);
       }
@@ -95,6 +109,7 @@ export function AddCoachModal({ isOpen, onClose, onSave, initialData }: AddCoach
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
+    if (!formData.username.trim()) newErrors.username = 'Required';
     if (!formData.firstName.trim()) newErrors.firstName = 'Required';
     if (!formData.lastName.trim()) newErrors.lastName = 'Required';
     if (!formData.email.trim()) newErrors.email = 'Required';
@@ -172,13 +187,13 @@ export function AddCoachModal({ isOpen, onClose, onSave, initialData }: AddCoach
             <div className={styles.row2}>
               <div className={styles.fieldGroup}>
                 <label className={styles.label}>DATE OF BIRTH</label>
-                <input 
-                  type="date" 
-                  name="dob" 
+                <DOBSelect 
                   value={formData.dob} 
-                  onChange={handleChange} 
-                  className={styles.input} 
-                  placeholder="dd-mm-yyyy"
+                  onChange={(val) => {
+                    setFormData(prev => ({ ...prev, dob: val }));
+                    if (errors.dob) setErrors(prev => ({ ...prev, dob: '' }));
+                  }}
+                  error={errors.dob}
                 />
               </div>
               <div className={styles.fieldGroup}>
@@ -194,12 +209,40 @@ export function AddCoachModal({ isOpen, onClose, onSave, initialData }: AddCoach
                 {errors.email && <span className={styles.errorText}>{errors.email}</span>}
               </div>
             </div>
+            <div className={styles.row3}>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label}>FIDE PROFILE</label>
+                <input name="fideProfile" value={formData.fideProfile} onChange={handleChange} className={styles.input} placeholder="FIDE ID or URL" />
+              </div>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label}>LICHESS PROFILE</label>
+                <input name="lichessProfile" value={formData.lichessProfile} onChange={handleChange} className={styles.input} placeholder="Lichess Username" />
+              </div>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label}>CHESS.COM PROFILE</label>
+                <input name="chesscomProfile" value={formData.chesscomProfile} onChange={handleChange} className={styles.input} placeholder="Chess.com Username" />
+              </div>
+            </div>
+
+            <div className={styles.specialUsernameBox}>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label}>CREATE USERNAME *</label>
+                <input 
+                  name="username" 
+                  value={formData.username} 
+                  onChange={handleChange} 
+                  className={`${styles.input} ${styles.usernameInput}`} 
+                  placeholder="e.g. grandmaster_john" 
+                />
+                {errors.username && <span className={styles.errorText}>{errors.username}</span>}
+              </div>
+            </div>
           </div>
 
-          {/* SECTION 3: CONTACT & LOCATION */}
+          {/* SECTION 3: OTHER DETAILS */}
           <div className={styles.section}>
             <div className={styles.sectionHeader}>
-              <h3 className={styles.sectionTitle}>Contact & Location</h3>
+              <h3 className={styles.sectionTitle}>Other Details</h3>
               <div className={styles.divider} />
             </div>
 
@@ -216,6 +259,20 @@ export function AddCoachModal({ isOpen, onClose, onSave, initialData }: AddCoach
                   </select>
                   <input type="tel" name="mobile" value={formData.mobile} onChange={handleChange} placeholder="9876543210" className={styles.input} />
                 </div>
+              </div>
+            </div>
+
+            <div className={styles.rowFull}>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label}>ADDRESS</label>
+                <textarea 
+                  name="address" 
+                  value={formData.address} 
+                  onChange={handleChange} 
+                  rows={2} 
+                  placeholder="Street Address..." 
+                  className={styles.textarea}
+                />
               </div>
             </div>
 
