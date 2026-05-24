@@ -39,9 +39,26 @@ export default function StudentDashboard() {
         <h2 className={styles.sectionTitle}>My Classes</h2>
         <div className={styles.classList}>
           {batches.map(batch => (
-            <div key={batch.id} className={styles.classCard}>
-              <h4>{batch.name}</h4>
-              <p>{batch.coach} • {batch.startTime}</p>
+            <div key={batch.id} className={styles.classCard} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h4>{batch.name}</h4>
+                <p>{batch.coach} • {batch.startTime}</p>
+              </div>
+              <button 
+                onClick={() => router.push(`/classroom/${batch.id}`)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#3b82f6',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: '0.875rem'
+                }}
+              >
+                Join Classroom
+              </button>
             </div>
           ))}
           {batches.length === 0 && <p className={styles.emptyText}>You are not enrolled in any classes.</p>}

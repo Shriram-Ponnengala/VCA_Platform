@@ -1,0 +1,104 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: chessenergy
+      POSTGRES_DB: vca_attendance
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d vca_attendance"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: development
+    ports:
+      - "4000:4000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:chessenergy@db:5432/vca_attendance?schema=public
+      - JWT_SECRET=wdfghjifghjoixcvhjk
+      - PORT=4000
+      - ALLOWED_ORIGINS=http://localhost:3000
+    volumes:
+      - .:/app
+      - node_modules_root:/app/node_modules
+      - node_modules_api:/app/apps/api/node_modules
+      - node_modules_realtime:/app/apps/realtime/node_modules
+      - node_modules_web:/app/apps/web/node_modules
+      - node_modules_database:/app/packages/database/node_modules
+      - node_modules_chess:/app/packages/chess/node_modules
+      - node_modules_types:/app/packages/types/node_modules
+      - node_modules_ui:/app/packages/ui/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+
+  socket:
+    build:
+      context: .
+      dockerfile: apps/realtime/Dockerfile
+      target: development
+    ports:
+      - "4001:4001"
+    environment:
+      - PORT=4001
+      - ALLOWED_ORIGINS=http://localhost:3000
+      - DATABASE_URL=postgresql://postgres:chessenergy@db:5432/vca_attendance?schema=public
+    volumes:
+      - .:/app
+      - node_modules_root:/app/node_modules
+      - node_modules_api:/app/apps/api/node_modules
+      - node_modules_realtime:/app/apps/realtime/node_modules
+      - node_modules_web:/app/apps/web/node_modules
+      - node_modules_database:/app/packages/database/node_modules
+      - node_modules_chess:/app/packages/chess/node_modules
+      - node_modules_types:/app/packages/types/node_modules
+      - node_modules_ui:/app/packages/ui/node_modules
+    depends_on:
+      - db
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: development
+    ports:
+      - "3000:3000"
+    environment:
+      - API_URL=http://api:4000
+      - NEXT_PUBLIC_API_URL=http://localhost:4000
+      - NEXT_PUBLIC_SOCKET_URL=http://localhost:4001
+    volumes:
+      - .:/app
+      - node_modules_root:/app/node_modules
+      - node_modules_api:/app/apps/api/node_modules
+      - node_modules_realtime:/app/apps/realtime/node_modules
+      - node_modules_web:/app/apps/web/node_modules
+      - node_modules_database:/app/packages/database/node_modules
+      - node_modules_chess:/app/packages/chess/node_modules
+      - node_modules_types:/app/packages/types/node_modules
+      - node_modules_ui:/app/packages/ui/node_modules
+      - next_build:/app/apps/web/.next
+    depends_on:
+      - api
+      - socket
+
+volumes:
+  pgdata:
+  node_modules_root:
+  node_modules_api:
+  node_modules_realtime:
+  node_modules_web:
+  node_modules_database:
+  node_modules_chess:
+  node_modules_types:
+  node_modules_ui:
+  next_build:

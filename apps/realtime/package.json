@@ -8,9 +8,13 @@
     "build": "tsc"
   },
   "dependencies": {
-    "socket.io": "^4.8.3",
+    "@types/cookie": "^0.6.0",
+    "@vca/chess": "*",
+    "@vca/database": "^0.1.0",
     "@vca/types": "*",
-    "@vca/chess": "*"
+    "cookie": "^0.7.2",
+    "jose": "^6.2.3",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "@types/node": "^20",

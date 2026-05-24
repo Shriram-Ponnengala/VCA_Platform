@@ -44,7 +44,7 @@ const initialNodes: Record<string, MoveNode> = {
   root: { id: 'root', fen: START_FEN, san: '', parentId: null, children: [], moveNumber: 0, turn: 'b', arrows: [] }
 };
 
-export function useChessRoom(roomId: string): UseChessRoomReturn {
+export function useChessRoom(roomId: string, userJWT?: string): UseChessRoomReturn {
   const [nodes, setNodes] = useState<Record<string, MoveNode>>(initialNodes);
   const [currentNodeId, setCurrentNodeId] = useState<string>('root');
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -79,6 +79,10 @@ export function useChessRoom(roomId: string): UseChessRoomReturn {
       const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || `http://${window.location.hostname}:4001`;
       
       socket = io(socketUrl, {
+        auth: {
+          token: userJWT
+        },
+        withCredentials: true,
         reconnection: true,
         reconnectionAttempts: Infinity,
         reconnectionDelay: 500,
@@ -90,7 +94,14 @@ export function useChessRoom(roomId: string): UseChessRoomReturn {
         socket.on('connect', () => {
           console.log('[ChessRoom] Socket connected! ID:', socket.id);
           setIsConnected(true);
-          socket.emit('chess:join_room', roomIdRef.current);
+          const batchId = roomIdRef.current.replace('batch_', '');
+          socket.emit('join_classroom', { batchId });
+        });
+
+        socket.on('access_denied', () => {
+          console.error('[ChessRoom] Access denied to this classroom');
+          setIsConnected(false);
+          setIsReady(false);
         });
 
         socket.on('connect_error', (err) => {

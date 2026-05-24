@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { ClientToServerEvents, ServerToClientEvents } from '@vca/types';
 
-export function useSocket(liveClassId?: string) {
+export function useSocket(liveClassId?: string, userJWT?: string) {
   const socketRef = useRef<Socket<ServerToClientEvents, ClientToServerEvents> | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
@@ -14,6 +14,9 @@ export function useSocket(liveClassId?: string) {
     const initSocket = async () => {
       try {
         const socket = io('http://localhost:4001', {
+          auth: {
+            token: userJWT
+          },
           transports: ['websocket', 'polling'],
           autoConnect: true,
         });
