@@ -63,6 +63,7 @@ export interface ServerToClientEvents {
   "chess:arrows_updated": (data: { nodeId: string; arrows: ArrowData[] }) => void;
   "chess:lock_toggled": (data: { isLocked: boolean }) => void;
   "chess:chat_message": (data: ChatMessage) => void;
+  "access_denied": () => void;
 }
 
 export interface ClientToServerEvents {
@@ -81,6 +82,7 @@ export interface ClientToServerEvents {
   "chess:update_arrows": (data: { roomId: string; nodeId: string; arrows: ArrowData[] }) => void;
   "chess:toggle_lock": (data: { roomId: string; isLocked: boolean }) => void;
   "chess:send_chat": (data: { roomId: string; message: string }) => void;
+  "join_classroom": (data: { batchId: number | string }) => void;
 }
 
 export interface InterServerEvents {}

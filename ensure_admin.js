@@ -2,7 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const { Pool } = require('pg');
 const { PrismaPg } = require('@prisma/adapter-pg');
 const bcrypt = require('bcryptjs');
-require('dotenv').config({ path: 'C:/Users/shrmp/OneDrive/Documents/AntiGravity/chess-app/.env' });
+require('dotenv').config();
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {

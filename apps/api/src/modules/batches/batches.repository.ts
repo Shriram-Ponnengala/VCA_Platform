@@ -1,8 +1,35 @@
 import { prisma } from '@vca/database';
 
 export class BatchesRepository {
-  async findAll() { 
+  async findAll(user?: any) { 
+    if (!user) return [];
+    
+    let where: any = {};
+    
+    if (user.role !== 'ADMIN') {
+      const role = typeof user.role === 'string' ? user.role.toUpperCase() : user.role;
+      
+      if (role === 'COACH') {
+        const coach = await prisma.coach.findUnique({ where: { userId: user.id }});
+        if (coach) {
+          where.coachId = coach.id;
+        } else {
+          where.coachId = 'none';
+        }
+      } else if (role === 'STUDENT') {
+        const student = await prisma.student.findUnique({ where: { userId: user.id }});
+        if (student) {
+          where.enrollments = {
+            some: { studentId: student.id }
+          };
+        } else {
+          where.id = 'none';
+        }
+      }
+    }
+
     return prisma.class.findMany({ 
+      where,
       include: { 
         coach: { include: { user: true } },
         enrollments: { include: { student: { include: { user: true } } } }

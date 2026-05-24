@@ -4,7 +4,7 @@ import { prisma } from '@vca/database';
 const repo = new BatchesRepository();
 
 export class BatchesService {
-  async getAll() { return repo.findAll(); }
+  async getAll(user?: any) { return repo.findAll(user); }
   async getById(id: string) { return repo.findById(id); }
   
   async create(data: any) { 

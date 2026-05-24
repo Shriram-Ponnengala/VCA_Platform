@@ -41,6 +41,7 @@ app.use(cookieParser());
 
 app.use('/api', routes);
 
+console.log("USING DATABASE_URL:", process.env.DATABASE_URL);
 const PORT = Number(process.env.PORT) || 4000;
 const HOST = '0.0.0.0'; // Listen on all network interfaces
 

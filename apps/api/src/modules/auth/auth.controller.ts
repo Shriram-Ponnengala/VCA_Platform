@@ -22,6 +22,7 @@ export class AuthController {
 
       return res.json({ success: true, user: result.user, role: result.role, profile: result.profile });
     } catch (e: any) {
+      console.error("FULL PRISMA ERROR:", e);
       return res.status(400).json({ error: e.message });
     }
   }

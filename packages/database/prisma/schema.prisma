@@ -131,3 +131,19 @@ enum Role {
   COACH
   STUDENT
 }
+
+model Classroom {
+  id         Int             @id @default(autoincrement())
+  batch_id   String
+  status     ClassroomStatus @default(PENDING)
+  stateData  Json?
+  started_at DateTime?
+  ended_at   DateTime?
+  created_at DateTime        @default(now())
+}
+
+enum ClassroomStatus {
+  PENDING
+  ACTIVE
+  ENDED
+}

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Clock, Calendar, CheckCircle } from 'lucide-react';
+import { Users, Clock, Calendar, CheckCircle, Play } from 'lucide-react';
 import { useBatches } from '@/lib/hooks/useBatches';
 import styles from './coach.module.css';
 
@@ -22,6 +22,26 @@ export default function CoachDashboard() {
     { label: 'Active Batches', value: activeBatchesCount.toString(), icon: CheckCircle, color: '#3b82f6' },
     { label: 'Classes Today', value: '2', icon: Calendar, color: '#f59e0b' },
   ];
+
+  const startClassroom = async (batchId: string) => {
+    try {
+      const res = await fetch(`/api/classrooms/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batchId })
+      });
+      const data = await res.json();
+      if (res.ok || data.classroomId) {
+        // Redirect to classroom interface
+        router.push(`/classroom/${batchId}`);
+      } else {
+        alert(data.error || 'Failed to start classroom');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error starting classroom');
+    }
+  };
 
   if (!isLoaded) return <div className={styles.container}>Loading dashboard...</div>;
 
@@ -56,12 +76,20 @@ export default function CoachDashboard() {
                 <h4 className={styles.className}>{batch.name}</h4>
                 <p className={styles.classDetails}>{batch.program} • {batch.students.length} Students</p>
               </div>
-              <button 
-                className={styles.actionBtn}
-                onClick={() => router.push('/dashboard/coach/attendance')}
-              >
-                Mark Attendance
-              </button>
+              <div className={styles.actions}>
+                <button 
+                  className={styles.startClassBtn}
+                  onClick={() => startClassroom(batch.id)}
+                >
+                  <Play size={16} /> Start Classroom
+                </button>
+                <button 
+                  className={styles.actionBtn}
+                  onClick={() => router.push('/dashboard/coach/attendance')}
+                >
+                  Mark Attendance
+                </button>
+              </div>
             </div>
           ))}
           {myBatches.length === 0 && (
