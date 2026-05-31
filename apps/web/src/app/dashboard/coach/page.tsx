@@ -17,10 +17,30 @@ export default function CoachDashboard() {
   const totalStudents = myBatches.reduce((acc, batch) => acc + batch.students.length, 0);
   const activeBatchesCount = myBatches.filter(b => b.status === 'active').length;
 
+  const todayDateStr = new Date().toISOString().split('T')[0];
+  
+  const todaysSessions = myBatches.flatMap(batch => 
+    (batch.sessions || [])
+      .filter((session: any) => {
+        if (!session.date) return false;
+        const sessionDate = new Date(session.date).toISOString().split('T')[0];
+        return sessionDate === todayDateStr;
+      })
+      .map((session: any) => ({
+        batchId: batch.id,
+        sessionId: session.id,
+        className: batch.name,
+        sessionTitle: session.title,
+        startTime: session.startTime,
+        program: batch.program,
+        studentsCount: batch.students?.length || 0,
+      }))
+  );
+
   const stats = [
     { label: 'Total Students', value: totalStudents.toString(), icon: Users, color: '#10b981' },
     { label: 'Active Batches', value: activeBatchesCount.toString(), icon: CheckCircle, color: '#3b82f6' },
-    { label: 'Classes Today', value: '2', icon: Calendar, color: '#f59e0b' },
+    { label: 'Classes Today', value: todaysSessions.length.toString(), icon: Calendar, color: '#f59e0b' },
   ];
 
   const startClassroom = async (batchId: string) => {
@@ -67,33 +87,33 @@ export default function CoachDashboard() {
       <div className={styles.todaySchedule}>
         <h2 className={styles.sectionTitle}>Today's Schedule</h2>
         <div className={styles.scheduleList}>
-          {myBatches.slice(0, 2).map((batch) => (
-            <div key={batch.id} className={styles.scheduleItem}>
+          {todaysSessions.map((session) => (
+            <div key={session.sessionId} className={styles.scheduleItem}>
               <div className={styles.timeInfo}>
-                <span className={styles.time}>{batch.startTime}</span>
+                <span className={styles.time}>{session.startTime}</span>
               </div>
               <div className={styles.classInfo}>
-                <h4 className={styles.className}>{batch.name}</h4>
-                <p className={styles.classDetails}>{batch.program} • {batch.students.length} Students</p>
+                <h4 className={styles.className}>{session.sessionTitle || session.className}</h4>
+                <p className={styles.classDetails}>{session.program} • {session.studentsCount} Students</p>
               </div>
               <div className={styles.actions}>
                 <button 
                   className={styles.startClassBtn}
-                  onClick={() => startClassroom(batch.id)}
+                  onClick={() => startClassroom(session.batchId)}
                 >
                   <Play size={16} /> Start Classroom
                 </button>
                 <button 
                   className={styles.actionBtn}
-                  onClick={() => router.push('/dashboard/coach/attendance')}
+                  onClick={() => router.push(`/dashboard/coach/batches/${session.batchId}`)}
                 >
-                  Mark Attendance
+                  View Details
                 </button>
               </div>
             </div>
           ))}
-          {myBatches.length === 0 && (
-            <p className={styles.emptyText}>No classes scheduled for today.</p>
+          {todaysSessions.length === 0 && (
+            <p className={styles.emptyText}>No sessions created</p>
           )}
         </div>
       </div>

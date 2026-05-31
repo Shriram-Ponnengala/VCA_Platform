@@ -1,0 +1,198 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title {
+  font-family: var(--font-sans);
+  font-size: 1.25rem;
+  color: #3D1A0E;
+  margin: 0;
+  font-weight: 700;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.filterSelect, .searchInput {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #1e293b;
+  outline: none;
+}
+
+.filterSelect:focus, .searchInput:focus {
+  border-color: #3D1A0E;
+}
+
+.createBtn {
+  background-color: #f59e0b; /* From design */
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  gap: 24px;
+}
+
+.dateBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #fafaf9;
+  border-radius: 12px;
+  padding: 12px 16px;
+  min-width: 80px;
+}
+
+.month, .dayOfWeek {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.day {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #3D1A0E;
+  line-height: 1.2;
+}
+
+.info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sessionTitle {
+  margin: 0;
+  font-size: 1.125rem;
+  color: #3D1A0E;
+  font-weight: 700;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.dot {
+  color: #cbd5e1;
+}
+
+.platform {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  color: #475569;
+  font-weight: 500;
+}
+
+.liveDot {
+  width: 6px;
+  height: 6px;
+  background-color: #22c55e;
+  border-radius: 50%;
+}
+
+.statusBlock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 100px;
+}
+
+.statusBadge {
+  padding: 4px 12px;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.statusBadge.upcoming {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.statusBadge.live {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.statusBadge.completed {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.cardActions {
+  display: flex;
+  gap: 8px;
+}
+
+.iconBtn {
+  background: transparent;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.iconBtn:hover {
+  background: #f8fafc;
+  color: #3D1A0E;
+  border-color: #cbd5e1;
+}
+
+.empty {
+  text-align: center;
+  padding: 40px;
+  color: #64748b;
+  background: white;
+  border-radius: 16px;
+  border: 1px dashed #cbd5e1;
+}

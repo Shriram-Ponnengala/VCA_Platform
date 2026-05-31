@@ -1,8 +1,7 @@
 import React from 'react';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
-import { Sidebar } from '@/components/layout/Sidebar';
-import { Breadcrumbs } from '@/components/layout/Breadcrumbs';
+import { DashboardLayoutClient } from '@/components/layout/DashboardLayoutClient';
 import styles from './layout.module.css';
 
 export default async function DashboardLayout({
@@ -15,24 +14,20 @@ export default async function DashboardLayout({
   
   let role: 'ADMIN' | 'COACH' | 'STUDENT' = 'STUDENT';
   let username = 'User';
+  let userId = '';
 
   if (token) {
     const payload = await verifyToken(token);
     if (payload) {
       role = payload.role;
       username = payload.username;
+      userId = payload.id;
     }
   }
 
   return (
-    <div className={styles.layout}>
-      <Sidebar role={role} username={username} />
-      <main className={styles.mainContent}>
-        <div className={styles.pageContent}>
-          <Breadcrumbs />
-          {children}
-        </div>
-      </main>
-    </div>
+    <DashboardLayoutClient role={role} username={username} userId={userId}>
+      {children}
+    </DashboardLayoutClient>
   );
 }

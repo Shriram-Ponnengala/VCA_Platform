@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Mail, Phone, MapPin, Calendar, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import { useCoaches } from '@/lib/hooks/useCoaches';
-import { useBatches, Batch, BatchHistoryRecord, MOCK_STUDENTS } from '@/lib/hooks/useBatches';
+import { useBatches } from '@/lib/hooks/useBatches';
 import { AddCoachModal } from '../AddCoachModal';
 import styles from './coachDetail.module.css';
 
@@ -15,9 +15,7 @@ export default function CoachProfilePage() {
   const { coaches, isLoaded: coachesLoaded, updateCoach, deleteCoach } = useCoaches();
   const { batches, isLoaded: batchesLoaded } = useBatches();
   
-  const [activeTab, setActiveTab] = useState<'overview' | 'history'>('overview');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   const coachId = params.id as string;
   const coach = coaches.find(c => c.id === coachId);
@@ -37,26 +35,6 @@ export default function CoachProfilePage() {
 
   // Derived Data for this coach
   const coachBatches = batches.filter(b => b.coach === coach.name);
-  
-  // Aggregate all history sessions from these batches
-  let allSessions: (BatchHistoryRecord & { batchName: string, type: string, batchId: string })[] = [];
-  coachBatches.forEach(b => {
-    if (b.history) {
-      const batchSessions = b.history.map(h => ({
-        ...h,
-        batchName: b.name,
-        type: b.type,
-        batchId: b.id
-      }));
-      allSessions = [...allSessions, ...batchSessions];
-    }
-  });
-  
-  // Sort sessions newest first
-  allSessions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-  const groupSessionsCount = allSessions.filter(s => s.type === 'Group').length;
-  const oneOnOneSessionsCount = allSessions.filter(s => s.type === 'One-on-One').length;
 
   const handleEditSave = (data: any) => {
     updateCoach(coach.id, data);
@@ -73,11 +51,6 @@ export default function CoachProfilePage() {
         alert('Failed to delete coach. Your storage might be full.');
       }
     }
-  };
-
-  const toggleRow = (id: string) => {
-    if (expandedRow === id) setExpandedRow(null);
-    else setExpandedRow(id);
   };
 
   return (
@@ -133,37 +106,13 @@ export default function CoachProfilePage() {
         </div>
       </div>
 
-      <div className={styles.tabs}>
-        <button 
-          className={`${styles.tab} ${activeTab === 'overview' ? styles.active : ''}`}
-          onClick={() => setActiveTab('overview')}
-        >
-          Overview
-        </button>
-        <button 
-          className={`${styles.tab} ${activeTab === 'history' ? styles.active : ''}`}
-          onClick={() => setActiveTab('history')}
-        >
-          Session History
-        </button>
-      </div>
-
-      {activeTab === 'overview' ? (
-        <div className={styles.tabContent}>
-          <div className={styles.overviewStats}>
-            <div className={styles.statCard}>
-              <span className={styles.statLabel}>Total Classes Taken</span>
-              <span className={styles.statValue}>{allSessions.length}</span>
-            </div>
-            <div className={styles.statCard}>
-              <span className={styles.statLabel}>Group Classes</span>
-              <span className={styles.statValue}>{groupSessionsCount}</span>
-            </div>
-            <div className={styles.statCard}>
-              <span className={styles.statLabel}>One-on-One Classes</span>
-              <span className={styles.statValue}>{oneOnOneSessionsCount}</span>
-            </div>
+      <div className={styles.tabContent}>
+        <div className={styles.overviewStats}>
+          <div className={styles.statCard}>
+            <span className={styles.statLabel}>Total Batches</span>
+            <span className={styles.statValue}>{coachBatches.length}</span>
           </div>
+        </div>
 
           <h3 className={styles.sectionTitle}>Active Batches ({coachBatches.length})</h3>
           <div className={styles.batchList}>
@@ -184,129 +133,6 @@ export default function CoachProfilePage() {
             )}
           </div>
         </div>
-      ) : (
-        <div className={styles.tabContent}>
-          <div className={styles.filterBar}>
-            <div className={styles.filters}>
-              <select className={styles.filterSelect}>
-                <option>All Types</option>
-                <option>Group</option>
-                <option>One-on-One</option>
-              </select>
-              <select className={styles.filterSelect}>
-                <option>All Batches</option>
-                {coachBatches.map(b => (
-                  <option key={b.id}>{b.name}</option>
-                ))}
-              </select>
-            </div>
-            <button className={styles.exportBtn}>Export CSV</button>
-          </div>
-
-          <div className={styles.summaryRow}>
-            <div className={styles.summaryItem}>
-              Total Sessions: <strong>{allSessions.length}</strong>
-            </div>
-            <div className={styles.summaryItem}>
-              Group Sessions: <strong>{groupSessionsCount}</strong>
-            </div>
-            <div className={styles.summaryItem}>
-              One-on-One: <strong>{oneOnOneSessionsCount}</strong>
-            </div>
-          </div>
-
-          <div className={styles.tableWrapper}>
-            {allSessions.length === 0 ? (
-              <div className={styles.emptyState}>
-                <Clock size={48} className={styles.emptyStateIcon} />
-                <h3 className={styles.emptyStateTitle}>No sessions recorded yet</h3>
-                <p className={styles.emptyStateSub}>Sessions will appear here once attendance is marked</p>
-              </div>
-            ) : (
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>DATE</th>
-                    <th>DAY</th>
-                    <th>BATCH NAME</th>
-                    <th>TYPE</th>
-                    <th>STUDENTS PRESENT</th>
-                    <th>STATUS</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allSessions.map(session => (
-                    <React.Fragment key={session.id}>
-                      <tr className={styles.tableRow} onClick={() => toggleRow(session.id)}>
-                        <td>{new Date(session.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
-                        <td>{session.day}</td>
-                        <td>
-                          <button 
-                            className={styles.batchLink}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/dashboard/admin/batches/${session.batchId || 'b1'}`);
-                            }}
-                          >
-                            {session.batchName}
-                          </button>
-                        </td>
-                        <td>
-                          <span className={`${styles.typeBadge} ${session.type === 'Group' ? styles.group : styles.oneonone}`}>
-                            {session.type}
-                          </span>
-                        </td>
-                        <td>{session.presentCount} / {session.totalCount}</td>
-                        <td>
-                          <span className={`${styles.statusBadge} ${styles[session.status]}`}>
-                            {session.status}
-                          </span>
-                        </td>
-                        <td style={{ width: '40px' }}>
-                          {expandedRow === session.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                        </td>
-                      </tr>
-                      {expandedRow === session.id && (
-                        <tr className={styles.expandedRow}>
-                          <td colSpan={7}>
-                            <div className={styles.expandedContent}>
-                              <div className={styles.expandedSection}>
-                                <h4>Present</h4>
-                                <div className={styles.studentPillList}>
-                                  {session.attendanceRecords.filter(r => r.status === 'present').map(r => {
-                                    const studentName = MOCK_STUDENTS.find(s => s.id === r.studentId)?.name || r.studentId;
-                                    return (
-                                      <span key={r.studentId} className={`${styles.studentPill} ${styles.present}`}>{studentName}</span>
-                                    );
-                                  })}
-                                  {session.attendanceRecords.filter(r => r.status === 'present').length === 0 && <span>None</span>}
-                                </div>
-                              </div>
-                              <div className={styles.expandedSection}>
-                                <h4>Absent</h4>
-                                <div className={styles.studentPillList}>
-                                  {session.attendanceRecords.filter(r => r.status === 'absent').map(r => {
-                                    const studentName = MOCK_STUDENTS.find(s => s.id === r.studentId)?.name || r.studentId;
-                                    return (
-                                      <span key={r.studentId} className={`${styles.studentPill} ${styles.absent}`}>{studentName}</span>
-                                    );
-                                  })}
-                                  {session.attendanceRecords.filter(r => r.status === 'absent').length === 0 && <span>None</span>}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-      )}
 
       <AddCoachModal 
         isOpen={isEditModalOpen} 

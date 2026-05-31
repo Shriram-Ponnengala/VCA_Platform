@@ -6,6 +6,8 @@ import programRoutes from './modules/programs/programs.route';
 import attendanceRoutes from './modules/attendance/attendance.route';
 import setupRoutes from './modules/setup/setup.route';
 import classroomRoutes from './modules/classroom/classroom.route';
+import sessionRoutes from './modules/sessions/sessions.route';
+import settingsRoutes from './modules/settings/settings.route';
 
 const router = Router();
 
@@ -16,5 +18,7 @@ router.use('/programs', programRoutes);
 router.use('/attendance', attendanceRoutes);
 router.use('/setup', setupRoutes);
 router.use('/classrooms', classroomRoutes);
+router.use('/sessions', sessionRoutes);
+router.use('/settings', settingsRoutes);
 
 export default router;

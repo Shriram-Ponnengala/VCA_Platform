@@ -15,7 +15,6 @@ export default function StudentProfilePage() {
   const { students, isLoaded: studentsLoaded, updateStudent, deleteStudent } = useStudents();
   const { batches, isLoaded: batchesLoaded } = useBatches();
   
-  const [activeTab, setActiveTab] = useState<'overview' | 'attendance'>('overview');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const studentId = params.id as string;
@@ -36,36 +35,6 @@ export default function StudentProfilePage() {
 
   // Derived Data for this student
   const studentBatches = batches.filter(b => b.students.includes(student.id));
-  
-  // Calculate attendance stats
-  let totalSessions = 0;
-  let presentCount = 0;
-  let absentCount = 0;
-  
-  const attendanceHistory: any[] = [];
-
-  studentBatches.forEach(b => {
-    if (b.history) {
-      b.history.forEach(h => {
-        const record = h.attendanceRecords.find(r => r.studentId === student.id);
-        if (record) {
-          totalSessions++;
-          if (record.status === 'present') presentCount++;
-          else if (record.status === 'absent') absentCount++;
-          
-          attendanceHistory.push({
-            id: h.id,
-            date: h.date,
-            batchName: b.name,
-            status: record.status,
-            type: b.type
-          });
-        }
-      });
-    }
-  });
-
-  const attendanceRate = totalSessions > 0 ? Math.round((presentCount / totalSessions) * 100) : 0;
 
   const handleEditSave = (data: any) => {
     updateStudent(student.id, data);
@@ -134,37 +103,13 @@ export default function StudentProfilePage() {
         </div>
       </div>
 
-      <div className={styles.tabs}>
-        <button 
-          className={`${styles.tab} ${activeTab === 'overview' ? styles.active : ''}`}
-          onClick={() => setActiveTab('overview')}
-        >
-          Overview
-        </button>
-        <button 
-          className={`${styles.tab} ${activeTab === 'attendance' ? styles.active : ''}`}
-          onClick={() => setActiveTab('attendance')}
-        >
-          Attendance
-        </button>
-      </div>
-
-      {activeTab === 'overview' ? (
-        <div className={styles.tabContent}>
-          <div className={styles.overviewStats}>
-            <div className={styles.statCard}>
-              <span className={styles.statLabel}>Attendance Rate</span>
-              <span className={styles.statValue}>{attendanceRate}%</span>
-            </div>
-            <div className={styles.statCard}>
-              <span className={styles.statLabel}>Classes Attended</span>
-              <span className={styles.statValue}>{presentCount}</span>
-            </div>
-            <div className={styles.statCard}>
-              <span className={styles.statLabel}>Total Batches</span>
-              <span className={styles.statValue}>{studentBatches.length}</span>
-            </div>
+      <div className={styles.tabContent}>
+        <div className={styles.overviewStats}>
+          <div className={styles.statCard}>
+            <span className={styles.statLabel}>Total Batches</span>
+            <span className={styles.statValue}>{studentBatches.length}</span>
           </div>
+        </div>
 
           <h3 className={styles.sectionTitle}>Enrolled Batches ({studentBatches.length})</h3>
           <div className={styles.batchList}>
@@ -185,22 +130,6 @@ export default function StudentProfilePage() {
             )}
           </div>
         </div>
-      ) : (
-        <div className={styles.tabContent}>
-          {attendanceHistory.length === 0 ? (
-            <div className={styles.emptyState}>
-              <Clock size={48} className={styles.emptyStateIcon} />
-              <h3 className={styles.emptyStateTitle}>No attendance records found</h3>
-              <p className={styles.emptyStateSub}>Records will appear here once attendance is marked in batches.</p>
-            </div>
-          ) : (
-            <div className={styles.attendanceTable}>
-              {/* Similar to coach session history table if needed, for now just a list or empty state */}
-              <p>Detailed attendance logs coming soon.</p>
-            </div>
-          )}
-        </div>
-      )}
 
       <AddStudentModal 
         isOpen={isEditModalOpen} 

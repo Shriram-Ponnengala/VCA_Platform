@@ -297,14 +297,14 @@
 }
 
 .previewPrimary {
-  background-color: var(--primary) !important;
-  color: white !important;
+  background-color: var(--primary);
+  color: white;
 }
 
 .previewSecondary {
-  border: 1px solid var(--cream) !important;
-  background-color: white !important;
-  color: var(--primary) !important;
+  border: 1px solid var(--cream);
+  background-color: white;
+  color: var(--primary);
 }
 
 .activeDay {
@@ -349,3 +349,76 @@
   from { opacity: 0; transform: translate(-50%, -20px); }
   to { opacity: 1; transform: translate(-50%, 0); }
 }
+
+.avatarSection {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.avatarPreview {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  overflow: hidden;
+  background-color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--cream);
+}
+
+.avatarImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatarPlaceholder {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.avatarActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.uploadBtn {
+  background-color: var(--primary);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: opacity 0.2s;
+}
+
+.uploadBtn:hover {
+  opacity: 0.9;
+}
+
+.removePhotoBtn {
+  background: transparent;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.removePhotoBtn:hover {
+  background-color: #f8fafc;
+  color: #ef4444;
+  border-color: #fca5a5;
+}
+

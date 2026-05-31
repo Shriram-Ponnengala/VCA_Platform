@@ -36,4 +36,28 @@ export class BatchesController {
   async delete(req: Request, res: Response) { try { res.json(await service.delete(req.params.id as string)); } catch (e:any) { res.status(500).json({ error: e.message }); } }
   async enrollStudent(req: Request, res: Response) { try { res.json(await service.enroll(req.params.id as string, req.body.studentId)); } catch (e:any) { res.status(500).json({ error: e.message }); } }
   async unenrollStudent(req: Request, res: Response) { try { res.json(await service.unenroll(req.params.id as string, req.body.studentId)); } catch (e:any) { res.status(500).json({ error: e.message }); } }
+  
+  async markAttendance(req: Request, res: Response) {
+    try {
+      const token = req.cookies['auth-token'];
+      let user = null;
+      if (token) {
+        try {
+          const { payload } = await jose.jwtVerify(token, JWT_SECRET);
+          user = payload;
+        } catch (e) {}
+      }
+      res.json(await service.markAttendance(req.params.id as string, req.body, user));
+    } catch (e:any) {
+      res.status(500).json({ error: e.message });
+    }
+  }
+
+  async rescheduleClass(req: Request, res: Response) {
+    try {
+      res.json(await service.rescheduleClass(req.params.id as string, req.body));
+    } catch (e:any) {
+      res.status(500).json({ error: e.message });
+    }
+  }
 }

@@ -56,3 +56,23 @@
   margin-top: 1rem;
   justify-content: center;
 }
+
+.showPasswordContainer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: -0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+}
+
+.checkbox {
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.showPasswordContainer label {
+  cursor: pointer;
+  user-select: none;
+}

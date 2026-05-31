@@ -51,24 +51,55 @@ export default function SettingsPage() {
   });
 
   useEffect(() => {
-    const storedProfile = localStorage.getItem('vca_settings_profile');
-    const storedAccount = localStorage.getItem('vca_settings_account');
-    const storedScheduling = localStorage.getItem('vca_settings_scheduling');
-    const storedBranding = localStorage.getItem('vca_settings_branding');
+    const loadSettings = async () => {
+      let loadedProfile = false;
+      let loadedAccount = false;
+      let loadedScheduling = false;
+      let loadedBranding = false;
+
+      try {
+        const [resProfile, resAccount, resScheduling, resBranding] = await Promise.all([
+          fetch('/api/settings/profile', { cache: 'no-store' }).catch(() => null),
+          fetch('/api/settings/account', { cache: 'no-store' }).catch(() => null),
+          fetch('/api/settings/scheduling', { cache: 'no-store' }).catch(() => null),
+          fetch('/api/settings/branding', { cache: 'no-store' }).catch(() => null)
+        ]);
+        
+        if (resProfile?.ok) { const data = await resProfile.json(); if (data) { setProfile(data); loadedProfile = true; } }
+        if (resAccount?.ok) { const data = await resAccount.json(); if (data) { setAccount(data); loadedAccount = true; } }
+        if (resScheduling?.ok) { const data = await resScheduling.json(); if (data) { setScheduling(data); loadedScheduling = true; } }
+        if (resBranding?.ok) { const data = await resBranding.json(); if (data) { setBranding(data); loadedBranding = true; } }
+      } catch (e) {
+        console.error('Failed to load global settings', e);
+      }
+      
+      if (!loadedProfile) { const stored = localStorage.getItem('vca_settings_profile'); if (stored) setProfile(JSON.parse(stored)); }
+      if (!loadedAccount) { const stored = localStorage.getItem('vca_settings_account'); if (stored) setAccount(JSON.parse(stored)); }
+      if (!loadedScheduling) { const stored = localStorage.getItem('vca_settings_scheduling'); if (stored) setScheduling(JSON.parse(stored)); }
+      if (!loadedBranding) { const stored = localStorage.getItem('vca_settings_branding'); if (stored) setBranding(JSON.parse(stored)); }
+    };
     
-    if (storedProfile) setProfile(JSON.parse(storedProfile));
-    if (storedAccount) setAccount(JSON.parse(storedAccount));
-    if (storedScheduling) setScheduling(JSON.parse(storedScheduling));
-    if (storedBranding) setBranding(JSON.parse(storedBranding));
+    loadSettings();
   }, []);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     localStorage.setItem('vca_settings_profile', JSON.stringify(profile));
     localStorage.setItem('vca_settings_account', JSON.stringify(account));
     localStorage.setItem('vca_settings_scheduling', JSON.stringify(scheduling));
     localStorage.setItem('vca_settings_branding', JSON.stringify(branding));
     
-    // Dispatch event to update globally immediately
+    try {
+      await Promise.all([
+        fetch('/api/settings/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(profile) }),
+        fetch('/api/settings/account', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(account) }),
+        fetch('/api/settings/scheduling', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(scheduling) }),
+        fetch('/api/settings/branding', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(branding) })
+      ]);
+    } catch (e) {
+      console.error('Failed to save settings globally', e);
+    }
+    
+    // Dispatch event to update globally immediately in current window
     window.dispatchEvent(new Event('vca-branding-updated'));
     
     setToastMessage('Settings saved successfully!');
@@ -293,6 +324,13 @@ export default function SettingsPage() {
                           <option>DM Sans (Default)</option>
                           <option>Playfair Display</option>
                           <option>Montserrat</option>
+                          <option>Open Sans</option>
+                          <option>Oleo Script</option>
+                          <option>Lato</option>
+                          <option>Merriweather</option>
+                          <option>Nunito</option>
+                          <option>Poppins</option>
+                          <option>Roboto</option>
                         </select>
                       </div>
                       <div className={styles.fieldGroup}>
@@ -305,6 +343,10 @@ export default function SettingsPage() {
                           <option>Inter (Default)</option>
                           <option>Poppins</option>
                           <option>Roboto</option>
+                          <option>Open Sans</option>
+                          <option>Lato</option>
+                          <option>Merriweather</option>
+                          <option>Nunito</option>
                         </select>
                       </div>
                     </div>
@@ -320,7 +362,13 @@ export default function SettingsPage() {
                       </p>
                       <div className={styles.previewButtons}>
                         <Button className={styles.previewPrimary} style={{ background: branding.primaryColor }}>Primary Button</Button>
-                        <Button variant="secondary" className={styles.previewSecondary}>Secondary</Button>
+                        <Button 
+                          variant="secondary" 
+                          className={styles.previewSecondary}
+                          style={{ color: branding.primaryColor, borderColor: branding.primaryColor }}
+                        >
+                          Secondary
+                        </Button>
                       </div>
                     </div>
                   </div>

@@ -6,18 +6,16 @@ import { ArrowLeft, User, BookOpen, Plus, X as XIcon, ClipboardCheck } from 'luc
 import { useBatches } from '@/lib/hooks/useBatches';
 import { useStudents } from '@/lib/hooks/useStudents';
 import { BatchModal } from '../BatchModal';
-import { MarkAttendanceModal } from './MarkAttendanceModal';
 import { ConfirmModal } from '@vca/ui';
 import styles from './batchDetail.module.css';
 
 export default function BatchDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { batches, isLoaded, updateBatch, deleteBatch, enrollStudent, unenrollStudent, addHistoryRecord } = useBatches();
+  const { batches, isLoaded, updateBatch, deleteBatch, enrollStudent, unenrollStudent } = useBatches();
   const { students: allStudents, isLoaded: studentsLoaded } = useStudents();
   
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isMarkAttendanceOpen, setIsMarkAttendanceOpen] = useState(false);
   const [isAddStudentMode, setIsAddStudentMode] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState('');
@@ -81,17 +79,6 @@ export default function BatchDetailPage() {
     }
   };
 
-  const handleSaveAttendance = (date: string, day: string, records: { studentId: string; status: 'present' | 'absent' | 'makeup' }[]) => {
-    const presentCount = records.filter(r => r.status === 'present').length;
-    addHistoryRecord(batch.id, {
-      date,
-      day,
-      presentCount,
-      totalCount: records.length,
-      status: 'completed',
-      attendanceRecords: records
-    });
-  };
 
   return (
     <div className={styles.container}>
@@ -117,9 +104,6 @@ export default function BatchDetailPage() {
           </div>
         </div>
         <div className={styles.actions}>
-          <button className={styles.markAttBtn} onClick={() => setIsMarkAttendanceOpen(true)}>
-            Mark Attendance
-          </button>
           <button className={styles.editBtn} onClick={() => setIsEditModalOpen(true)}>Edit Batch</button>
           <button className={styles.deleteBtn} onClick={handleDelete}>Delete</button>
         </div>
@@ -206,36 +190,6 @@ export default function BatchDetailPage() {
             )}
           </section>
 
-          {/* Section 2: History */}
-          <section className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitle}>History</h2>
-            </div>
-            {batch.history && batch.history.length > 0 ? (
-              <table className={styles.historyTable}>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Day</th>
-                    <th>Students Present</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {batch.history.map(record => (
-                    <tr key={record.id} className={styles.historyRow}>
-                      <td>{record.date}</td>
-                      <td>{record.day}</td>
-                      <td>{record.presentCount}/{record.totalCount}</td>
-                      <td style={{ textTransform: 'capitalize' }}>{record.status}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className={styles.emptyState}>No classes conducted yet</div>
-            )}
-          </section>
         </div>
 
         {/* Right Column: Schedule Details */}
@@ -271,13 +225,6 @@ export default function BatchDetailPage() {
         onClose={() => setIsEditModalOpen(false)}
         onSave={handleEditSave}
         initialData={batch}
-      />
-
-      <MarkAttendanceModal
-        isOpen={isMarkAttendanceOpen}
-        onClose={() => setIsMarkAttendanceOpen(false)}
-        students={enrolledStudents}
-        onSave={handleSaveAttendance}
       />
 
       <ConfirmModal 

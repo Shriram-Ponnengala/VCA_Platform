@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { Award } from 'lucide-react';
 import { useBatches } from '@/lib/hooks/useBatches';
+import { StudentBatchSessions } from './StudentBatchSessions';
 import styles from './student.module.css';
 
 export default function StudentDashboard() {
@@ -39,26 +40,31 @@ export default function StudentDashboard() {
         <h2 className={styles.sectionTitle}>My Classes</h2>
         <div className={styles.classList}>
           {batches.map(batch => (
-            <div key={batch.id} className={styles.classCard} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
+            <div key={batch.id} className={styles.classCard} style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h4>{batch.name}</h4>
                 <p>{batch.coach} • {batch.startTime}</p>
               </div>
-              <button 
-                onClick={() => router.push(`/classroom/${batch.id}`)}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#3b82f6',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  fontSize: '0.875rem'
-                }}
-              >
-                Join Classroom
-              </button>
+              
+              <StudentBatchSessions batchId={batch.id} />
+              
+              <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
+                <button 
+                  onClick={() => router.push(`/classroom/${batch.id}`)}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#3b82f6',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  Join Classroom
+                </button>
+              </div>
             </div>
           ))}
           {batches.length === 0 && <p className={styles.emptyText}>You are not enrolled in any classes.</p>}

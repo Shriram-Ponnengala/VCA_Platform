@@ -51,6 +51,7 @@ model Student {
 
   attendance   Attendance[]
   enrollments  Enrollment[]
+  makeovers    Makeover[]
 }
 
 model Coach {
@@ -80,6 +81,10 @@ model Class {
   coach        Coach?       @relation(fields: [coachId], references: [id], onDelete: Cascade)
   attendance   Attendance[]
   enrollments  Enrollment[]
+  sessionOverrides ClassSessionOverride[]
+  originalMakeovers Makeover[] @relation("OriginalClass")
+  targetMakeovers   Makeover[] @relation("TargetClass")
+  sessions          Session[]
 }
 
 model Enrollment {
@@ -146,4 +151,66 @@ enum ClassroomStatus {
   PENDING
   ACTIVE
   ENDED
+}
+
+model ClassSessionOverride {
+  id           String   @id @default(uuid())
+  classId      String
+  class        Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  originalDate DateTime @db.Date
+  newDate      DateTime @db.Date
+  newStartTime String?
+  newEndTime   String?
+  status       String   @default("RESCHEDULED") // "RESCHEDULED", "CANCELLED"
+  reason       String?
+  createdAt    DateTime @default(now())
+
+  @@unique([classId, originalDate])
+}
+
+model Makeover {
+  id               String   @id @default(uuid())
+  studentId        String
+  student          Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  originalClassId  String
+  originalClass    Class    @relation("OriginalClass", fields: [originalClassId], references: [id], onDelete: Cascade)
+  originalDate     DateTime @db.Date
+  
+  targetClassId    String?
+  targetClass      Class?   @relation("TargetClass", fields: [targetClassId], references: [id], onDelete: Cascade)
+  targetDate       DateTime? @db.Date
+  
+  status           String   @default("PENDING") // PENDING, SCHEDULED, COMPLETED, CANCELLED
+  coachId          String?  
+  assignedByAdmin  Boolean  @default(false)
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Session {
+  id          String   @id @default(uuid())
+  title       String
+  date        DateTime @db.Date
+  startTime   String
+  endTime     String
+  duration    Int
+  platform    String
+  meetingLink String?
+  description String?
+  status      String   @default("Upcoming") // Upcoming, Live, Completed, Cancelled
+  
+  classId     String
+  class       Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  
+  agenda      Json?
+  attachments Json?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SystemSetting {
+  key   String @id
+  data  Json
 }

@@ -10,6 +10,7 @@
   top: 0;
   z-index: 50;
   border-right: 1px solid rgba(85, 30, 25, 0.05);
+  transition: width 0.3s ease, padding 0.3s ease;
 }
 
 .logoSection {
@@ -23,13 +24,9 @@
 .logoImage {
   width: 44px;
   height: 44px;
-  border-radius: var(--radius);
-  overflow: hidden;
-  background: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
 }
 
 .logoText {
@@ -39,19 +36,39 @@
 
 .venture {
   font-family: var(--font-serif);
-  font-size: 1.35rem;
-  font-weight: 700;
+  font-size: 2.2rem;
+  font-weight: 400;
   color: var(--sidebar-foreground);
-  line-height: 1;
+  line-height: 0.9;
+  letter-spacing: -0.02em;
 }
 
 .chess {
-  font-size: 0.75rem;
-  letter-spacing: 0.15em;
-  font-weight: 600;
-  color: #7c6d62;
+  font-size: 0.5rem;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: var(--sidebar-foreground);
+  opacity: 0.9;
   text-transform: uppercase;
-  margin-top: 2px;
+  margin-top: 4px;
+}
+
+.menuButton {
+  background: transparent;
+  border: none;
+  color: var(--sidebar-foreground);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+  margin-right: 4px;
+}
+
+.menuButton:hover {
+  opacity: 1;
 }
 
 .nav {
@@ -97,7 +114,7 @@
 }
 
 .signOut {
-  margin-top: auto;
+  margin-top: 0;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -115,4 +132,90 @@
 .signOut:hover {
   background-color: rgba(255, 255, 255, 0.4);
   opacity: 1;
+}
+
+.sidebarFooter {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background-color: rgba(255, 255, 255, 0.4);
+}
+
+.userAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid white;
+}
+
+.userAvatarPlaceholder {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.2rem;
+  border: 2px solid white;
+}
+
+.usernameText {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--sidebar-foreground);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar.collapsed {
+  width: 80px;
+  padding: 40px 12px;
+}
+
+.sidebar.collapsed .logoImage,
+.sidebar.collapsed .logoText,
+.sidebar.collapsed .navItem span,
+.sidebar.collapsed .usernameText,
+.sidebar.collapsed .signOut span {
+  display: none;
+}
+
+.sidebar.collapsed .logoSection {
+  padding-left: 0;
+  justify-content: center;
+  gap: 0;
+}
+
+.sidebar.collapsed .menuButton {
+  margin-right: 0;
+}
+
+.sidebar.collapsed .navItem {
+  justify-content: center;
+  padding: 14px;
+}
+
+.sidebar.collapsed .userInfo {
+  padding: 12px;
+  justify-content: center;
+}
+
+.sidebar.collapsed .signOut {
+  justify-content: center;
+  padding: 14px;
 }

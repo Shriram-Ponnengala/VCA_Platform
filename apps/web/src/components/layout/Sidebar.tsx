@@ -4,13 +4,17 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
+  Home,
   LayoutDashboard, 
   BookOpen, 
   Users, 
   GraduationCap, 
-  Layers, 
   Settings, 
-  LogOut
+  LogOut,
+  Calendar,
+  Zap,
+  Menu,
+  UserCog
 } from 'lucide-react';
 import Image from 'next/image';
 import styles from './Sidebar.module.css';
@@ -18,31 +22,47 @@ import styles from './Sidebar.module.css';
 interface SidebarProps {
   role: 'ADMIN' | 'COACH' | 'STUDENT';
   username: string;
+  userId?: string;
+  isCollapsed?: boolean;
+  onToggle?: () => void;
 }
 
-export function Sidebar({ role, username }: SidebarProps) {
+export function Sidebar({ role, username, userId, isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const [profilePhoto, setProfilePhoto] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (userId) {
+      fetch(`/api/users/${userId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.profilePhoto) {
+            setProfilePhoto(data.profilePhoto);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [userId]);
 
   const adminLinks = [
-    { name: 'Dashboard', href: '/dashboard/admin', icon: LayoutDashboard },
+    { name: 'Dashboard', href: '/dashboard/admin', icon: Home },
     { name: 'Programs', href: '/dashboard/admin/programs', icon: BookOpen },
-    { name: 'Students', href: '/dashboard/admin/students', icon: Users },
-    { name: 'Coaches', href: '/dashboard/admin/coaches', icon: GraduationCap },
-    { name: 'Batches', href: '/dashboard/admin/batches', icon: Layers },
-    { name: 'Users', href: '/dashboard/admin/users', icon: Users },
-    { name: 'Chess Test', href: '/chess-test', icon: Layers },
+    { name: 'Batches', href: '/dashboard/admin/batches', icon: Calendar },
+    { name: 'Class Test', href: '/chess-test', icon: Zap },
+    { name: 'Students', href: '/dashboard/admin/students', icon: GraduationCap },
+    { name: 'Coaches', href: '/dashboard/admin/coaches', icon: Users },
+    { name: 'Users', href: '/dashboard/admin/users', icon: UserCog },
     { name: 'Settings', href: '/dashboard/admin/settings', icon: Settings },
   ];
 
   const coachLinks = [
-    { name: 'Dashboard', href: '/dashboard/coach', icon: LayoutDashboard },
-    { name: 'Attendance', href: '/dashboard/coach/attendance', icon: Users },
+    { name: 'Dashboard', href: '/dashboard/coach', icon: Home },
+    { name: 'Batches', href: '/dashboard/coach/batches', icon: Calendar },
     { name: 'Settings', href: '/dashboard/coach/settings', icon: Settings },
   ];
 
   const studentLinks = [
     { name: 'Dashboard', href: '/dashboard/student', icon: LayoutDashboard },
-    { name: 'Attendance', href: '/dashboard/student/attendance', icon: Users },
   ];
 
   const safeRole = role ? role.toUpperCase() : 'STUDENT';
@@ -59,20 +79,23 @@ export function Sidebar({ role, username }: SidebarProps) {
   };
 
   return (
-    <aside className={styles.sidebar}>
+    <aside className={`${styles.sidebar} ${isCollapsed ? styles.collapsed : ''}`}>
       <div className={styles.logoSection}>
+        <button className={styles.menuButton} onClick={onToggle}>
+          <Menu size={28} strokeWidth={1.5} />
+        </button>
         <div className={styles.logoImage}>
           <Image 
             src="/vca_logo.png" 
             alt="VCA Logo" 
-            width={40} 
-            height={40} 
+            width={44} 
+            height={44} 
             className={styles.avatar}
           />
         </div>
         <div className={styles.logoText}>
-          <span className={styles.venture}>Venture</span>
-          <span className={styles.chess}>CHESS</span>
+          <span className={styles.venture}>VCA</span>
+          <span className={styles.chess}>VENTURE CHESS ACADEMY</span>
         </div>
       </div>
 
@@ -94,10 +117,22 @@ export function Sidebar({ role, username }: SidebarProps) {
         })}
       </nav>
 
-      <button className={styles.signOut} onClick={handleLogout}>
-        <LogOut size={20} />
-        <span>Sign Out</span>
-      </button>
+      <div className={styles.sidebarFooter}>
+        <div className={styles.userInfo}>
+          {profilePhoto ? (
+            <img src={profilePhoto} alt="Profile" className={styles.userAvatar} />
+          ) : (
+            <div className={styles.userAvatarPlaceholder}>
+              {username?.[0]?.toUpperCase() || 'U'}
+            </div>
+          )}
+          <span className={styles.usernameText}>{username}</span>
+        </div>
+        <button className={styles.signOut} onClick={handleLogout}>
+          <LogOut size={20} />
+          <span>Sign Out</span>
+        </button>
+      </div>
     </aside>
   );
 }
