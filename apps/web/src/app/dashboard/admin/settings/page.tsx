@@ -49,7 +49,9 @@ export default function SettingsPage() {
     bodyFont: 'Inter (Default)',
     primaryColor: '#551e19',
     boardTheme: 'brown',
-    pieceTheme: 'cburnett'
+    pieceTheme: 'cburnett',
+    boardFrameColor: '#FDF0E4',
+    boardFramePadding: 10
   });
 
   useEffect(() => {
@@ -78,7 +80,9 @@ export default function SettingsPage() {
               bodyFont: data.bodyFont || 'Inter (Default)',
               primaryColor: data.primaryColor || '#551e19',
               boardTheme: data.boardTheme || 'brown',
-              pieceTheme: data.pieceTheme || 'cburnett'
+              pieceTheme: data.pieceTheme || 'cburnett',
+              boardFrameColor: data.boardFrameColor || '#FDF0E4',
+              boardFramePadding: data.boardFramePadding ?? 10
             });
             loadedBranding = true;
           }
@@ -100,7 +104,9 @@ export default function SettingsPage() {
               bodyFont: data.bodyFont || 'Inter (Default)',
               primaryColor: data.primaryColor || '#551e19',
               boardTheme: data.boardTheme || 'brown',
-              pieceTheme: data.pieceTheme || 'cburnett'
+              pieceTheme: data.pieceTheme || 'cburnett',
+              boardFrameColor: data.boardFrameColor || '#FDF0E4',
+              boardFramePadding: data.boardFramePadding ?? 10
             });
           } catch (e) {}
         }
@@ -408,10 +414,84 @@ export default function SettingsPage() {
                     <Layout size={18} /> Chess Board & Pieces
                   </h3>
                   <div className={styles.chessSettingsGrid}>
-                    {/* Left side: Board Theme Selection */}
+
+                    {/* Board Frame Customization */}
+                    <div className={styles.frameSettingsSection}>
+                      <h4 className={styles.frameSectionTitle}>🖼️ Board Frame</h4>
+                      <div className={styles.frameSettingsRow}>
+                        
+                        {/* Frame Color */}
+                        <div className={styles.frameColorGroup}>
+                          <label className={styles.frameSubLabel}>Frame Color</label>
+                          <div className={styles.frameColorGrid}>
+                            {[
+                              { id: '#5C4033', name: 'Walnut Brown' },
+                              { id: '#3B2A22', name: 'Espresso' },
+                              { id: '#A67C52', name: 'Oak' },
+                              { id: '#4B5563', name: 'Slate' },
+                              { id: '#1F2937', name: 'Charcoal' },
+                              { id: '#FDF0E4', name: 'Cream' },
+                              { id: '#2D4A6B', name: 'Navy' },
+                              { id: '#C8854A', name: 'Caramel' },
+                              { id: '#355E3B', name: 'Forest Green' },
+                              { id: '#6B2C3A', name: 'Burgundy' },
+                            ].map(fc => (
+                              <div
+                                key={fc.id}
+                                className={`${styles.frameColorItem} ${branding.boardFrameColor === fc.id ? styles.activeFrameColor : ''}`}
+                                onClick={() => setBranding({ ...branding, boardFrameColor: fc.id })}
+                                title={fc.name}
+                              >
+                                <div className={styles.frameColorSwatch} style={{ backgroundColor: fc.id }} />
+                                <span className={styles.frameColorName}>{fc.name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Frame Padding + Preview */}
+                        <div className={styles.framePaddingGroup}>
+                          <label className={styles.frameSubLabel}>Frame Padding</label>
+                          <div className={styles.sliderRow}>
+                            <input
+                              type="range"
+                              min={0}
+                              max={32}
+                              step={2}
+                              value={branding.boardFramePadding}
+                              onChange={(e) => setBranding({ ...branding, boardFramePadding: Number(e.target.value) })}
+                              className={styles.paddingSlider}
+                            />
+                            <span className={styles.paddingValue}>{branding.boardFramePadding}px</span>
+                          </div>
+                          {/* Live mini-preview */}
+                          <div className={styles.framePreviewLabel}>Preview</div>
+                          <div 
+                            className={styles.frameMiniPreview}
+                            style={{
+                              backgroundColor: branding.boardFrameColor,
+                              padding: `${branding.boardFramePadding}px`,
+                            }}
+                          >
+                            <div className={styles.frameMiniBoard}>
+                              {[0,1,2,3].map(i => (
+                                <div key={i} style={{
+                                  backgroundColor: i % 2 === 0 ? '#eedcd0' : '#c8854a',
+                                  width: '100%', height: '100%'
+                                }} />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+
+                    {/* Board Theme Selection */}
                     <div className={styles.fieldGroup}>
                       <label>Chess Board Color Theme</label>
                       
+
                       {/* Classic Flat Themes */}
                       <div className={styles.themeCategory}>
                         <span className={styles.themeCategoryLabel}>🎨 Classic</span>

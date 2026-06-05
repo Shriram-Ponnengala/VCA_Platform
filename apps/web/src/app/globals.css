@@ -104,6 +104,15 @@ button {
     transparent 0
   );
   --board-size: 25% 25%;
+  /* Board frame customization */
+  --board-frame-color: #FDF0E4;
+  --board-frame-padding: 10px;
+}
+
+/* Apply frame color + padding to the board wrapper globally */
+.board-wrapper {
+  background-color: var(--board-frame-color) !important;
+  padding: var(--board-frame-padding) !important;
 }
 
 .board-wrapper cg-board {
@@ -111,6 +120,7 @@ button {
   background-image: var(--board-image) !important;
   background-size: var(--board-size) !important;
 }
+
 
 .board-wrapper piece.pawn.white { background-image: var(--piece-wp, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wP.svg')) !important; }
 .board-wrapper piece.bishop.white { background-image: var(--piece-wb, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wB.svg')) !important; }

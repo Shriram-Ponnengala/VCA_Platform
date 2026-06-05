@@ -320,9 +320,8 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ isLocked = false }) => {
           border-radius: 8px;
           overflow: hidden;
           box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
-          border: 4px solid rgba(255, 255, 255, 0.08);
-          padding: 8px;
           box-sizing: border-box;
+          /* frame color & padding come from --board-frame-color / --board-frame-padding via globals.css */
         }
         .resize-handle {
           position: absolute;

@@ -100,6 +100,15 @@ export default function BrandingProvider() {
             `url(https://lichess1.org/assets/_L5MIdy/piece/${pTheme}/${p}.svg)`
           );
         });
+
+        // Apply board frame color & padding
+        if (branding.boardFrameColor) {
+          document.documentElement.style.setProperty('--board-frame-color', branding.boardFrameColor);
+        }
+        if (branding.boardFramePadding !== undefined && branding.boardFramePadding !== null) {
+          document.documentElement.style.setProperty('--board-frame-padding', `${branding.boardFramePadding}px`);
+        }
+
       } catch (e) {
         console.error('Failed to apply branding settings', e);
       }
