@@ -3,12 +3,12 @@ import { MoveNode } from '@vca/types';
 import { Plus, User, MapPin, Calendar, PlayCircle, CheckCircle, Award, Box, Clock, XCircle, Tag } from 'lucide-react';
 
 const MOVE_EVALS = [
-  { symbol: '!!', label: 'Brilliant', colorVar: 'var(--nag-brilliant, #1baba4)' },
-  { symbol: '!', label: 'Good', colorVar: 'var(--nag-good, #96b92a)' },
-  { symbol: '!?', label: 'Interesting', colorVar: 'var(--nag-interesting, #f1a91e)' },
-  { symbol: '?!', label: 'Dubious', colorVar: 'var(--nag-dubious, #ee6b24)' },
-  { symbol: '?', label: 'Mistake', colorVar: 'var(--nag-mistake, #df5353)' },
-  { symbol: '??', label: 'Blunder', colorVar: 'var(--nag-blunder, #ba3529)' }
+  { symbol: '!!', label: 'Brilliant',         desc: 'An exceptional move that is hard to find.',           bg: 'radial-gradient(circle at 38% 38%, #8b5cf6, #6d28d9)', color: '#7c3aed' },
+  { symbol: '!',  label: 'Good Move',          desc: 'A solid move that improves your position.',            bg: 'radial-gradient(circle at 38% 38%, #34d399, #059669)', color: '#059669' },
+  { symbol: '!?', label: 'Interesting',        desc: 'A creative move that merits attention.',               bg: 'radial-gradient(circle at 38% 38%, #60a5fa, #2563eb)', color: '#2563eb' },
+  { symbol: '?!', label: 'Dubious Move',       desc: 'A move that looks risky and may not be best.',        bg: 'radial-gradient(circle at 38% 38%, #fcd34d, #d97706)', color: '#b45309' },
+  { symbol: '?',  label: 'Mistake',            desc: 'Gives your opponent an advantage.',                    bg: 'radial-gradient(circle at 38% 38%, #fb923c, #ea580c)', color: '#c2410c' },
+  { symbol: '??', label: 'Blunder',            desc: 'A serious mistake leading to a losing position.',      bg: 'radial-gradient(circle at 38% 38%, #f87171, #dc2626)', color: '#dc2626' },
 ];
 
 const POS_EVALS = [
@@ -297,25 +297,28 @@ export const AnnotationsPanel: React.FC<AnnotationsPanelProps> = ({
                   <div className="ap-nags-grid">
                     {MOVE_EVALS.map(g => {
                       const isActive = hasGlyph(g.symbol);
+                      const isLong = g.symbol.length > 1;
                       return (
                         <button
                           key={g.symbol}
-                          className={`ap-nag-btn ${isActive ? 'active' : ''}`}
+                          className={`ap-nag-card ${isActive ? 'active' : ''}`}
                           onClick={() => toggleGlyph(g.symbol)}
                           disabled={!isCoach}
                           title={g.label}
-                          style={isActive ? { 
-                            backgroundColor: `${g.colorVar.replace(')', ', 0.15)').replace('var(', 'rgba(')}`, 
-                            borderColor: `${g.colorVar.replace(')', ', 0.4)').replace('var(', 'rgba(')}`,
-                          } : {}}
+                          style={isActive ? { borderColor: g.color, backgroundColor: `${g.color}12` } : {}}
                         >
-                          <span 
-                            className="ap-nag-symbol" 
-                            style={isActive ? { color: g.colorVar } : {}}
+                          <div
+                            className="ap-nag-circle"
+                            style={{ background: g.bg }}
                           >
-                            {g.symbol}
-                          </span>
-                          <span className="ap-nag-label">{g.label}</span>
+                            <span className="ap-nag-sym" style={{ fontSize: isLong ? '13px' : '17px' }}>
+                              {g.symbol}
+                            </span>
+                          </div>
+                          <div className="ap-nag-text">
+                            <span className="ap-nag-name" style={isActive ? { color: g.color } : {}}>{g.label}</span>
+                            <span className="ap-nag-desc">{g.desc}</span>
+                          </div>
                         </button>
                       );
                     })}
@@ -563,7 +566,7 @@ export const AnnotationsPanel: React.FC<AnnotationsPanelProps> = ({
           font-size: 0.9rem;
         }
 
-        /* ANNOTATIONS TAB */
+        /* ANNOTATIONS TAB – NAG Cards */
         .ap-annotations-container {
           display: flex;
           flex-direction: column;
@@ -587,10 +590,88 @@ export const AnnotationsPanel: React.FC<AnnotationsPanelProps> = ({
           padding-bottom: 4px;
         }
 
+        /* Move eval cards – full width list */
         .ap-nags-grid {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .ap-nag-card {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          background: #ffffff;
+          border: 1.5px solid #eedcd0;
+          border-radius: 10px;
+          padding: 8px 12px;
+          cursor: pointer;
+          text-align: left;
+          transition: all 0.15s ease;
+          width: 100%;
+          font-family: inherit;
+        }
+
+        .ap-nag-card:hover:not(:disabled) {
+          background: #fdf5ea;
+          transform: translateX(2px);
+        }
+
+        .ap-nag-card:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
+        }
+
+        .ap-nag-card.active {
+          border-width: 1.5px;
+        }
+
+        .ap-nag-circle {
+          width: 38px;
+          height: 38px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .ap-nag-sym {
+          font-weight: 900;
+          color: #fff;
+          letter-spacing: -0.5px;
+          font-family: "Inter", "Segoe UI", sans-serif;
+          text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+          line-height: 1;
+        }
+
+        .ap-nag-text {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          flex: 1;
+          min-width: 0;
+        }
+
+        .ap-nag-name {
+          font-size: 0.88rem;
+          font-weight: 700;
+          color: #3a1a0a;
+          line-height: 1.2;
+        }
+
+        .ap-nag-desc {
+          font-size: 0.72rem;
+          color: rgba(74, 32, 24, 0.55);
+          line-height: 1.3;
+        }
+
+        /* Position evals – smaller 3-col grid */
+        .ap-nags-grid-pos {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
-          gap: 8px;
+          gap: 6px;
         }
 
         .ap-nag-btn {
@@ -605,6 +686,7 @@ export const AnnotationsPanel: React.FC<AnnotationsPanelProps> = ({
           justify-content: center;
           gap: 4px;
           transition: all 0.1s;
+          font-family: inherit;
         }
 
         .ap-nag-btn:hover:not(:disabled) {
