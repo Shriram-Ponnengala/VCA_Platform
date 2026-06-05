@@ -114,14 +114,25 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
     document.addEventListener('touchend', handleResizeEnd);
   }, [handleResizeMove, handleResizeEnd]);
 
+  // ── Scroll to navigate moves ──────────────────────────────────────────────
   useEffect(() => {
-    return () => {
-      document.removeEventListener('mousemove', handleResizeMove);
-      document.removeEventListener('mouseup', handleResizeEnd);
-      document.removeEventListener('touchmove', handleResizeMove);
-      document.removeEventListener('touchend', handleResizeEnd);
+    const boardEl = containerRef.current?.closest('.board-wrapper') as HTMLElement | null;
+    if (!boardEl) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (e.deltaY > 0) {
+        // scroll down → next move
+        onNext?.();
+      } else {
+        // scroll up → prev move
+        onPrev?.();
+      }
     };
-  }, [handleResizeMove, handleResizeEnd]);
+
+    boardEl.addEventListener('wheel', handleWheel, { passive: false });
+    return () => boardEl.removeEventListener('wheel', handleWheel);
+  }, [onNext, onPrev]);
 
   // Refs to avoid stale closures in the event listener
   const currentIndexRef = useRef(currentIndex);
@@ -1019,8 +1030,8 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
         /* New grouped tools menu */
         .tools-menu {
           position: absolute;
-          bottom: calc(100% + 8px);
-          left: 0;
+          bottom: calc(100% + 10px);
+          right: 0;
           z-index: 600;
           display: flex;
           flex-direction: column;
@@ -1029,12 +1040,13 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           background: #ffffff;
           border: 1px solid #e8ddd5;
           box-shadow: 0 20px 40px -8px rgba(74, 32, 24, 0.18), 0 8px 16px -4px rgba(74, 32, 24, 0.08);
-          min-width: 240px;
+          min-width: 260px;
           overflow: hidden;
           animation: menuIn 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
+          transform-origin: bottom right;
         }
         @keyframes menuIn {
-          from { opacity: 0; transform: translateY(6px) scale(0.97); }
+          from { opacity: 0; transform: translateY(8px) scale(0.96); }
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
         .tools-menu-header {
