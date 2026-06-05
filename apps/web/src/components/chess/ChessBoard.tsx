@@ -4,7 +4,7 @@ import { Chess, Move } from 'chess.js';
 import type { Api } from 'chessground/api';
 import type { Config } from 'chessground/config';
 import type { Key } from 'chessground/types';
-import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, RefreshCw, Eraser, RotateCcw, MoreHorizontal, Lock, LayoutGrid, Copy, FileText, Eye, EyeOff, ArrowUpRight, Square, Pen } from 'lucide-react';
+import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, RefreshCw, Eraser, RotateCcw, MoreHorizontal, Lock, LayoutGrid, Copy, FileText, Eye, EyeOff, ArrowUpRight, Square, Pen, Wrench, ChevronDown } from 'lucide-react';
 import type { ArrowData, MoveNode } from '@vca/types';
 import { VariationData } from './VariationChooser';
 import { NagBadge } from './NagBadge';
@@ -737,44 +737,67 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           </>
         )}
         <div className="controls">
+
+          {/* Left group: Undo / Redo / Clear — icon + label */}
           <div className="tools-group">
-            <button onClick={() => setOrientation(o => o === 'white' ? 'black' : 'white')} className="btn-icon" title="Flip Board">
-              <RefreshCw size={20} />
+            <button
+              onClick={() => setOrientation(o => o === 'white' ? 'black' : 'white')}
+              className="btn-labeled"
+              title="Undo / Flip"
+            >
+              <RotateCcw size={19} />
+              <span className="btn-label">Undo</span>
             </button>
-            
+
             {onReset && (
-              <button onClick={onReset} className="btn-icon" title="Reset Board">
-                <RotateCcw size={20} />
+              <button onClick={onReset} className="btn-labeled" title="Redo / Reset">
+                <RefreshCw size={19} />
+                <span className="btn-label">Redo</span>
               </button>
             )}
-            
+
             {onClearArrows && (
-              <button onClick={onClearArrows} className="btn-icon" title="Clear Arrows">
-                <Eraser size={20} />
+              <button onClick={onClearArrows} className="btn-labeled" title="Clear">
+                <Eraser size={19} />
+                <span className="btn-label">Clear</span>
               </button>
             )}
-            
-            {onMoreTools && (
-              <button 
-                onClick={() => setShowToolsMenu(prev => !prev)} 
-                className={`btn-icon btn-tools ${(showToolsMenu || isHighlightMode || isArrowMode || isFreehand) ? 'active' : ''}`} 
-                title="Tools"
-              >
-                <MoreHorizontal size={16} />
-                <span className="btn-tools-label">Tools</span>
-              </button>
-            )}
+
             <div className="control-separator" />
           </div>
-          
+
+          {/* Centre: nav buttons — each with its own card */}
           <div className="nav-group">
-            <button onClick={onStart} className="btn-icon" title="Starting Position" disabled={!canPrev}><ChevronsLeft size={20} /></button>
-            <button onClick={onPrev} className="btn-icon" title="Previous Move" disabled={!canPrev}><ChevronLeft size={20} /></button>
-            <button onClick={onNext} className="btn-icon" title="Next Move" disabled={!canNext}><ChevronRight size={20} /></button>
-            <button onClick={onEnd} className="btn-icon" title="Final Position" disabled={!canNext}><ChevronsRight size={20} /></button>
+            <button onClick={onStart} className="btn-nav-card" title="First Move" disabled={!canPrev}>
+              <ChevronsLeft size={20} />
+            </button>
+            <button onClick={onPrev} className="btn-nav-card" title="Previous Move" disabled={!canPrev}>
+              <ChevronLeft size={20} />
+            </button>
+            <button onClick={onNext} className="btn-nav-card" title="Next Move" disabled={!canNext}>
+              <ChevronRight size={20} />
+            </button>
+            <button onClick={onEnd} className="btn-nav-card" title="Last Move" disabled={!canNext}>
+              <ChevronsRight size={20} />
+            </button>
           </div>
-          
-          <div className="controls-right-spacer" />
+
+          {/* Right: Tools button */}
+          <div className="tools-right">
+            <div className="control-separator" />
+            {onMoreTools && (
+              <button
+                onClick={() => setShowToolsMenu(prev => !prev)}
+                className={`btn-tools-new ${(showToolsMenu || isHighlightMode || isArrowMode || isFreehand) ? 'active' : ''}`}
+                title="Tools"
+              >
+                <Wrench size={16} className="tools-wrench" />
+                <span className="btn-tools-label">Tools</span>
+                <ChevronDown size={14} className={`tools-chevron ${showToolsMenu ? 'open' : ''}`} />
+              </button>
+            )}
+          </div>
+
         </div>
         {showSetupModal && (
           <SetupPositionModal
@@ -839,30 +862,132 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
         }
         .controls {
           display: grid;
-          grid-template-columns: 1fr auto 1fr;
+          grid-template-columns: auto 1fr auto;
           align-items: center;
-          background: rgba(30, 41, 59, 0.7);
-          padding: 0.5rem;
-          border-radius: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: #2a3547;
+          padding: 0.6rem 0.75rem;
+          border-radius: 16px;
+          border: 1px solid rgba(255, 255, 255, 0.06);
           width: 100%;
           box-sizing: border-box;
-        }
-        .controls-right-spacer {
-          display: block;
-        }
-        .nav-group {
-          display: flex;
-          gap: 0.5rem;
-          justify-content: center;
-          align-items: center;
+          gap: 0;
         }
         .tools-group {
           display: flex;
-          gap: 0.5rem;
+          gap: 0;
           justify-content: flex-start;
           align-items: center;
         }
+        .tools-right {
+          display: flex;
+          gap: 0;
+          justify-content: flex-end;
+          align-items: center;
+        }
+        .nav-group {
+          display: flex;
+          gap: 6px;
+          justify-content: center;
+          align-items: center;
+        }
+        /* Labeled buttons: Undo / Redo / Clear */
+        .btn-labeled {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 3px;
+          padding: 6px 14px;
+          background: transparent;
+          color: rgba(255,255,255,0.75);
+          border: none;
+          border-radius: 10px;
+          cursor: pointer;
+          transition: all 0.18s ease;
+          font-family: inherit;
+          min-width: 52px;
+        }
+        .btn-labeled:hover:not(:disabled) {
+          background: rgba(255,255,255,0.08);
+          color: #fff;
+        }
+        .btn-labeled:disabled {
+          opacity: 0.3;
+          cursor: not-allowed;
+        }
+        .btn-label {
+          font-size: 0.68rem;
+          font-weight: 500;
+          letter-spacing: 0.01em;
+          line-height: 1;
+        }
+        /* Nav card buttons */
+        .btn-nav-card {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 40px;
+          height: 40px;
+          background: rgba(255,255,255,0.08);
+          color: rgba(255,255,255,0.85);
+          border: none;
+          border-radius: 10px;
+          cursor: pointer;
+          transition: all 0.18s ease;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+        }
+        .btn-nav-card:hover:not(:disabled) {
+          background: rgba(255,255,255,0.15);
+          color: #fff;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        .btn-nav-card:disabled {
+          opacity: 0.25;
+          cursor: not-allowed;
+          transform: none;
+          box-shadow: none;
+        }
+        /* Tools button (right side) */
+        .btn-tools-new {
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          gap: 5px;
+          padding: 7px 14px;
+          background: transparent;
+          color: rgba(255,255,255,0.8);
+          border: none;
+          border-radius: 10px;
+          cursor: pointer;
+          transition: all 0.18s ease;
+          font-family: inherit;
+          font-size: 0.82rem;
+          font-weight: 600;
+        }
+        .btn-tools-new:hover {
+          background: rgba(255,255,255,0.08);
+          color: #fff;
+        }
+        .btn-tools-new.active {
+          background: rgba(200,133,74,0.18);
+          color: #c8854a;
+        }
+        .btn-tools-new .tools-wrench {
+          color: #c8854a;
+          flex-shrink: 0;
+        }
+        .btn-tools-new .btn-tools-label {
+          font-family: inherit;
+        }
+        .btn-tools-new .tools-chevron {
+          transition: transform 0.2s ease;
+          opacity: 0.7;
+        }
+        .btn-tools-new .tools-chevron.open {
+          transform: rotate(180deg);
+        }
+        /* keep btn-icon for any remaining usages */
         .btn-icon {
           padding: 0.4rem 0.75rem;
           background: transparent;
@@ -876,34 +1001,14 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           justify-content: center;
           gap: 5px;
         }
-        .btn-icon:hover:not(:disabled), .btn-icon.active {
-          background: rgba(255, 255, 255, 0.1);
-          color: #c8854a;
-        }
-        .btn-icon:disabled {
-          opacity: 0.3;
-          cursor: not-allowed;
-        }
-        .btn-tools {
-          padding: 0.4rem 0.9rem;
-          font-size: 0.82rem;
-          font-weight: 600;
-          letter-spacing: 0.01em;
-          gap: 5px;
-        }
-        .btn-tools.active {
-          background: rgba(200, 133, 74, 0.2) !important;
-          color: #c8854a !important;
-          border: 1px solid rgba(200, 133, 74, 0.35);
-        }
-        .btn-tools-label {
-          font-family: inherit;
-        }
+        .btn-icon:hover:not(:disabled) { background: rgba(255,255,255,0.1); color: #c8854a; }
+        .btn-icon:disabled { opacity: 0.3; cursor: not-allowed; }
         .control-separator {
           width: 1px;
-          background: rgba(255, 255, 255, 0.15);
-          margin: 0.25rem 0.25rem;
-          height: 1.5rem;
+          background: rgba(255, 255, 255, 0.12);
+          margin: 0 8px;
+          height: 28px;
+          align-self: center;
         }
         .tools-menu-backdrop {
           position: fixed;

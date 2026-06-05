@@ -337,24 +337,6 @@ export default function ClassroomPage() {
     <div className="page-wrapper">
       <div className="app-container">
 
-        {/* ── Header ── */}
-        <header className="header">
-          <div className="logo">
-            <Zap size={28} className="text-primary" fill="currentColor" />
-            <h1>VCA Chess</h1>
-            <div className={`conn-badge ${isConnected ? 'connected' : 'disconnected'}`}>
-              {isConnected ? <Wifi size={14} /> : <WifiOff size={14} />}
-              <span>{isConnected ? (isReady ? 'Live' : 'Syncing…') : 'Offline'}</span>
-            </div>
-          </div>
-          <div className="header-right">
-            <div className="room-badge">
-              <Users size={14} />
-              <span>Room: {ROOM_ID}</span>
-            </div>
-          </div>
-        </header>
-
         {/* ── Main layout ── */}
         <main className="main-content">
           <section className="board-section">
