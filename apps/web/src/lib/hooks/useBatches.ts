@@ -17,6 +17,7 @@ export interface Batch {
   studentDetails: { id: string; name: string }[];
   status: 'active' | 'inactive';
   sessions?: any[];
+  history?: any[];
 }
 
 const INITIAL_BATCHES: Batch[] = [
@@ -60,7 +61,20 @@ export function useBatches() {
   const fetchBatches = async () => {
     try {
       const res = await fetch('/api/batches');
-      if (!res.ok) throw new Error('Failed to fetch batches');
+      
+      const contentType = res.headers.get('content-type');
+      if (!res.ok) {
+        if (contentType && contentType.includes('application/json')) {
+          const errData = await res.json();
+          throw new Error(errData.error || 'Failed to fetch batches');
+        }
+        throw new Error(`Server returned ${res.status}: API might be down or restarting`);
+      }
+
+      if (!contentType || !contentType.includes('application/json')) {
+         throw new Error('Received non-JSON response from server. API might be restarting.');
+      }
+      
       const data = await res.json();
       const mapped = data.map((b: any) => ({
         ...b,

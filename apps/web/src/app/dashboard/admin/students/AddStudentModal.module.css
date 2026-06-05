@@ -58,7 +58,7 @@
 
 .closeBtn:hover {
   background: #f1f5f9;
-  color: #1e293b;
+  color: #4a2018;
 }
 
 .content {
@@ -197,7 +197,7 @@
   border-radius: 12px;
   border: 1px solid #e2e8f0;
   font-size: 0.9375rem;
-  color: #1e293b;
+  color: #4a2018;
   background-color: white;
   transition: border-color 0.2s;
   width: 100%;
@@ -274,7 +274,7 @@
 
 .cancelBtn:hover {
   background-color: #f1f5f9;
-  color: #1e293b;
+  color: #4a2018;
 }
 
 .saveBtn {

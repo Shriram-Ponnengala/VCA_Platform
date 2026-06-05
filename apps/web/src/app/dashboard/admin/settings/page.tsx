@@ -47,7 +47,9 @@ export default function SettingsPage() {
   const [branding, setBranding] = useState({
     headingFont: 'DM Sans (Default)',
     bodyFont: 'Inter (Default)',
-    primaryColor: '#551e19'
+    primaryColor: '#551e19',
+    boardTheme: 'brown',
+    pieceTheme: 'cburnett'
   });
 
   useEffect(() => {
@@ -68,7 +70,19 @@ export default function SettingsPage() {
         if (resProfile?.ok) { const data = await resProfile.json(); if (data) { setProfile(data); loadedProfile = true; } }
         if (resAccount?.ok) { const data = await resAccount.json(); if (data) { setAccount(data); loadedAccount = true; } }
         if (resScheduling?.ok) { const data = await resScheduling.json(); if (data) { setScheduling(data); loadedScheduling = true; } }
-        if (resBranding?.ok) { const data = await resBranding.json(); if (data) { setBranding(data); loadedBranding = true; } }
+        if (resBranding?.ok) {
+          const data = await resBranding.json();
+          if (data) {
+            setBranding({
+              headingFont: data.headingFont || 'DM Sans (Default)',
+              bodyFont: data.bodyFont || 'Inter (Default)',
+              primaryColor: data.primaryColor || '#551e19',
+              boardTheme: data.boardTheme || 'brown',
+              pieceTheme: data.pieceTheme || 'cburnett'
+            });
+            loadedBranding = true;
+          }
+        }
       } catch (e) {
         console.error('Failed to load global settings', e);
       }
@@ -76,7 +90,21 @@ export default function SettingsPage() {
       if (!loadedProfile) { const stored = localStorage.getItem('vca_settings_profile'); if (stored) setProfile(JSON.parse(stored)); }
       if (!loadedAccount) { const stored = localStorage.getItem('vca_settings_account'); if (stored) setAccount(JSON.parse(stored)); }
       if (!loadedScheduling) { const stored = localStorage.getItem('vca_settings_scheduling'); if (stored) setScheduling(JSON.parse(stored)); }
-      if (!loadedBranding) { const stored = localStorage.getItem('vca_settings_branding'); if (stored) setBranding(JSON.parse(stored)); }
+      if (!loadedBranding) {
+        const stored = localStorage.getItem('vca_settings_branding');
+        if (stored) {
+          try {
+            const data = JSON.parse(stored);
+            setBranding({
+              headingFont: data.headingFont || 'DM Sans (Default)',
+              bodyFont: data.bodyFont || 'Inter (Default)',
+              primaryColor: data.primaryColor || '#551e19',
+              boardTheme: data.boardTheme || 'brown',
+              pieceTheme: data.pieceTheme || 'cburnett'
+            });
+          } catch (e) {}
+        }
+      }
     };
     
     loadSettings();
@@ -303,7 +331,7 @@ export default function SettingsPage() {
                       <div className={styles.fieldGroup}>
                         <label>PRIMARY BRAND COLOR</label>
                         <div className={styles.colorGrid}>
-                          {['#551e19', '#3D1A0E', '#2563eb', '#10b981', '#f59e0b'].map(color => (
+                          {['#551e19', '#3D1A0E', '#2d4a6b', '#10b981', '#f59e0b'].map(color => (
                             <div 
                               key={color}
                               className={`${styles.colorItem} ${branding.primaryColor === color ? styles.activeColor : ''}`}
@@ -373,6 +401,73 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Chess Board & Pieces Card */}
+                <div className={styles.chessSettingsCard}>
+                  <h3 className={styles.cardTitle}>
+                    <Layout size={18} /> Chess Board & Pieces
+                  </h3>
+                  <div className={styles.chessSettingsGrid}>
+                    {/* Left side: Board Theme Selection */}
+                    <div className={styles.fieldGroup}>
+                      <label>Chess Board Color Theme</label>
+                      <div className={styles.boardThemeGrid}>
+                        {[
+                          { id: 'brown', name: 'classic', light: '#eedcd0', dark: '#c8854a' },
+                          { id: 'blue', name: 'blue', light: '#dee3e6', dark: '#8ca2ad' },
+                          { id: 'green', name: 'green', light: '#ffffdd', dark: '#86a666' },
+                          { id: 'purple', name: 'purple', light: '#d2c3db', dark: '#887295' },
+                          { id: 'olive', name: 'olive', light: '#e0e0c0', dark: '#809070' },
+                          { id: 'grey', name: 'grey', light: '#e3e3e3', dark: '#a6a6a6' },
+                          { id: 'wood', name: 'wood', light: '#e9d3b4', dark: '#a06a42' },
+                          { id: 'pink', name: 'pink', light: '#fdf5ea', dark: '#e47070' },
+                        ].map(theme => (
+                          <div 
+                            key={theme.id}
+                            className={`${styles.boardThemeItem} ${branding.boardTheme === theme.id ? styles.activeBoard : ''}`}
+                            onClick={() => setBranding({ ...branding, boardTheme: theme.id })}
+                          >
+                            <div className={styles.boardPreviewBox}>
+                              <div style={{ backgroundColor: theme.light }} />
+                              <div style={{ backgroundColor: theme.dark }} />
+                              <div style={{ backgroundColor: theme.dark }} />
+                              <div style={{ backgroundColor: theme.light }} />
+                            </div>
+                            <span className={styles.boardName}>{theme.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Right side: Piece Selection */}
+                    <div className={styles.fieldGroup}>
+                      <label>Chess Piece Style</label>
+                      <div className={styles.pieceStyleGrid}>
+                        {[
+                          { id: 'cburnett', name: 'cburnett' },
+                          { id: 'merida', name: 'merida' },
+                          { id: 'alpha', name: 'alpha' },
+                          { id: 'staunty', name: 'staunty' },
+                          { id: 'pixel', name: 'pixel' },
+                          { id: 'letter', name: 'letter' },
+                        ].map(pieceSet => (
+                          <div 
+                            key={pieceSet.id}
+                            className={`${styles.pieceItem} ${branding.pieceTheme === pieceSet.id ? styles.activePiece : ''}`}
+                            onClick={() => setBranding({ ...branding, pieceTheme: pieceSet.id })}
+                          >
+                            <div 
+                              className={styles.piecePreview} 
+                              style={{ backgroundImage: `url(https://lichess1.org/assets/_L5MIdy/piece/${pieceSet.id}/wN.svg)` }} 
+                            />
+                            <span className={styles.pieceName}>{pieceSet.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
               </div>
             </div>
           )}

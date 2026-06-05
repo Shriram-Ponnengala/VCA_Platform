@@ -27,6 +27,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} ${playfair.variable} ${dmSans.variable} ${montserrat.variable} ${poppins.variable} ${roboto.variable} ${openSans.variable} ${oleoScript.variable} ${lato.variable} ${merriweather.variable} ${nunito.variable}`}>
+      <head>
+        <link
+          id="branding-css-link"
+          rel="stylesheet"
+          href="/api/settings/branding/css"
+        />
+      </head>
       <body suppressHydrationWarning>
         <BrandingProvider />
         {children}

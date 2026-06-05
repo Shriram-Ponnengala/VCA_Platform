@@ -34,7 +34,14 @@ export function Sidebar({ role, username, userId, isCollapsed, onToggle }: Sideb
   React.useEffect(() => {
     if (userId) {
       fetch(`/api/users/${userId}`)
-        .then(res => res.json())
+        .then(async (res) => {
+          if (!res.ok) return null;
+          const contentType = res.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            return res.json();
+          }
+          return null;
+        })
         .then(data => {
           if (data && data.profilePhoto) {
             setProfilePhoto(data.profilePhoto);
@@ -48,7 +55,7 @@ export function Sidebar({ role, username, userId, isCollapsed, onToggle }: Sideb
     { name: 'Dashboard', href: '/dashboard/admin', icon: Home },
     { name: 'Programs', href: '/dashboard/admin/programs', icon: BookOpen },
     { name: 'Batches', href: '/dashboard/admin/batches', icon: Calendar },
-    { name: 'Class Test', href: '/chess-test', icon: Zap },
+    { name: 'Classroom', href: '/classroom', icon: Zap },
     { name: 'Students', href: '/dashboard/admin/students', icon: GraduationCap },
     { name: 'Coaches', href: '/dashboard/admin/coaches', icon: Users },
     { name: 'Users', href: '/dashboard/admin/users', icon: UserCog },
@@ -58,11 +65,14 @@ export function Sidebar({ role, username, userId, isCollapsed, onToggle }: Sideb
   const coachLinks = [
     { name: 'Dashboard', href: '/dashboard/coach', icon: Home },
     { name: 'Batches', href: '/dashboard/coach/batches', icon: Calendar },
+    { name: 'Classroom', href: '/classroom', icon: Zap },
     { name: 'Settings', href: '/dashboard/coach/settings', icon: Settings },
   ];
 
   const studentLinks = [
     { name: 'Dashboard', href: '/dashboard/student', icon: LayoutDashboard },
+    { name: 'My Batch', href: '/dashboard/student/batches', icon: Calendar },
+    { name: 'Settings', href: '/dashboard/student/settings', icon: Settings },
   ];
 
   const safeRole = role ? role.toUpperCase() : 'STUDENT';

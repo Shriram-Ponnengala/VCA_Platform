@@ -1,187 +1,402 @@
 .container {
-  padding: 24px;
+  padding: 40px;
+  background: #fafafb;
+  min-height: calc(100vh - 80px);
+  font-family: 'Inter', sans-serif;
 }
 
-.statsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 24px;
+.welcomeSection {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 32px;
 }
 
-.statCard {
+.welcomeText {
+  display: flex;
+  flex-direction: column;
+}
+
+.welcomeTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1a1b2f;
+  margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.welcomeSubtitle {
+  color: #6b7280;
+  font-size: 1rem;
+  margin: 0;
+}
+
+.illustration {
+  width: 150px;
+  height: auto;
+}
+
+.statsRow {
+  display: flex;
   background: white;
+  border-radius: 12px;
   padding: 24px;
-  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 40px;
+  align-items: center;
+  justify-content: space-around;
+  border: 1px solid #f3f4f6;
+}
+
+.statItem {
   display: flex;
   align-items: center;
   gap: 16px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  border: 1px solid #f1f5f9;
+  padding: 0 24px;
+  flex: 1;
 }
 
-.statIcon {
+.statItem:not(:last-child) {
+  border-right: 1px solid #e5e7eb;
+}
+
+.statIconWrapper {
   width: 48px;
   height: 48px;
-  border-radius: 12px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
+.statInfo {
+  display: flex;
+  flex-direction: column;
+}
+
 .statLabel {
-  color: #64748b;
+  color: #6b7280;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  margin: 0 0 4px 0;
+}
+
+.statValue {
+  color: #111827;
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 24px;
+}
+
+.sectionTitleBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sectionTitle {
+  color: #4a2018;
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sectionDate {
+  color: #6b7280;
   font-size: 0.875rem;
   margin: 0;
 }
 
-.statValue {
-  color: #1e293b;
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 4px 0 0 0;
-}
-
-.mainGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-}
-
-.sectionTitle {
-  color: #1e293b;
-  font-size: 1.25rem;
+.viewAll {
+  color: #e67e22;
+  font-size: 0.875rem;
   font-weight: 600;
-  margin-bottom: 24px;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.classList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 40px;
 }
 
 .classCard {
   background: white;
-  padding: 20px;
-  border-radius: 16px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid #f3f4f6;
   display: flex;
-  gap: 20px;
-  align-items: center;
+  overflow: hidden;
+  position: relative;
 }
 
-.classDate {
+.cardLeft {
+  width: 140px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  background: #f1f5f9;
-  padding: 12px;
-  border-radius: 12px;
-  min-width: 64px;
+  border-right: 1px solid #f3f4f6;
+  position: relative;
 }
 
-.day {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #64748b;
+.cardLeft.live {
+  border-left: 4px solid #10b981;
 }
 
-.date {
-  font-size: 1.25rem;
+.cardLeft.scheduled {
+  border-left: 4px solid #3b82f6;
+}
+
+.statusBadge {
+  font-size: 0.65rem;
   font-weight: 700;
-  color: #1e293b;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-bottom: 12px;
+  letter-spacing: 0.05em;
+  width: fit-content;
 }
 
-.classDetails {
+.statusBadge.live {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.statusBadge.scheduled {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.time {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+}
+
+.time.live {
+  color: #059669;
+}
+
+.time.scheduled {
+  color: #2563eb;
+}
+
+.timeSub {
+  font-size: 0.75rem;
+  margin: 0 0 8px 0;
+}
+
+.timeSub.live {
+  color: #059669;
+}
+
+.timeSub.scheduled {
+  color: #2563eb;
+}
+
+.clockIcon {
+  color: #9ca3af;
+  margin-top: auto;
+}
+
+.cardMiddle {
+  padding: 24px;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .className {
-  margin: 0;
   font-size: 1.125rem;
-  color: #1e293b;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 8px 0;
 }
 
-.classInfo {
-  margin: 4px 0 8px 0;
+.coachName {
   font-size: 0.875rem;
-  color: #64748b;
-}
-
-.classStatus {
-  display: inline-block;
-  background: #dcfce7;
-  color: #166534;
-  padding: 2px 10px;
-  border-radius: 99px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.recentMaterials {
-  background: white;
-  padding: 24px;
-  border-radius: 16px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  border: 1px solid #f1f5f9;
-}
-
-.materialList {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.materialItem {
+  color: #4b5563;
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #f1f5f9;
+  gap: 6px;
+  margin: 0 0 16px 0;
 }
 
-.materialIcon {
-  width: 40px;
-  height: 40px;
-  background: #f1f5f9;
-  border-radius: 10px;
+.tags {
+  display: flex;
+  gap: 8px;
+}
+
+.tag {
+  background: #f3f4f6;
+  color: #4b5563;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.tag.green {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.tag.blue {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.cardRight {
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  border-left: 1px solid #f3f4f6;
+}
+
+.scheduleInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.scheduleItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #111827;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.scheduleIcon {
+  color: #6b7280;
+}
+
+.cardActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 140px;
+}
+
+.btnLive {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #64748b;
+  gap: 8px;
 }
 
-.materialContent {
-  flex: 1;
-}
-
-.materialTitle {
-  margin: 0;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.materialMeta {
-  font-size: 0.75rem;
-  color: #94a3b8;
-}
-
-.viewBtn {
-  background: transparent;
-  color: var(--primary);
-  border: 1px solid var(--primary);
-  padding: 6px 12px;
+.btnDetails {
+  background: white;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+  padding: 10px 16px;
   border-radius: 6px;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  text-align: center;
 }
 
-.viewBtn:hover {
-  background: var(--primary);
-  color: white;
+.btnView {
+  background: #eff6ff;
+  color: #2563eb;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
-@media (max-width: 768px) {
-  .mainGrid {
-    grid-template-columns: 1fr;
-  }
+.banner {
+  background: #fff8f1;
+  border: 1px solid #ffedd5;
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bannerLeft {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.targetIcon {
+  width: 48px;
+  height: 48px;
+  background: #ffedd5;
+  color: #e67e22;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bannerText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bannerTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #4a2018;
+  margin: 0;
+}
+
+.bannerSub {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.btnPractice {
+  background: white;
+  color: #e67e22;
+  border: 1px solid #e67e22;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }

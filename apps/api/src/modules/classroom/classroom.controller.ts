@@ -139,11 +139,17 @@ export class ClassroomController {
 
       // Call realtime server to destroy room and disconnect users
       try {
-        await fetch(`http://socket:4001/internal/end-room`, {
+        const response = await fetch(`http://socket:4001/internal/end-room`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ batchId: batchIdStr })
+          body: JSON.stringify({ 
+            batchId: batchIdStr,
+            classroomId: existingClassroom.id
+          })
         });
+        if (!response.ok) {
+          console.error(`Realtime server responded with status: ${response.status}`);
+        }
       } catch (e) {
         console.error('Failed to notify realtime server to end room:', e);
       }

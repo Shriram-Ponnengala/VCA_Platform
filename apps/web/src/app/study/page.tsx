@@ -24,15 +24,12 @@ export default function StudyPage() {
 
         .page-wrapper {
           min-height: 100vh;
-          background: #0f172a;
-          background-image:
-            radial-gradient(circle at 0% 0%, rgba(139,92,246,.15) 0%, transparent 50%),
-            radial-gradient(circle at 100% 100%, rgba(139,92,246,.10) 0%, transparent 50%);
+          background: #fdf0e4;
           display: flex;
           justify-content: center;
           align-items: flex-start;
           padding: 2rem;
-          color: #f8fafc;
+          color: #4a2018;
           font-family: 'Outfit', sans-serif;
         }
 
@@ -48,28 +45,28 @@ export default function StudyPage() {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding-bottom: 1rem;
-          border-bottom: 1px solid rgba(255,255,255,.1);
+          padding: 1rem 1.5rem;
+          background: #2d4a6b;
+          border-radius: 12px;
+          color: #ffffff;
         }
 
         .logo { display: flex; align-items: center; gap: .75rem; }
         .logo h1 {
           font-size: 1.6rem;
           font-weight: 700;
-          background: linear-gradient(135deg, #fff 0%, #a78bfa 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
+          color: #ffffff;
           margin: 0;
         }
-        .text-primary { color: #8b5cf6; }
+        .text-primary { color: #c8854a; }
 
         .badge {
           font-size: 0.75rem;
-          background: rgba(139,92,246,0.2);
-          color: #a78bfa;
+          background: rgba(255,255,255,0.1);
+          color: #ffffff;
           padding: 2px 8px;
           border-radius: 12px;
-          border: 1px solid rgba(139,92,246,0.3);
+          border: 1px solid rgba(255,255,255,0.2);
         }
 
         .main-content {

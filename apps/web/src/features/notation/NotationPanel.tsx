@@ -72,6 +72,7 @@ export const NotationPanel: React.FC = () => {
           padding: 6px 10px;
           border-radius: 6px;
           border-left: 2px solid #8b5cf6;
+          white-space: pre-wrap;
         }
       `}</style>
     </div>

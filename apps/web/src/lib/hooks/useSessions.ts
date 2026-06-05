@@ -27,8 +27,13 @@ export function useSessions(batchId: string | null) {
     try {
       const res = await fetch(`/api/sessions/batch/${batchId}`);
       if (res.ok) {
-        const data = await res.json();
-        setSessions(data);
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await res.json();
+          setSessions(data);
+        } else {
+          console.warn('Received non-JSON response from /api/sessions/batch. API might be restarting.');
+        }
       }
     } catch (err) {
       console.error('Failed to fetch sessions:', err);

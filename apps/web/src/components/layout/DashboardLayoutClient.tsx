@@ -11,8 +11,12 @@ interface DashboardLayoutClientProps {
   userId: string;
 }
 
+import { usePathname } from 'next/navigation';
+
 export function DashboardLayoutClient({ children, role, username, userId }: DashboardLayoutClientProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const pathname = usePathname();
+  const isClassroom = pathname === '/classroom' || pathname.startsWith('/classroom/');
 
   return (
     <div className={`${styles.layout} ${isCollapsed ? styles.collapsed : ''}`}>
@@ -24,8 +28,8 @@ export function DashboardLayoutClient({ children, role, username, userId }: Dash
         onToggle={() => setIsCollapsed(!isCollapsed)} 
       />
       <main className={styles.mainContent}>
-        <div className={styles.pageContent}>
-          <Breadcrumbs />
+        <div className={styles.pageContent} style={isClassroom ? { padding: 0 } : {}}>
+          {!isClassroom && <Breadcrumbs />}
           {children}
         </div>
       </main>
