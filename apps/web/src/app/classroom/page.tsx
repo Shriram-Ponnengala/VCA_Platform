@@ -700,7 +700,9 @@ export default function ClassroomPage() {
           flex-direction: column;
           gap: 0.5rem;
           height: 100%;
+          min-height: 0;
           overflow-y: auto;
+          overflow-x: hidden;
           padding-right: 4px;
         }
         
@@ -748,8 +750,9 @@ export default function ClassroomPage() {
         }
 
         .sidebar-panel { 
-          flex-shrink: 0;
-          min-height: calc(100% - 46px);
+          flex: 1;
+          min-height: 0;
+          overflow-y: auto;
           display: flex; 
           flex-direction: column; 
           border-top-left-radius: 0;
