@@ -411,33 +411,118 @@ export default function SettingsPage() {
                     {/* Left side: Board Theme Selection */}
                     <div className={styles.fieldGroup}>
                       <label>Chess Board Color Theme</label>
-                      <div className={styles.boardThemeGrid}>
-                        {[
-                          { id: 'brown', name: 'classic', light: '#eedcd0', dark: '#c8854a' },
-                          { id: 'blue', name: 'blue', light: '#dee3e6', dark: '#8ca2ad' },
-                          { id: 'green', name: 'green', light: '#ffffdd', dark: '#86a666' },
-                          { id: 'purple', name: 'purple', light: '#d2c3db', dark: '#887295' },
-                          { id: 'olive', name: 'olive', light: '#e0e0c0', dark: '#809070' },
-                          { id: 'grey', name: 'grey', light: '#e3e3e3', dark: '#a6a6a6' },
-                          { id: 'wood', name: 'wood', light: '#e9d3b4', dark: '#a06a42' },
-                          { id: 'pink', name: 'pink', light: '#fdf5ea', dark: '#e47070' },
-                        ].map(theme => (
-                          <div 
-                            key={theme.id}
-                            className={`${styles.boardThemeItem} ${branding.boardTheme === theme.id ? styles.activeBoard : ''}`}
-                            onClick={() => setBranding({ ...branding, boardTheme: theme.id })}
-                          >
-                            <div className={styles.boardPreviewBox}>
-                              <div style={{ backgroundColor: theme.light }} />
-                              <div style={{ backgroundColor: theme.dark }} />
-                              <div style={{ backgroundColor: theme.dark }} />
-                              <div style={{ backgroundColor: theme.light }} />
+                      
+                      {/* Classic Flat Themes */}
+                      <div className={styles.themeCategory}>
+                        <span className={styles.themeCategoryLabel}>🎨 Classic</span>
+                        <div className={styles.boardThemeGrid}>
+                          {[
+                            { id: 'brown', name: 'Brown', light: '#eedcd0', dark: '#c8854a' },
+                            { id: 'blue', name: 'Blue', light: '#dee3e6', dark: '#8ca2ad' },
+                            { id: 'green', name: 'Green', light: '#ffffdd', dark: '#86a666' },
+                            { id: 'grey', name: 'Grey', light: '#e3e3e3', dark: '#a6a6a6' },
+                            { id: 'purple', name: 'Purple', light: '#d2c3db', dark: '#887295' },
+                            { id: 'olive', name: 'Olive', light: '#e0e0c0', dark: '#809070' },
+                            { id: 'pink', name: 'Pink', light: '#fdf5ea', dark: '#e47070' },
+                          ].map(theme => (
+                            <div 
+                              key={theme.id}
+                              className={`${styles.boardThemeItem} ${branding.boardTheme === theme.id ? styles.activeBoard : ''}`}
+                              onClick={() => setBranding({ ...branding, boardTheme: theme.id })}
+                            >
+                              <div className={styles.boardPreviewBox}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', width: '100%', height: '100%' }}>
+                                  <div style={{ backgroundColor: theme.light }} />
+                                  <div style={{ backgroundColor: theme.dark }} />
+                                  <div style={{ backgroundColor: theme.dark }} />
+                                  <div style={{ backgroundColor: theme.light }} />
+                                </div>
+                              </div>
+                              <span className={styles.boardName}>{theme.name}</span>
                             </div>
-                            <span className={styles.boardName}>{theme.name}</span>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Wood Grain Themes */}
+                      <div className={styles.themeCategory}>
+                        <span className={styles.themeCategoryLabel}>🪵 Wood Grain</span>
+                        <div className={styles.boardThemeGrid}>
+                          {[
+                            { id: 'wood_maple', name: 'Maple', image: 'https://lichess1.org/assets/images/board/maple.jpg' },
+                            { id: 'wood_maple2', name: 'Maple II', image: 'https://lichess1.org/assets/images/board/maple2.jpg' },
+                            { id: 'wood_mahogany', name: 'Mahogany', image: 'https://lichess1.org/assets/images/board/wood.jpg' },
+                            { id: 'wood_birch', name: 'Birch', image: 'https://lichess1.org/assets/images/board/wood2.jpg' },
+                            { id: 'wood_walnut', name: 'Walnut', image: 'https://lichess1.org/assets/images/board/wood3.jpg' },
+                            { id: 'wood_dark', name: 'Dark Wood', image: 'https://lichess1.org/assets/images/board/wood4.jpg' },
+                            { id: 'wood_olive', name: 'Olive Wood', image: 'https://lichess1.org/assets/images/board/olive.jpg' },
+                          ].map(theme => (
+                            <div 
+                              key={theme.id}
+                              className={`${styles.boardThemeItem} ${branding.boardTheme === theme.id ? styles.activeBoard : ''}`}
+                              onClick={() => setBranding({ ...branding, boardTheme: theme.id })}
+                            >
+                              <div 
+                                className={styles.boardPreviewBox}
+                                style={{ backgroundImage: `url(${theme.image})`, backgroundSize: 'cover', backgroundPosition: 'center', display: 'block' }}
+                              />
+                              <span className={styles.boardName}>{theme.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Marble & Stone Themes */}
+                      <div className={styles.themeCategory}>
+                        <span className={styles.themeCategoryLabel}>🪨 Marble & Stone</span>
+                        <div className={styles.boardThemeGrid}>
+                          {[
+                            { id: 'marble_green', name: 'Green Marble', image: 'https://lichess1.org/assets/images/board/marble.jpg' },
+                            { id: 'marble_blue', name: 'Blue Marble', image: 'https://lichess1.org/assets/images/board/blue-marble.jpg' },
+                          ].map(theme => (
+                            <div 
+                              key={theme.id}
+                              className={`${styles.boardThemeItem} ${branding.boardTheme === theme.id ? styles.activeBoard : ''}`}
+                              onClick={() => setBranding({ ...branding, boardTheme: theme.id })}
+                            >
+                              <div 
+                                className={styles.boardPreviewBox}
+                                style={{ backgroundImage: `url(${theme.image})`, backgroundSize: 'cover', backgroundPosition: 'center', display: 'block' }}
+                              />
+                              <span className={styles.boardName}>{theme.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Other Materials */}
+                      <div className={styles.themeCategory}>
+                        <span className={styles.themeCategoryLabel}>✨ Other Materials</span>
+                        <div className={styles.boardThemeGrid}>
+                          {[
+                            { id: 'metal', name: 'Metal', image: 'https://lichess1.org/assets/images/board/metal.jpg' },
+                            { id: 'leather', name: 'Leather', image: 'https://lichess1.org/assets/images/board/leather.jpg' },
+                            { id: 'canvas', name: 'Canvas', image: 'https://lichess1.org/assets/images/board/canvas2.jpg' },
+                            { id: 'grey_cb', name: 'Grey', image: 'https://lichess1.org/assets/images/board/grey.jpg' },
+                            { id: 'blue_cb', name: 'Blue', image: 'https://lichess1.org/assets/images/board/blue2.jpg' },
+                            { id: 'purple_diag', name: 'Purple', image: 'https://lichess1.org/assets/images/board/purple-diag.png' },
+                          ].map(theme => (
+                            <div 
+                              key={theme.id}
+                              className={`${styles.boardThemeItem} ${branding.boardTheme === theme.id ? styles.activeBoard : ''}`}
+                              onClick={() => setBranding({ ...branding, boardTheme: theme.id })}
+                            >
+                              <div 
+                                className={styles.boardPreviewBox}
+                                style={{ backgroundImage: `url(${theme.image})`, backgroundSize: 'cover', backgroundPosition: 'center', display: 'block' }}
+                              />
+                              <span className={styles.boardName}>{theme.name}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
+
 
                     {/* Right side: Piece Selection */}
                     <div className={styles.fieldGroup}>

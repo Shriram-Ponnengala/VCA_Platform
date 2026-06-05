@@ -94,15 +94,22 @@ button {
 }
 
 /* Custom Chessground overrides */
-.board-wrapper cg-board {
-  background-color: var(--board-light, #eedcd0) !important;
-  background-image: conic-gradient(
+:root {
+  --board-light: #eedcd0;
+  --board-dark: #c8854a;
+  --board-image: conic-gradient(
     var(--board-dark, #c8854a) 25%, 
     transparent 0 50%, 
     var(--board-dark, #c8854a) 0 75%, 
     transparent 0
-  ) !important;
-  background-size: 25% 25% !important;
+  );
+  --board-size: 25% 25%;
+}
+
+.board-wrapper cg-board {
+  background-color: var(--board-light) !important;
+  background-image: var(--board-image) !important;
+  background-size: var(--board-size) !important;
 }
 
 .board-wrapper piece.pawn.white { background-image: var(--piece-wp, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wP.svg')) !important; }
