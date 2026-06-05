@@ -4,7 +4,7 @@ import { Chess, Move } from 'chess.js';
 import type { Api } from 'chessground/api';
 import type { Config } from 'chessground/config';
 import type { Key } from 'chessground/types';
-import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, RefreshCw, Eraser, RotateCcw, MoreHorizontal } from 'lucide-react';
+import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, RefreshCw, Eraser, RotateCcw, MoreHorizontal, Lock, LayoutGrid, Copy, FileText, Eye, EyeOff, ArrowUpRight, Square, Pen } from 'lucide-react';
 import type { ArrowData, MoveNode } from '@vca/types';
 import { VariationData } from './VariationChooser';
 import { NagBadge } from './NagBadge';
@@ -594,85 +594,144 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           <>
             <div className="tools-menu-backdrop" onClick={() => setShowToolsMenu(false)} />
             <div className="tools-menu">
-              <button 
+              <div className="tools-menu-header">Tools</div>
+
+              {/* BOARD */}
+              <div className="tools-section-label">BOARD</div>
+              {onMoreTools && (
+                <div className="tools-menu-row">
+                  <span className="tools-row-icon"><Lock size={15} /></span>
+                  <span className="tools-row-label">Board Lock</span>
+                  <button
+                    className={`tools-toggle ${isLocked ? 'tools-toggle-on' : ''}`}
+                    onClick={() => { onMoreTools(); }}
+                    aria-label="Toggle Board Lock"
+                  >
+                    <span className="tools-toggle-knob" />
+                  </button>
+                </div>
+              )}
+              {onSetupPosition && (
+                <button
+                  className="tools-menu-row tools-row-btn"
+                  onClick={() => { setShowSetupModal(true); setShowToolsMenu(false); }}
+                >
+                  <span className="tools-row-icon"><LayoutGrid size={15} /></span>
+                  <span className="tools-row-label">Setup Position</span>
+                </button>
+              )}
+
+              <div className="tools-section-divider" />
+
+              {/* COPY */}
+              <div className="tools-section-label">COPY</div>
+              <button
+                className="tools-menu-row tools-row-btn"
+                onClick={() => {
+                  // Build PGN from history
+                  try {
+                    const chess = new Chess();
+                    history.slice(0, currentIndex + 1).forEach(san => { try { chess.move(san); } catch(e){} });
+                    navigator.clipboard.writeText(chess.pgn());
+                  } catch(e) {
+                    navigator.clipboard.writeText(history.slice(0, currentIndex + 1).join(' '));
+                  }
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+              >
+                <span className="tools-row-icon"><FileText size={15} /></span>
+                <span className="tools-row-label">{copied ? 'Copied!' : 'Copy PGN'}</span>
+              </button>
+              <button
+                className="tools-menu-row tools-row-btn"
                 onClick={() => {
                   navigator.clipboard.writeText(fen);
                   setCopied(true);
                   setTimeout(() => setCopied(false), 2000);
                 }}
-                className="menu-item"
               >
-                {copied ? 'Copied FEN!' : 'Copy FEN'}
+                <span className="tools-row-icon"><Copy size={15} /></span>
+                <span className="tools-row-label">{copied ? 'Copied!' : 'Copy FEN'}</span>
               </button>
-              <button 
-                onClick={() => {
-                  setShowCoordinates(c => !c);
-                  setShowToolsMenu(false);
-                }}
-                className="menu-item"
-              >
-                {showCoordinates ? 'Hide Coordinates' : 'Show Coordinates'}
-              </button>
-              <button
-                onClick={() => {
-                  setIsHighlightMode(prev => {
-                    const next = !prev;
-                    if (next) setIsArrowMode(false);
-                    return next;
-                  });
-                  setShowToolsMenu(false);
-                }}
-                className="menu-item"
-                style={{ color: isHighlightMode ? '#c8854a' : 'inherit', fontWeight: isHighlightMode ? '600' : 'normal' }}
-              >
-                {isHighlightMode ? 'Disable Highlight' : 'Enable Highlight'}
-              </button>
-              <button
-                onClick={() => {
-                  setIsArrowMode(prev => {
-                    const next = !prev;
-                    if (next) setIsHighlightMode(false);
-                    return next;
-                  });
-                  setShowToolsMenu(false);
-                }}
-                className="menu-item"
-                style={{ color: isArrowMode ? '#c8854a' : 'inherit', fontWeight: isArrowMode ? '600' : 'normal' }}
-              >
-                {isArrowMode ? 'Disable Drag Arrow' : 'Enable Drag Arrow'}
-              </button>
+
+              <div className="tools-section-divider" />
+
+              {/* VIEW */}
+              <div className="tools-section-label">VIEW</div>
+              <div className="tools-menu-row">
+                <span className="tools-row-icon"><EyeOff size={15} /></span>
+                <span className="tools-row-label">Hide Coordinates</span>
+                <button
+                  className={`tools-toggle ${!showCoordinates ? 'tools-toggle-on' : ''}`}
+                  onClick={() => setShowCoordinates(false)}
+                  aria-label="Hide Coordinates"
+                >
+                  <span className="tools-toggle-knob" />
+                </button>
+              </div>
+              <div className="tools-menu-row">
+                <span className="tools-row-icon"><Eye size={15} /></span>
+                <span className="tools-row-label">Show Coordinates</span>
+                <button
+                  className={`tools-toggle ${showCoordinates ? 'tools-toggle-on' : ''}`}
+                  onClick={() => setShowCoordinates(true)}
+                  aria-label="Show Coordinates"
+                >
+                  <span className="tools-toggle-knob" />
+                </button>
+              </div>
+
+              <div className="tools-section-divider" />
+
+              {/* ANNOTATION TOOLS */}
+              <div className="tools-section-label">ANNOTATION TOOLS</div>
+              <div className="tools-menu-row">
+                <span className="tools-row-icon"><ArrowUpRight size={15} /></span>
+                <span className="tools-row-label">Arrow</span>
+                <button
+                  className={`tools-toggle ${isArrowMode ? 'tools-toggle-on' : ''}`}
+                  onClick={() => {
+                    setIsArrowMode(prev => {
+                      const next = !prev;
+                      if (next) setIsHighlightMode(false);
+                      return next;
+                    });
+                  }}
+                  aria-label="Toggle Arrow Mode"
+                >
+                  <span className="tools-toggle-knob" />
+                </button>
+              </div>
+              <div className="tools-menu-row">
+                <span className="tools-row-icon"><Square size={15} /></span>
+                <span className="tools-row-label">Highlight Square</span>
+                <button
+                  className={`tools-toggle ${isHighlightMode ? 'tools-toggle-on' : ''}`}
+                  onClick={() => {
+                    setIsHighlightMode(prev => {
+                      const next = !prev;
+                      if (next) setIsArrowMode(false);
+                      return next;
+                    });
+                  }}
+                  aria-label="Toggle Highlight Mode"
+                >
+                  <span className="tools-toggle-knob" />
+                </button>
+              </div>
               {onToggleFreehand && (
-                <button 
-                  onClick={() => {
-                    onToggleFreehand(!isFreehand);
-                    setShowToolsMenu(false);
-                  }}
-                  className="menu-item"
-                >
-                  {isFreehand ? 'Disable Freehand' : 'Enable Freehand'}
-                </button>
-              )}
-              {onSetupPosition && (
-                <button 
-                  onClick={() => {
-                    setShowSetupModal(true);
-                    setShowToolsMenu(false);
-                  }}
-                  className="menu-item"
-                >
-                  Setup Position
-                </button>
-              )}
-              {onMoreTools && (
-                <button 
-                  onClick={() => {
-                    onMoreTools();
-                    setShowToolsMenu(false);
-                  }}
-                  className="menu-item"
-                >
-                  Toggle Board Lock
-                </button>
+                <div className="tools-menu-row">
+                  <span className="tools-row-icon"><Pen size={15} /></span>
+                  <span className="tools-row-label">Freehand</span>
+                  <button
+                    className={`tools-toggle ${isFreehand ? 'tools-toggle-on' : ''}`}
+                    onClick={() => { onToggleFreehand(!isFreehand); }}
+                    aria-label="Toggle Freehand"
+                  >
+                    <span className="tools-toggle-knob" />
+                  </button>
+                </div>
               )}
             </div>
           </>
@@ -698,10 +757,11 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
             {onMoreTools && (
               <button 
                 onClick={() => setShowToolsMenu(prev => !prev)} 
-                className={`btn-icon ${(showToolsMenu || isHighlightMode || isArrowMode) ? 'active' : ''}`} 
-                title="More Tools"
+                className={`btn-icon btn-tools ${(showToolsMenu || isHighlightMode || isArrowMode || isFreehand) ? 'active' : ''}`} 
+                title="Tools"
               >
-                <MoreHorizontal size={20} />
+                <MoreHorizontal size={16} />
+                <span className="btn-tools-label">Tools</span>
               </button>
             )}
             <div className="control-separator" />
@@ -804,7 +864,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           align-items: center;
         }
         .btn-icon {
-          padding: 0.5rem 1rem;
+          padding: 0.4rem 0.75rem;
           background: transparent;
           color: #f8fafc;
           border: none;
@@ -814,14 +874,30 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           display: flex;
           align-items: center;
           justify-content: center;
+          gap: 5px;
         }
         .btn-icon:hover:not(:disabled), .btn-icon.active {
           background: rgba(255, 255, 255, 0.1);
-          color: #8b5cf6;
+          color: #c8854a;
         }
         .btn-icon:disabled {
           opacity: 0.3;
           cursor: not-allowed;
+        }
+        .btn-tools {
+          padding: 0.4rem 0.9rem;
+          font-size: 0.82rem;
+          font-weight: 600;
+          letter-spacing: 0.01em;
+          gap: 5px;
+        }
+        .btn-tools.active {
+          background: rgba(200, 133, 74, 0.2) !important;
+          color: #c8854a !important;
+          border: 1px solid rgba(200, 133, 74, 0.35);
+        }
+        .btn-tools-label {
+          font-family: inherit;
         }
         .control-separator {
           width: 1px;
@@ -835,40 +911,113 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           z-index: 599;
           background: transparent;
         }
+        /* New grouped tools menu */
         .tools-menu {
           position: absolute;
-          bottom: 100%;
+          bottom: calc(100% + 8px);
           left: 0;
-          margin-bottom: 8px;
           z-index: 600;
           display: flex;
           flex-direction: column;
-          gap: 4px;
-          padding: 6px;
-          border-radius: 12px;
-          background: #fdf5ea;
-          border: 1px solid #eedcd0;
-          box-shadow: 0 10px 15px -3px rgba(74, 32, 24, 0.1), 0 4px 6px -2px rgba(74, 32, 24, 0.05);
-          backdrop-filter: blur(8px);
-          min-width: 160px;
+          padding: 0;
+          border-radius: 14px;
+          background: #ffffff;
+          border: 1px solid #e8ddd5;
+          box-shadow: 0 20px 40px -8px rgba(74, 32, 24, 0.18), 0 8px 16px -4px rgba(74, 32, 24, 0.08);
+          min-width: 240px;
+          overflow: hidden;
+          animation: menuIn 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
         }
-        .menu-item {
-          padding: 8px 12px;
-          background: transparent;
-          color: #4a2018;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
-          font-family: inherit;
-          font-size: 0.85rem;
-          text-align: left;
-          transition: all 0.15s;
-          display: block;
-          width: 100%;
+        @keyframes menuIn {
+          from { opacity: 0; transform: translateY(6px) scale(0.97); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
         }
-        .menu-item:hover {
-          background: rgba(200, 133, 74, 0.05);
+        .tools-menu-header {
+          padding: 12px 16px 10px;
+          font-size: 0.82rem;
+          font-weight: 700;
+          color: #1a1a1a;
+          letter-spacing: 0.01em;
+          border-bottom: 1px solid #f0e8e0;
+          background: #fdf8f4;
+        }
+        .tools-section-label {
+          padding: 8px 16px 4px;
+          font-size: 0.68rem;
+          font-weight: 800;
+          letter-spacing: 0.1em;
           color: #c8854a;
+          text-transform: uppercase;
+        }
+        .tools-section-divider {
+          height: 1px;
+          background: #f0e8e0;
+          margin: 4px 0;
+        }
+        .tools-menu-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 8px 16px;
+          cursor: default;
+          transition: background 0.12s ease;
+        }
+        .tools-menu-row:hover {
+          background: #fdf5ea;
+        }
+        .tools-row-btn {
+          background: transparent;
+          border: none;
+          width: 100%;
+          text-align: left;
+          font-family: inherit;
+          cursor: pointer;
+        }
+        .tools-row-icon {
+          display: flex;
+          align-items: center;
+          color: #7a5a45;
+          flex-shrink: 0;
+          width: 18px;
+        }
+        .tools-row-label {
+          flex: 1;
+          font-size: 0.85rem;
+          font-weight: 500;
+          color: #2a1a12;
+          line-height: 1;
+        }
+        /* Toggle switch */
+        .tools-toggle {
+          position: relative;
+          width: 38px;
+          height: 22px;
+          border-radius: 11px;
+          background: #d5c8be;
+          border: none;
+          cursor: pointer;
+          padding: 0;
+          flex-shrink: 0;
+          transition: background 0.22s ease;
+          outline: none;
+        }
+        .tools-toggle.tools-toggle-on {
+          background: #c8854a;
+        }
+        .tools-toggle-knob {
+          position: absolute;
+          top: 2px;
+          left: 2px;
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: white;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+          transition: transform 0.22s cubic-bezier(0.34, 1.4, 0.64, 1);
+          display: block;
+        }
+        .tools-toggle.tools-toggle-on .tools-toggle-knob {
+          transform: translateX(16px);
         }
         @media (max-width: 480px) {
           .controls {
