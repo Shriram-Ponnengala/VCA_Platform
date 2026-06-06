@@ -18,47 +18,47 @@ const NAG_BOARD: Record<string, {
 }> = {
   '!!': {
     label: '!!',
-    gradient: ['#8b5cf6', '#6d28d9'],
-    fontSize: '34px',
-    letterSpacing: '-2px',
+    gradient: ['#8b5cf6', '#6d28d9'],   // purple — Brilliant
+    fontSize: '26px',
+    letterSpacing: '-1.5px',
   },
   '!': {
     label: '!',
-    gradient: ['#22c55e', '#15803d'],
-    fontSize: '40px',
+    gradient: ['#22c55e', '#15803d'],   // green — Good
+    fontSize: '30px',
   },
   '!?': {
     label: '!?',
-    gradient: ['#3b82f6', '#1d4ed8'],
-    fontSize: '30px',
-    letterSpacing: '-1px',
+    gradient: ['#3b82f6', '#1d4ed8'],   // blue — Interesting
+    fontSize: '23px',
+    letterSpacing: '-0.5px',
   },
   '?!': {
     label: '?!',
-    gradient: ['#f59e0b', '#b45309'],
-    fontSize: '30px',
-    letterSpacing: '-1px',
+    gradient: ['#f59e0b', '#b45309'],   // gold — Dubious
+    fontSize: '23px',
+    letterSpacing: '-0.5px',
   },
   '?': {
     label: '?',
-    gradient: ['#f97316', '#c2410c'],
-    fontSize: '40px',
+    gradient: ['#f97316', '#c2410c'],   // orange — Mistake
+    fontSize: '30px',
   },
   '??': {
     label: '??',
-    gradient: ['#ef4444', '#b91c1c'],
-    fontSize: '32px',
-    letterSpacing: '-2px',
+    gradient: ['#ef4444', '#b91c1c'],   // red — Blunder
+    fontSize: '24px',
+    letterSpacing: '-1.5px',
   },
-  // positional glyphs
-  '=':  { label: '=',  gradient: ['#6b7280', '#4b5563'], fontSize: '28px' },
-  '∞':  { label: '∞',  gradient: ['#9333ea', '#7e22ce'], fontSize: '28px' },
-  '⩲':  { label: '⩲', gradient: ['#4f46e5', '#3730a3'], fontSize: '24px' },
-  '⩱':  { label: '⩱', gradient: ['#06b6d4', '#0e7490'], fontSize: '24px' },
-  '±':  { label: '±',  gradient: ['#2563eb', '#1e40af'], fontSize: '28px' },
-  '∓':  { label: '∓',  gradient: ['#0891b2', '#0e7490'], fontSize: '28px' },
-  '+-': { label: '+-', gradient: ['#1d4ed8', '#1e3a8a'], fontSize: '24px' },
-  '-+': { label: '-+', gradient: ['#6d28d9', '#4c1d95'], fontSize: '24px' },
+  // positional glyphs — smaller pill, neutral grey
+  '=':  { label: '=',  gradient: ['#6b7280', '#4b5563'] },
+  '∞':  { label: '∞',  gradient: ['#9333ea', '#7e22ce'] },
+  '⩲':  { label: '⩲', gradient: ['#4f46e5', '#3730a3'] },
+  '⩱':  { label: '⩱', gradient: ['#06b6d4', '#0e7490'] },
+  '±':  { label: '±',  gradient: ['#2563eb', '#1e40af'] },
+  '∓':  { label: '∓',  gradient: ['#0891b2', '#0e7490'] },
+  '+-': { label: '+-', gradient: ['#1d4ed8', '#1e3a8a'] },
+  '-+': { label: '-+', gradient: ['#6d28d9', '#4c1d95'] },
 };
 
 // ── Square → board position ──────────────────────────────────────────────────
@@ -99,7 +99,7 @@ export const NagBadge: React.FC<NagBadgeProps> = ({ node, orientation = 'white' 
   const baseLeft = (x + 1) * 12.5;  // right edge of square (%)
   const baseTop  = y * 12.5;         // top edge of square (%)
 
-  const BADGE_SIZE = 56; // px — 2× the original 28px base
+  const BADGE_SIZE = 34; // px
 
   return (
     <>

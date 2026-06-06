@@ -35,9 +35,17 @@ export const NotationNode: React.FC<NotationNodeProps> = ({ node, depth }) => {
         onClick={() => jumpToNode(node.id)}
       >
         {node.san}
-        {node.glyphs && node.glyphs.length > 0 && (
-          <span className="move-glyphs">{node.glyphs.join('')}</span>
-        )}
+        {node.glyphs && node.glyphs.length > 0 && (() => {
+            const MOVE_EVAL_SYMBOLS = ['!!', '!', '!?', '?!', '?', '??'];
+            const sorted = [...node.glyphs].sort((a, b) => {
+              const aIsMove = MOVE_EVAL_SYMBOLS.includes(a);
+              const bIsMove = MOVE_EVAL_SYMBOLS.includes(b);
+              if (aIsMove && !bIsMove) return -1;
+              if (!aIsMove && bIsMove) return 1;
+              return 0;
+            });
+            return <span className="move-glyphs">{sorted.join('')}</span>;
+          })()}
       </span>
       {node.comment && (
         <div className="move-comment">{node.comment}</div>
