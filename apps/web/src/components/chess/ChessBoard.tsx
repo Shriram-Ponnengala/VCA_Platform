@@ -557,33 +557,38 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           width: boardWidth ? `${boardWidth}px` : undefined
         }}
       >
-        <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
-        {promotionPending && (
-          <div className="promotion-overlay">
-            <div className="promotion-card">
-              <h3 className="promotion-title">Select Promotion</h3>
-              <div className="promotion-options">
-                {(['q', 'r', 'b', 'n'] as const).map((piece) => (
-                  <button
-                    key={piece}
-                    className="promo-btn"
-                    onClick={() => handleSelectPromotion(piece)}
-                  >
-                    <div
-                      className="promo-piece"
-                      style={{
-                        backgroundImage: `var(--piece-${promotionPending.color}${piece})`
-                      }}
-                    />
-                  </button>
-                ))}
+        {/* board-clip: clips the chessground to the rounded border, keeps overflow:hidden */}
+        <div className="board-clip">
+          <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+          {promotionPending && (
+            <div className="promotion-overlay">
+              <div className="promotion-card">
+                <h3 className="promotion-title">Select Promotion</h3>
+                <div className="promotion-options">
+                  {(['q', 'r', 'b', 'n'] as const).map((piece) => (
+                    <button
+                      key={piece}
+                      className="promo-btn"
+                      onClick={() => handleSelectPromotion(piece)}
+                    >
+                      <div
+                        className="promo-piece"
+                        style={{
+                          backgroundImage: `var(--piece-${promotionPending.color}${piece})`
+                        }}
+                      />
+                    </button>
+                  ))}
+                </div>
+                <button className="promo-cancel-btn" onClick={handleCancelPromotion}>
+                  Cancel
+                </button>
               </div>
-              <button className="promo-cancel-btn" onClick={handleCancelPromotion}>
-                Cancel
-              </button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+
+        {/* nag-overlay is OUTSIDE board-clip so badges are never clipped */}
         <div className="nag-overlay" style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 500
         }}>
@@ -594,6 +599,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
             />
           )}
         </div>
+
         <div 
           className="resize-handle" 
           onMouseDown={handleResizeStart}
@@ -837,10 +843,18 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           max-width: 100%;
           aspect-ratio: 1 / 1;
           border-radius: 8px;
-          overflow: hidden;
+          overflow: visible;  /* allow NAG badges to bleed past the board edge */
           box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
           box-sizing: border-box;
           /* frame color & padding come from --board-frame-color / --board-frame-padding via globals.css */
+        }
+        /* board-clip: inner div that clips the chessground squares */
+        .board-clip {
+          width: 100%;
+          height: 100%;
+          border-radius: 8px;
+          overflow: hidden;
+          position: relative;
         }
         .resize-handle {
           position: absolute;

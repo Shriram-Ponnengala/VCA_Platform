@@ -109,8 +109,12 @@ button {
   --board-frame-padding: 10px;
 }
 
-/* Apply frame color + padding to the board wrapper globally */
+/* Apply frame color + padding to the board-clip (inner clipping div) globally */
+/* board-wrapper is overflow:visible so badges aren't clipped; board-clip clips the chessground */
 .board-wrapper {
+  background-color: transparent;
+}
+.board-clip {
   background-color: var(--board-frame-color) !important;
   padding: var(--board-frame-padding) !important;
 }
