@@ -700,9 +700,7 @@ export default function ClassroomPage() {
           flex-direction: column;
           gap: 0.5rem;
           height: 100%;
-          min-height: 0;
           overflow-y: auto;
-          overflow-x: hidden;
           padding-right: 4px;
         }
         
@@ -750,19 +748,20 @@ export default function ClassroomPage() {
         }
 
         .sidebar-panel { 
-          flex: 1;
-          min-height: 0;
-          overflow-y: auto;
+          flex-shrink: 0;
           display: flex; 
-          flex-direction: column; 
+          flex-direction: column;
           border-top-left-radius: 0;
           padding: 1rem;
+          overflow-y: auto;
         }
 
         .history-content {
           display: flex;
           flex-direction: column;
-          height: auto;
+          flex: 1;
+          min-height: 0;
+          gap: 0;
         }
 
         .participants-content, .chat-content {
@@ -775,7 +774,10 @@ export default function ClassroomPage() {
 
         .history-scroll-area {
           font-size: .82rem;
-          overflow-y: visible;
+          overflow-y: auto;
+          flex: 1;
+          min-height: 0;
+          padding-bottom: 12px;
         }
 
         .empty-state {
