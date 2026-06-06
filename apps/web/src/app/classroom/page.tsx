@@ -749,19 +749,17 @@ export default function ClassroomPage() {
 
         .sidebar-panel { 
           flex-shrink: 0;
+          min-height: calc(100% - 46px);
           display: flex; 
-          flex-direction: column;
+          flex-direction: column; 
           border-top-left-radius: 0;
           padding: 1rem;
-          overflow-y: auto;
         }
 
         .history-content {
           display: flex;
           flex-direction: column;
-          flex: 1;
-          min-height: 0;
-          gap: 0;
+          height: auto;
         }
 
         .participants-content, .chat-content {
@@ -774,10 +772,7 @@ export default function ClassroomPage() {
 
         .history-scroll-area {
           font-size: .82rem;
-          overflow-y: auto;
-          flex: 1;
-          min-height: 0;
-          padding-bottom: 12px;
+          overflow-y: visible;
         }
 
         .empty-state {

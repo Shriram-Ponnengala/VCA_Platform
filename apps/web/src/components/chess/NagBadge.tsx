@@ -7,37 +7,72 @@ interface NagBadgeProps {
   orientation?: 'white' | 'black';
 }
 
-// Exact colors & symbols matching the reference image
-const NAG_MAP: Record<string, { label: string; bg: string; fontSize: string }> = {
-  '!!': { label: '!!', bg: '#7c3aed', fontSize: '15px' },   // Brilliant — purple
-  '!':  { label: '!',  bg: '#16a34a', fontSize: '18px' },   // Good move — green
-  '!?': { label: '!?', bg: '#2563eb', fontSize: '14px' },   // Interesting — blue
-  '?!': { label: '?!', bg: '#d97706', fontSize: '14px' },   // Dubious — amber/gold
-  '?':  { label: '?',  bg: '#ea580c', fontSize: '18px' },   // Mistake — orange
-  '??': { label: '??', bg: '#dc2626', fontSize: '15px' },   // Blunder — red
-  // positional (retain simple styling)
-  '=':  { label: '=',  bg: '#8a8a8a', fontSize: '16px' },
-  '∞':  { label: '∞',  bg: '#9333ea', fontSize: '16px' },
-  '⩲':  { label: '⩲',  bg: '#4f46e5', fontSize: '14px' },
-  '⩱':  { label: '⩱',  bg: '#06b6d4', fontSize: '14px' },
-  '±':  { label: '±',  bg: '#2563eb', fontSize: '16px' },
-  '∓':  { label: '∓',  bg: '#0891b2', fontSize: '16px' },
-  '+-': { label: '+-', bg: '#1d4ed8', fontSize: '13px' },
-  '-+': { label: '-+', bg: '#6d28d9', fontSize: '13px' },
+// ── Badge designs matching the reference image ──────────────────────────────
+// Each entry defines: the symbol displayed, the gradient colors, and an
+// optional font-size override so the "!" / "?" glyphs appear slightly bigger.
+const NAG_BOARD: Record<string, {
+  label: string;
+  gradient: [string, string];
+  fontSize?: string;
+  letterSpacing?: string;
+}> = {
+  '!!': {
+    label: '!!',
+    gradient: ['#8b5cf6', '#6d28d9'],   // purple — Brilliant
+    fontSize: '17px',
+    letterSpacing: '-1px',
+  },
+  '!': {
+    label: '!',
+    gradient: ['#22c55e', '#15803d'],   // green — Good
+    fontSize: '20px',
+  },
+  '!?': {
+    label: '!?',
+    gradient: ['#3b82f6', '#1d4ed8'],   // blue — Interesting
+    fontSize: '15px',
+    letterSpacing: '-0.5px',
+  },
+  '?!': {
+    label: '?!',
+    gradient: ['#f59e0b', '#b45309'],   // gold — Dubious
+    fontSize: '15px',
+    letterSpacing: '-0.5px',
+  },
+  '?': {
+    label: '?',
+    gradient: ['#f97316', '#c2410c'],   // orange — Mistake
+    fontSize: '20px',
+  },
+  '??': {
+    label: '??',
+    gradient: ['#ef4444', '#b91c1c'],   // red — Blunder
+    fontSize: '16px',
+    letterSpacing: '-1px',
+  },
+  // positional glyphs — smaller pill, neutral grey
+  '=':  { label: '=',  gradient: ['#6b7280', '#4b5563'] },
+  '∞':  { label: '∞',  gradient: ['#9333ea', '#7e22ce'] },
+  '⩲':  { label: '⩲', gradient: ['#4f46e5', '#3730a3'] },
+  '⩱':  { label: '⩱', gradient: ['#06b6d4', '#0e7490'] },
+  '±':  { label: '±',  gradient: ['#2563eb', '#1e40af'] },
+  '∓':  { label: '∓',  gradient: ['#0891b2', '#0e7490'] },
+  '+-': { label: '+-', gradient: ['#1d4ed8', '#1e3a8a'] },
+  '-+': { label: '-+', gradient: ['#6d28d9', '#4c1d95'] },
 };
 
+// ── Square → board position ──────────────────────────────────────────────────
 function deriveToSquare(san: string, turn: 'w' | 'b') {
   if (san.startsWith('O-O-O')) return turn === 'w' ? 'c1' : 'c8';
-  if (san.startsWith('O-O')) return turn === 'w' ? 'g1' : 'g8';
+  if (san.startsWith('O-O'))   return turn === 'w' ? 'g1' : 'g8';
   const match = san.match(/[a-h][1-8]/g);
   return match ? match[match.length - 1] : '';
 }
 
-const BADGE_SIZE = 36; // px — circle diameter
-
+// ── Component ────────────────────────────────────────────────────────────────
 export const NagBadge: React.FC<NagBadgeProps> = ({ node, orientation = 'white' }) => {
   const glyphs = node.glyphs || [];
-  const validGlyphs = glyphs.filter(g => NAG_MAP[g]);
+  const validGlyphs = glyphs.filter(g => NAG_BOARD[g]);
   if (!validGlyphs.length) return null;
 
   const square = node.to || deriveToSquare(node.san, node.turn);
@@ -47,9 +82,9 @@ export const NagBadge: React.FC<NagBadgeProps> = ({ node, orientation = 'white' 
       <div style={{
         position: 'absolute', top: '50%', left: '50%',
         transform: 'translate(-50%, -50%)',
-        background: 'white', color: 'red', padding: '10px', zIndex: 1000
+        background: 'white', color: 'red', padding: '8px', zIndex: 1000,
       }}>
-        Missing Square! SAN: "{node.san}" TO: "{node.to}"
+        Missing Square: &quot;{node.san}&quot;
       </div>
     );
   }
@@ -57,57 +92,58 @@ export const NagBadge: React.FC<NagBadgeProps> = ({ node, orientation = 'white' 
   const file = square.charCodeAt(0) - 'a'.charCodeAt(0); // 0..7
   const rank = parseInt(square[1], 10) - 1;               // 0..7
 
-  const x = orientation === 'white' ? file : 7 - file;
+  const x = orientation === 'white' ? file     : 7 - file;
   const y = orientation === 'white' ? 7 - rank : rank;
 
-  // Position badge at top-right corner of the destination square
-  const squarePct = 12.5; // 100/8
-  const left = (x + 1) * squarePct; // right edge of square (%)
-  const top  =  y      * squarePct; // top edge of square (%)
+  // Position: top-right corner of the target square
+  const baseLeft = (x + 1) * 12.5;  // right edge of square (%)
+  const baseTop  = y * 12.5;         // top edge of square (%)
+
+  const BADGE_SIZE = 34; // px
 
   return (
     <>
       {validGlyphs.map((nag, index) => {
-        const d = NAG_MAP[nag];
-        const horizontalOffset = index * (BADGE_SIZE - 6); // slight overlap for multiple badges
+        const d = NAG_BOARD[nag];
+        // Stack multiple badges horizontally, anchored to top-right of square
+        const offsetX = index * (BADGE_SIZE + 3);
 
         return (
           <div
             key={nag}
             style={{
               position: 'absolute',
-              top: `${top}%`,
-              left: `calc(${left}% + ${horizontalOffset - (validGlyphs.length - 1) * ((BADGE_SIZE - 6) / 2)}px)`,
-              transform: 'translate(-50%, -40%)',
+              // Anchor to top-right corner of the square, offset badge centre
+              top:  `calc(${baseTop}% - ${BADGE_SIZE / 2}px)`,
+              left: `calc(${baseLeft}% - ${BADGE_SIZE / 2}px + ${offsetX}px)`,
               zIndex: 10000 + index,
 
-              /* Circle */
-              width:  `${BADGE_SIZE}px`,
-              height: `${BADGE_SIZE}px`,
+              // Circle
+              width:        `${BADGE_SIZE}px`,
+              height:       `${BADGE_SIZE}px`,
               borderRadius: '50%',
-              backgroundColor: d.bg,
 
-              /* No border — as requested */
-              border: 'none',
-              outline: 'none',
+              // Gradient fill — NO border
+              background: `radial-gradient(circle at 38% 32%, ${d.gradient[0]}, ${d.gradient[1]})`,
+              border:     'none',
 
-              /* Symbol */
-              color: '#ffffff',
-              display: 'flex',
-              alignItems: 'center',
+              // Text
+              color:          '#fff',
+              display:        'flex',
+              alignItems:     'center',
               justifyContent: 'center',
-              fontWeight: '900',
-              fontSize: d.fontSize,
-              fontFamily: "'Outfit', 'Inter', system-ui, sans-serif",
-              letterSpacing: '-0.5px',
-              lineHeight: '1',
+              fontWeight:     '900',
+              fontFamily:     "'Georgia', serif",
+              fontSize:       d.fontSize ?? '14px',
+              letterSpacing:  d.letterSpacing ?? '0',
+              lineHeight:     '1',
+              userSelect:     'none',
 
-              /* Subtle shadow for readability on any board */
-              boxShadow: '0 2px 8px rgba(0,0,0,0.45)',
+              // Depth
+              boxShadow: '0 3px 10px rgba(0,0,0,0.45), 0 1px 3px rgba(0,0,0,0.3)',
 
-              /* Smooth appear */
-              userSelect: 'none',
-              pointerEvents: 'none',
+              // Subtle inner highlight
+              WebkitTextStroke: '0.2px rgba(255,255,255,0.3)',
             }}
           >
             {d.label}
