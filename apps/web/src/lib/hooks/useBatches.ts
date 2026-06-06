@@ -2,16 +2,6 @@
 
 import { useState, useEffect } from 'react';
 
-export interface BatchHistoryRecord {
-  id: string;
-  date: string;
-  day: string;
-  presentCount: number;
-  totalCount: number;
-  status: 'completed' | 'cancelled' | 'makeup';
-  attendanceRecords: { studentId: string; status: 'present' | 'absent' | 'makeup' }[];
-}
-
 export interface Batch {
   id: string;
   name: string;
@@ -26,7 +16,8 @@ export interface Batch {
   students: string[]; // array of student IDs
   studentDetails: { id: string; name: string }[];
   status: 'active' | 'inactive';
-  history: BatchHistoryRecord[];
+  sessions?: any[];
+  history?: any[];
 }
 
 const INITIAL_BATCHES: Batch[] = [
@@ -43,8 +34,7 @@ const INITIAL_BATCHES: Batch[] = [
     endTime: '11:00',
     students: ['s1'],
     studentDetails: [],
-    status: 'active',
-    history: []
+    status: 'active'
   },
   {
     id: 'b2',
@@ -59,21 +49,7 @@ const INITIAL_BATCHES: Batch[] = [
     endTime: '19:30',
     students: ['s1', 's2'],
     studentDetails: [],
-    status: 'active',
-    history: [
-      {
-        id: 'h1',
-        date: '2023-01-04',
-        day: 'Wednesday',
-        presentCount: 2,
-        totalCount: 2,
-        status: 'completed',
-        attendanceRecords: [
-          { studentId: 's1', status: 'present' },
-          { studentId: 's2', status: 'present' }
-        ]
-      }
-    ]
+    status: 'active'
   }
 ];
 
@@ -85,7 +61,20 @@ export function useBatches() {
   const fetchBatches = async () => {
     try {
       const res = await fetch('/api/batches');
-      if (!res.ok) throw new Error('Failed to fetch batches');
+      
+      const contentType = res.headers.get('content-type');
+      if (!res.ok) {
+        if (contentType && contentType.includes('application/json')) {
+          const errData = await res.json();
+          throw new Error(errData.error || 'Failed to fetch batches');
+        }
+        throw new Error(`Server returned ${res.status}: API might be down or restarting`);
+      }
+
+      if (!contentType || !contentType.includes('application/json')) {
+         throw new Error('Received non-JSON response from server. API might be restarting.');
+      }
+      
       const data = await res.json();
       const mapped = data.map((b: any) => ({
         ...b,
@@ -93,10 +82,19 @@ export function useBatches() {
         coach: b.coach?.user?.username || b.coach?.username || 'No Coach',
         coachId: b.coach?.userId || b.coachId,
         students: (b.enrollments || []).map((e: any) => e.student?.id || e.studentId),
-        studentDetails: (b.enrollments || []).map((e: any) => ({
-          id: e.student?.id || e.studentId,
-          name: e.student?.user ? `${e.student.user.firstName} ${e.student.user.lastName}` : 'Unknown Student'
-        }))
+        studentDetails: [
+          ...(b.enrollments || []).map((e: any) => ({
+            id: e.student?.id || e.studentId,
+            name: e.student?.user ? `${e.student.user.firstName} ${e.student.user.lastName}` : 'Unknown Student'
+          })),
+          ...(b.targetMakeovers || []).map((m: any) => ({
+            id: m.student?.id || m.studentId,
+            name: m.student?.user ? `${m.student.user.firstName} ${m.student.user.lastName} (Makeover)` : 'Makeover Student',
+            isMakeover: true
+          }))
+        ],
+        targetMakeovers: b.targetMakeovers || [],
+        sessions: b.sessions || []
       }));
       setBatches(mapped);
       setIsLoaded(true);
@@ -110,7 +108,7 @@ export function useBatches() {
     fetchBatches();
   }, []);
 
-  const addBatch = async (batch: Omit<Batch, 'id' | 'students' | 'history' | 'status' | 'studentDetails'>) => {
+  const addBatch = async (batch: Omit<Batch, 'id' | 'students' | 'status' | 'studentDetails'>) => {
     try {
       const res = await fetch('/api/batches', {
         method: 'POST',
@@ -125,8 +123,7 @@ export function useBatches() {
         coach: newBatch.coach?.user?.username || newBatch.coach?.username || 'No Coach',
         coachId: newBatch.coach?.userId || newBatch.coachId,
         students: [],
-        studentDetails: [],
-        history: []
+        studentDetails: []
       };
       setBatches(prev => [flattened, ...prev]);
       return newBatch.id;
@@ -204,11 +201,6 @@ export function useBatches() {
     }
   };
 
-  const addHistoryRecord = async (batchId: string, record: Omit<BatchHistoryRecord, 'id'>) => {
-    // History logic will be part of the Attendance API implementation
-    console.warn('addHistoryRecord not yet fully implemented with API');
-  };
-
   return {
     batches,
     isLoaded,
@@ -218,7 +210,6 @@ export function useBatches() {
     deleteBatch,
     enrollStudent,
     unenrollStudent,
-    addHistoryRecord,
     refresh: fetchBatches
   };
 }

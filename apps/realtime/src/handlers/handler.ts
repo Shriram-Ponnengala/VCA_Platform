@@ -6,15 +6,26 @@ import {
   SocketData,
 } from "@vca/types";
 import {
+  getRoom,
+  hasRoom,
   getRoomState,
   applyMove,
   navigateNode,
   resetRoom,
+  setupPosition,
   addParticipant,
   removeParticipant,
   updateArrows,
   toggleLock,
-  addChatMessage
+  toggleFreehand,
+  addChatMessage,
+  updateNodeAnnotations,
+  setStudyTag,
+  removeStudyTag,
+  promoteToMainline,
+  promoteVariation,
+  deleteSubsequentMoves,
+  deletePreviousMoves
 } from "../rooms/chessRooms";
 import { prisma } from "@vca/database";
 import cookie from "cookie";
@@ -56,28 +67,30 @@ export function handleSocketConnection(io: IO) {
         }
 
         const batchIdStr = String(batchId);
-        let isMember = false;
+        let isMember = batchIdStr === 'test-room';
 
         const role = user.role.toUpperCase();
 
-        if (role === 'ADMIN') {
-          isMember = true;
-        } else if (role === 'COACH') {
-          const coach = await prisma.coach.findUnique({ where: { userId: user.id } });
-          if (coach) {
-            const batch = await prisma.class.findUnique({ where: { id: batchIdStr } });
-            if (batch && batch.coachId === coach.id) {
-              isMember = true;
+        if (!isMember) {
+          if (role === 'ADMIN') {
+            isMember = true;
+          } else if (role === 'COACH') {
+            const coach = await prisma.coach.findUnique({ where: { userId: user.id } });
+            if (coach) {
+              const batch = await prisma.class.findUnique({ where: { id: batchIdStr } });
+              if (batch && batch.coachId === coach.id) {
+                isMember = true;
+              }
             }
-          }
-        } else if (role === 'STUDENT') {
-          const student = await prisma.student.findUnique({ where: { userId: user.id } });
-          if (student) {
-            const enrollment = await prisma.enrollment.findFirst({
-              where: { classId: batchIdStr, studentId: student.id }
-            });
-            if (enrollment) {
-              isMember = true;
+          } else if (role === 'STUDENT') {
+            const student = await prisma.student.findUnique({ where: { userId: user.id } });
+            if (student) {
+              const enrollment = await prisma.enrollment.findFirst({
+                where: { classId: batchIdStr, studentId: student.id }
+              });
+              if (enrollment) {
+                isMember = true;
+              }
             }
           }
         }
@@ -91,6 +104,25 @@ export function handleSocketConnection(io: IO) {
         socket.join(roomId);
         joinedRooms.add(roomId);
         console.log(`[Socket] User ${user.id} joined batch room: ${roomId}`);
+
+        const isNewRoom = !hasRoom(roomId);
+        const room = getRoom(roomId);
+
+        if (isNewRoom) {
+          console.log(`[Socket] Room ${roomId} is new, loading state from DB...`);
+          const activeClassroom = await prisma.classroom.findFirst({
+            where: { batch_id: String(batchId), status: 'ACTIVE' }
+          });
+          if (activeClassroom && activeClassroom.stateData) {
+            const state = activeClassroom.stateData as any;
+            room.nodes = state.nodes || room.nodes;
+            room.currentNodeId = state.currentNodeId || room.currentNodeId;
+            room.isLocked = state.isLocked || false;
+            room.chatHistory = state.chatHistory || [];
+            room.studyTags = state.studyTags || {};
+            console.log(`[Socket] Loaded stateData for room ${roomId} from classroom ID ${activeClassroom.id}`);
+          }
+        }
 
         const participantName = `${user.firstName || user.username || 'User'} ${user.lastName || ''}`.trim();
         addParticipant(roomId, socket.id, participantName);
@@ -165,6 +197,15 @@ export function handleSocketConnection(io: IO) {
       io.to(roomId).emit("chess:state", getRoomState(roomId));
     });
 
+    socket.on("chess:setup_position", ({ roomId, fen }) => {
+      const role = (socket as any).user?.role?.toUpperCase();
+      if (role === 'STUDENT') return;
+
+      setupPosition(roomId, fen);
+      console.log(`[Chess] Room ${roomId} position setup by ${socket.id} with FEN: ${fen}`);
+      io.to(roomId).emit("chess:state", getRoomState(roomId));
+    });
+
     // ── New Feature Events ───────────────────────────────────────────────────
 
     socket.on("chess:update_arrows", ({ roomId, nodeId, arrows }) => {
@@ -184,6 +225,14 @@ export function handleSocketConnection(io: IO) {
       io.to(roomId).emit("chess:lock_toggled", { isLocked });
     });
 
+    socket.on("chess:toggle_freehand", ({ roomId, isFreehand }) => {
+      const role = (socket as any).user?.role?.toUpperCase();
+      if (role === 'STUDENT') return;
+
+      toggleFreehand(roomId, isFreehand);
+      io.to(roomId).emit("chess:freehand_toggled", { isFreehand });
+    });
+
     socket.on("chess:send_chat", ({ roomId, message }) => {
       // Create a nice username or look it up from participantsMap
       const state = getRoomState(roomId);
@@ -192,6 +241,67 @@ export function handleSocketConnection(io: IO) {
       
       const chatMsg = addChatMessage(roomId, socket.id, username, message);
       io.to(roomId).emit("chess:chat_message", chatMsg);
+    });
+
+    socket.on("chess:update_node", ({ roomId, nodeId, comment, glyphs }) => {
+      const role = (socket as any).user?.role?.toUpperCase();
+      if (role === 'STUDENT') return;
+
+      if (updateNodeAnnotations(roomId, nodeId, comment, glyphs)) {
+        io.to(roomId).emit("chess:node_updated", { nodeId, comment, glyphs });
+      }
+    });
+
+    socket.on("chess:promote_to_mainline", ({ roomId, nodeId }) => {
+      const role = (socket as any).user?.role?.toUpperCase();
+      if (role === 'STUDENT') return;
+
+      if (promoteToMainline(roomId, nodeId)) {
+        io.to(roomId).emit("chess:state", getRoomState(roomId));
+      }
+    });
+
+    socket.on("chess:promote_variation", ({ roomId, nodeId }) => {
+      const role = (socket as any).user?.role?.toUpperCase();
+      if (role === 'STUDENT') return;
+
+      if (promoteVariation(roomId, nodeId)) {
+        io.to(roomId).emit("chess:state", getRoomState(roomId));
+      }
+    });
+
+    socket.on("chess:delete_subsequent_moves", ({ roomId, nodeId }) => {
+      const role = (socket as any).user?.role?.toUpperCase();
+      if (role === 'STUDENT') return;
+
+      if (deleteSubsequentMoves(roomId, nodeId)) {
+        io.to(roomId).emit("chess:state", getRoomState(roomId));
+      }
+    });
+
+    socket.on("chess:delete_previous_moves", ({ roomId, nodeId }) => {
+      const role = (socket as any).user?.role?.toUpperCase();
+      if (role === 'STUDENT') return;
+
+      if (deletePreviousMoves(roomId, nodeId)) {
+        io.to(roomId).emit("chess:state", getRoomState(roomId));
+      }
+    });
+
+    socket.on("chess:set_tag", ({ roomId, key, value }) => {
+      const role = (socket as any).user?.role?.toUpperCase();
+      if (role === 'STUDENT') return;
+
+      setStudyTag(roomId, key, value);
+      io.to(roomId).emit("chess:set_tag", { key, value });
+    });
+
+    socket.on("chess:remove_tag", ({ roomId, key }) => {
+      const role = (socket as any).user?.role?.toUpperCase();
+      if (role === 'STUDENT') return;
+
+      removeStudyTag(roomId, key);
+      io.to(roomId).emit("chess:remove_tag", { key });
     });
 
     // ── Disconnect ───────────────────────────────────────────────────────────

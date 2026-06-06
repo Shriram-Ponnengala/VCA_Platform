@@ -34,11 +34,48 @@ const httpServer = createServer((req, res) => {
   if (req.method === 'POST' && req.url === '/internal/end-room') {
     let body = '';
     req.on('data', chunk => { body += chunk.toString() });
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
-        const { batchId } = JSON.parse(body);
+        const { batchId, classroomId } = JSON.parse(body);
         const roomId = `batch_${batchId}`;
         
+        // Save final state to DB before destroying
+        if (globalRooms._chessRooms && globalRooms._chessRooms.has(roomId)) {
+          const room = globalRooms._chessRooms.get(roomId);
+          const state = {
+            nodes: room.nodes,
+            currentNodeId: room.currentNodeId,
+            participants: Array.from(room.participantsMap.values()),
+            isLocked: room.isLocked || false,
+            chatHistory: room.chatHistory || [],
+            studyTags: room.studyTags || {}
+          };
+          
+          try {
+            if (classroomId) {
+              await prisma.classroom.update({
+                where: { id: Number(classroomId) },
+                data: { stateData: state as any }
+              });
+              console.log(`[Socket Server] Saved final state for classroom ID ${classroomId}`);
+            } else {
+              const activeClassroom = await prisma.classroom.findFirst({
+                where: { batch_id: String(batchId) },
+                orderBy: { created_at: 'desc' }
+              });
+              if (activeClassroom) {
+                await prisma.classroom.update({
+                  where: { id: activeClassroom.id },
+                  data: { stateData: state as any }
+                });
+                console.log(`[Socket Server] Saved final state for fallback classroom ID ${activeClassroom.id}`);
+              }
+            }
+          } catch (dbErr) {
+            console.error('[Socket Server] Error saving final state to DB:', dbErr);
+          }
+        }
+
         // Notify clients
         io.to(roomId).emit('access_denied');
         // Kick them out
@@ -51,6 +88,7 @@ const httpServer = createServer((req, res) => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
       } catch (e) {
+        console.error('[Socket Server] Error ending room:', e);
         res.writeHead(500);
         res.end('Error');
       }

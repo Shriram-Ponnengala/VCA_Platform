@@ -1,27 +1,27 @@
 :root {
-  --primary: #551e19;
-  --secondary: #e6b17e;
-  --cream: #f7d5b4;
-  --background: #ffffff;
-  --foreground: #551e19;
+  --primary: #2d4a6b;
+  --secondary: #c8854a;
+  --cream: #fdf0e4;
+  --background: #fdf0e4;
+  --foreground: #4a2018;
   --card-bg: #ffffff;
-  --muted: #fbf5ee;
-  --muted-foreground: #64748b;
-  --border: #f7d5b4;
+  --muted: #fdf5ea;
+  --muted-foreground: #7a625d;
+  --border: #eedcd0;
   --radius: 12px;
   
   /* Brand Specific - Light Theme */
-  --sidebar-bg: #f7d5b4;
-  --sidebar-foreground: #551e19;
-  --sidebar-active-bg: #ffffff;
-  --sidebar-active-foreground: #551e19;
+  --sidebar-bg: #2d4a6b;
+  --sidebar-foreground: #ffffff;
+  --sidebar-active-bg: #c8854a;
+  --sidebar-active-foreground: #ffffff;
   
   /* Fonts */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui;
   --font-serif: var(--font-playfair), ui-serif, Georgia;
 
   /* Shadows */
-  --shadow-subtle: 0 4px 12px -1px rgba(85, 30, 25, 0.05), 0 2px 4px -1px rgba(85, 30, 25, 0.05);
+  --shadow-subtle: 0 4px 12px -1px rgba(45, 74, 107, 0.05), 0 2px 4px -1px rgba(45, 74, 107, 0.05);
 }
 
 * {
@@ -44,7 +44,7 @@ body {
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-serif);
   font-weight: 700;
-  color: var(--primary);
+  color: var(--foreground);
 }
 
 a {
@@ -92,3 +92,47 @@ button {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--secondary);
 }
+
+/* Custom Chessground overrides */
+:root {
+  --board-light: #eedcd0;
+  --board-dark: #c8854a;
+  --board-image: conic-gradient(
+    var(--board-dark, #c8854a) 25%, 
+    transparent 0 50%, 
+    var(--board-dark, #c8854a) 0 75%, 
+    transparent 0
+  );
+  --board-size: 25% 25%;
+  /* Board frame customization */
+  --board-frame-color: #FDF0E4;
+  --board-frame-padding: 10px;
+}
+
+/* Apply frame color + padding to the board wrapper globally */
+.board-wrapper {
+  background-color: var(--board-frame-color) !important;
+  padding: var(--board-frame-padding) !important;
+}
+
+.board-wrapper cg-board {
+  background-color: var(--board-light) !important;
+  background-image: var(--board-image) !important;
+  background-size: var(--board-size) !important;
+}
+
+
+.board-wrapper piece.pawn.white { background-image: var(--piece-wp, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wP.svg')) !important; }
+.board-wrapper piece.bishop.white { background-image: var(--piece-wb, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wB.svg')) !important; }
+.board-wrapper piece.knight.white { background-image: var(--piece-wn, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wN.svg')) !important; }
+.board-wrapper piece.rook.white { background-image: var(--piece-wr, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wR.svg')) !important; }
+.board-wrapper piece.queen.white { background-image: var(--piece-wq, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wQ.svg')) !important; }
+.board-wrapper piece.king.white { background-image: var(--piece-wk, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wK.svg')) !important; }
+
+.board-wrapper piece.pawn.black { background-image: var(--piece-bp, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bP.svg')) !important; }
+.board-wrapper piece.bishop.black { background-image: var(--piece-bb, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bB.svg')) !important; }
+.board-wrapper piece.knight.black { background-image: var(--piece-bn, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bN.svg')) !important; }
+.board-wrapper piece.rook.black { background-image: var(--piece-br, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bR.svg')) !important; }
+.board-wrapper piece.queen.black { background-image: var(--piece-bq, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bQ.svg')) !important; }
+.board-wrapper piece.king.black { background-image: var(--piece-bk, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bK.svg')) !important; }
+

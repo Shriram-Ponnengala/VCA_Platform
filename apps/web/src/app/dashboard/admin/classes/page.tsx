@@ -59,7 +59,6 @@ export default function ClassesPage() {
 
             <div className={styles.cardFooter}>
               <button className={styles.viewBtn}>View Details</button>
-              <button className={styles.attendanceBtn}>View Attendance</button>
             </div>
           </div>
         ))}

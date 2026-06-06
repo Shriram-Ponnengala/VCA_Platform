@@ -30,6 +30,8 @@ export interface MoveNode {
   from?: string;
   to?: string;
   arrows: ArrowData[];
+  comment?: string;
+  glyphs?: string[];
 }
 
 export interface Participant {
@@ -42,7 +44,9 @@ export interface ChessRoomState {
   currentNodeId: string;
   participants: Participant[];
   isLocked: boolean;
+  isFreehand?: boolean;
   chatHistory: ChatMessage[];
+  studyTags: Record<string, string>;
 }
 
 export interface ServerToClientEvents {
@@ -62,7 +66,11 @@ export interface ServerToClientEvents {
   // New events
   "chess:arrows_updated": (data: { nodeId: string; arrows: ArrowData[] }) => void;
   "chess:lock_toggled": (data: { isLocked: boolean }) => void;
+  "chess:freehand_toggled": (data: { isFreehand: boolean }) => void;
   "chess:chat_message": (data: ChatMessage) => void;
+  "chess:node_updated": (data: { nodeId: string; comment?: string; glyphs?: string[] }) => void;
+  "chess:set_tag": (data: { key: string; value: string }) => void;
+  "chess:remove_tag": (data: { key: string }) => void;
   "access_denied": () => void;
 }
 
@@ -81,8 +89,17 @@ export interface ClientToServerEvents {
   // New events
   "chess:update_arrows": (data: { roomId: string; nodeId: string; arrows: ArrowData[] }) => void;
   "chess:toggle_lock": (data: { roomId: string; isLocked: boolean }) => void;
+  "chess:toggle_freehand": (data: { roomId: string; isFreehand: boolean }) => void;
   "chess:send_chat": (data: { roomId: string; message: string }) => void;
+  "chess:update_node": (data: { roomId: string; nodeId: string; comment?: string; glyphs?: string[] }) => void;
+  "chess:set_tag": (data: { roomId: string; key: string; value: string }) => void;
+  "chess:remove_tag": (data: { roomId: string; key: string }) => void;
+  "chess:setup_position": (data: { roomId: string; fen: string }) => void;
   "join_classroom": (data: { batchId: number | string }) => void;
+  "chess:promote_to_mainline": (data: { roomId: string; nodeId: string }) => void;
+  "chess:promote_variation": (data: { roomId: string; nodeId: string }) => void;
+  "chess:delete_subsequent_moves": (data: { roomId: string; nodeId: string }) => void;
+  "chess:delete_previous_moves": (data: { roomId: string; nodeId: string }) => void;
 }
 
 export interface InterServerEvents {}

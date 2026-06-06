@@ -25,6 +25,8 @@ export interface Student {
   status: 'active' | 'inactive';
   memberSince: string;
   program?: string; // Default or assigned program
+  profilePhoto?: string;
+  username?: string;
 }
 
 const INITIAL_STUDENTS: Student[] = [

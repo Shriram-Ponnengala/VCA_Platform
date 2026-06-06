@@ -9,6 +9,7 @@ import styles from './page.module.css';
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -65,12 +66,23 @@ export default function LoginPage() {
           
           <Input 
             label="Password" 
-            type="password" 
+            type={showPassword ? "text" : "password"} 
             value={password} 
             onChange={(e) => setPassword(e.target.value)} 
             placeholder="Enter your password"
             required 
           />
+
+          <div className={styles.showPasswordContainer}>
+            <input 
+              type="checkbox" 
+              id="showPassword" 
+              className={styles.checkbox}
+              checked={showPassword} 
+              onChange={() => setShowPassword(!showPassword)} 
+            />
+            <label htmlFor="showPassword">Show password</label>
+          </div>
           
           <Button 
             type="submit" 

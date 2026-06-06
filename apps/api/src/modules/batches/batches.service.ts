@@ -84,4 +84,12 @@ export class BatchesService {
   async unenroll(batchId: string, studentId: string) {
     return repo.unenroll(batchId, studentId);
   }
+
+  async markAttendance(batchId: string, payload: any, user: any) {
+    return repo.markAttendance(batchId, payload, user);
+  }
+
+  async rescheduleClass(batchId: string, payload: any) {
+    return repo.rescheduleClass(batchId, payload);
+  }
 }

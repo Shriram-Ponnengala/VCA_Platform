@@ -63,7 +63,7 @@
 .closeBtn {
   background: transparent;
   border: none;
-  color: #1e293b;
+  color: #4a2018;
   cursor: pointer;
   padding: 4px;
   transition: opacity 0.2s;
@@ -79,8 +79,27 @@
   flex: 1;
 }
 
-.dateRow {
+.content::-webkit-scrollbar {
+  width: 6px;
+}
+.content::-webkit-scrollbar-track {
+  background: transparent;
+}
+.content::-webkit-scrollbar-thumb {
+  background: #EADBC8;
+  border-radius: 10px;
+}
+
+.row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.rowFull {
   display: flex;
+  flex-direction: column;
   gap: 16px;
   margin-bottom: 24px;
 }
@@ -89,7 +108,6 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  flex: 1;
 }
 
 .label {
@@ -102,75 +120,58 @@
 }
 
 .input, .select {
-  padding: 12px 16px;
+  padding: 14px 16px;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
   font-size: 0.9375rem;
   color: #475569;
   width: 100%;
   background-color: white;
+  transition: border-color 0.2s;
 }
 
-.studentList {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%233D1A0E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  padding-right: 40px;
 }
 
-.studentCard {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px;
-  border: 1px solid #f1f5f9;
-  border-radius: 16px;
-  background-color: #fafaf9;
+.input:focus, .select:focus {
+  outline: none;
+  border-color: #3D1A0E;
 }
 
-.studentName {
-  font-weight: 700;
-  color: #3D1A0E;
-  margin: 0;
-}
-
-.toggleGroup {
+/* Day Toggles */
+.daysRow {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
-.statusBtn {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
+.dayBtn {
+  flex: 1;
+  min-width: 40px;
+  padding: 10px 4px;
+  border-radius: 10px;
   border: 1px solid #e2e8f0;
   background-color: white;
-  color: #94a3b8;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
+  text-align: center;
 }
 
-.statusBtn.activeP {
-  background-color: #10b981;
+.dayBtn.selected {
+  background-color: #3D1A0E;
   color: white;
-  border-color: #10b981;
+  border-color: #3D1A0E;
 }
 
-.statusBtn.activeA {
-  background-color: #ef4444;
-  color: white;
-  border-color: #ef4444;
-}
-
-.statusBtn.activeM {
-  background-color: #f59e0b;
-  color: white;
-  border-color: #f59e0b;
-}
-
+/* Footer */
 .footer {
   padding: 24px 32px;
   border-top: 1px solid #f8fafc;
@@ -187,9 +188,20 @@
   border-radius: 12px;
   font-weight: 700;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: transform 0.1s, opacity 0.2s;
 }
 
 .saveBtn:hover {
   opacity: 0.9;
+}
+
+.saveBtn:active {
+  transform: scale(0.98);
+}
+
+.errorText {
+  color: #ef4444;
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-top: 4px;
 }

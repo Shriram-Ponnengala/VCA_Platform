@@ -368,7 +368,7 @@
   padding: 16px;
   border-bottom: 1px solid #f1f5f9;
   font-size: 0.9375rem;
-  color: #1e293b;
+  color: #4a2018;
 }
 
 .historyRow {
@@ -444,3 +444,39 @@
   font-size: 0.75rem;
   font-weight: 800;
 }
+
+/* Tabs Navigation */
+.tabsContainer {
+  display: flex;
+  gap: 8px;
+  background-color: #fafaf9;
+  padding: 6px;
+  border-radius: 12px;
+  width: fit-content;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 24px;
+}
+
+.tab {
+  background: transparent;
+  border: none;
+  padding: 8px 16px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #64748b;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  color: #3D1A0E;
+  background-color: rgba(61, 26, 14, 0.05);
+}
+
+.activeTab {
+  background-color: white;
+  color: #3D1A0E;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+

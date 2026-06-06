@@ -52,7 +52,7 @@
 
 .iconWrapper.info {
   background-color: #DBEAFE;
-  color: #2563EB;
+  color: #2d4a6b;
 }
 
 .closeBtn {
@@ -135,7 +135,7 @@
 }
 
 .confirmBtn.info {
-  background-color: #2563EB;
+  background-color: #2d4a6b;
 }
 
 @keyframes fadeIn {

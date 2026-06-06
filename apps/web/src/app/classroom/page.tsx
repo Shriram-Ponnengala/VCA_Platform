@@ -2,22 +2,58 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import ChessBoard from '@/components/chess/ChessBoard';
-import { History, Zap, RotateCcw, Wifi, WifiOff, Users, User, Lock, Unlock, MessageSquare, Send, Eraser } from 'lucide-react';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { VariationChooser } from '@/components/chess/VariationChooser';
+import { AnnotationsPanel } from '@/components/chess/AnnotationsPanel';
+import { History, Zap, Wifi, WifiOff, Users, User, MessageSquare, Send, Star, ArrowUp, Scissors, Eraser } from 'lucide-react';
 import { useChessRoom } from '@/lib/hooks/useChessRoom';
 import { MoveNode, ChatMessage } from '@vca/types';
 
 const ROOM_ID = 'test-room';
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
-export default function ChessTestPage() {
+export default function ClassroomPage() {
   const { 
-    nodes, currentNodeId, participants, isConnected, isReady, isLocked, chatHistory,
-    makeMove, navigate, resetBoard, updateArrows, clearArrows, toggleLock, sendChatMessage
+    nodes, currentNodeId, participants, isConnected, isReady, isLocked, isFreehand, chatHistory, studyTags,
+    makeMove, navigate, resetBoard, updateArrows, clearArrows, toggleLock, toggleFreehand, sendChatMessage,
+    updateNodeAnnotations, setStudyTag, removeStudyTag, setupPosition,
+    promoteToMainline, promoteVariation, deleteSubsequentMoves, deletePreviousMoves
   } = useChessRoom(ROOM_ID);
 
   const [activeTab, setActiveTab] = useState<'history' | 'participants' | 'chat'>('history');
   const [selectedVariationIndex, setSelectedVariationIndex] = useState(0);
   const [chatInput, setChatInput] = useState('');
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
+
+  const handleContextMenu = (e: React.MouseEvent, nodeId: string) => {
+    e.preventDefault();
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      nodeId
+    });
+  };
+
+  const handleMakeMainline = (nodeId: string) => {
+    promoteToMainline(nodeId);
+    setContextMenu(null);
+  };
+
+  const handlePromoteVariation = (nodeId: string) => {
+    promoteVariation(nodeId);
+    setContextMenu(null);
+  };
+
+  const handleDeleteSubsequent = (nodeId: string) => {
+    deleteSubsequentMoves(nodeId);
+    setContextMenu(null);
+  };
+
+  const handleDeletePrevious = (nodeId: string) => {
+    deletePreviousMoves(nodeId);
+    setContextMenu(null);
+  };
   const chatMessagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -62,6 +98,7 @@ export default function ChessTestPage() {
   const canGoNext = currentNode.children.length > 0;
   const canGoPrev = currentNode.parentId !== null;
   const numBranches = currentNode.children.length;
+  const branches = currentNode?.children.map(id => ({ id, san: nodes[id].san })) || [];
 
   const handleNext = () => {
     if (canGoNext) {
@@ -112,13 +149,22 @@ export default function ChessTestPage() {
 
     while (currId) {
       const curr = nodes[currId];
+      if (!curr) break;
+      const isWhite = curr.turn === 'w';
+      const showNum = elements.length === 0 || isWhite;
+      const targetId = curr.id;
       elements.push(
         <React.Fragment key={curr.id}>
-          <span className="pgn-num">{curr.moveNumber}{curr.turn === 'w' ? '.' : '...'}</span>
+          {showNum && <span className="pgn-num">{curr.moveNumber}{isWhite ? '.' : '...'}</span>}
           <button
             className={`m-btn inline-btn ${currentNodeId === curr.id ? 'active' : ''}`}
             onClick={() => navigate(curr.id)}
-          >{curr.san}</button>
+            onContextMenu={(e) => handleContextMenu(e, targetId)}
+          >
+            {curr.san}
+            {curr.glyphs?.map(g => <span key={g} className="nag-glyph">{g}</span>)}
+          </button>
+          {curr.comment && <span className="inline-comment">{curr.comment}</span>}
           {parentNode.children.length > 1 && parentNode.children[0] === currId && (
             <React.Fragment>
               {parentNode.children.slice(1).map(vId => (
@@ -127,7 +173,12 @@ export default function ChessTestPage() {
                   <button
                     className={`m-btn inline-btn ${currentNodeId === vId ? 'active' : ''}`}
                     onClick={() => navigate(vId)}
-                  >{nodes[vId].san}</button>
+                    onContextMenu={(e) => handleContextMenu(e, vId)}
+                  >
+                    {nodes[vId].san}
+                    {nodes[vId].glyphs?.map(g => <span key={g} className="nag-glyph">{g}</span>)}
+                  </button>
+                  {nodes[vId].comment && <span className="inline-comment">{nodes[vId].comment}</span>}
                   <InlineVariation nodeId={vId} />
                 </div>
               ))}
@@ -140,7 +191,7 @@ export default function ChessTestPage() {
         currId = curr.children[0];
       } else break;
     }
-    return <div className="inline-variation-line">{elements}</div>;
+    return <span className="inline-variation-line">{elements}</span>;
   };
 
   const renderMoveTree = (nodeId: string): React.JSX.Element[] => {
@@ -157,47 +208,71 @@ export default function ChessTestPage() {
         ? mainNode.children[0] : null;
       const blackNode = blackId ? nodes[blackId] : null;
       const hasWhiteVars = children.length > 1;
+      const hasBlackVars = mainNode.children.length > 1;
+      const whiteComment = mainNode.comment;
+      const breaksLayout = hasWhiteVars || !!whiteComment;
 
-      if (!hasWhiteVars) {
+      if (!breaksLayout) {
         elements.push(
           <div key={mainId} className="main-row">
             <span className="m-num">{mainNode.moveNumber}.</span>
-            <button className={`m-btn ${currentNodeId === mainId ? 'active' : ''}`} onClick={() => navigate(mainId)}>{mainNode.san}</button>
-            <span className="m-sep">-</span>
+            <button className={`m-btn ${currentNodeId === mainId ? 'active' : ''}`} onClick={() => navigate(mainId)} onContextMenu={(e) => handleContextMenu(e, mainId)}>
+              {mainNode.san}
+              {mainNode.glyphs?.map(g => <span key={g} className="nag-glyph">{g}</span>)}
+            </button>
             {blackNode
-              ? <button className={`m-btn ${currentNodeId === blackId ? 'active' : ''}`} onClick={() => navigate(blackId!)}>{blackNode.san}</button>
+              ? <button className={`m-btn ${currentNodeId === blackId ? 'active' : ''}`} onClick={() => navigate(blackId!)} onContextMenu={(e) => handleContextMenu(e, blackId!)}>
+                  {blackNode.san}
+                  {blackNode.glyphs?.map(g => <span key={g} className="nag-glyph">{g}</span>)}
+                </button>
               : <span className="m-placeholder">...</span>}
           </div>
         );
-        mainNode.children.forEach(vId => {
-          if (vId !== blackId) {
+        if (blackNode?.comment) {
+          elements.push(<div key={`comm-${blackId}`} className="move-comment">{blackNode.comment}</div>);
+        }
+        if (hasBlackVars) {
+          mainNode.children.slice(1).forEach(vId => {
             const vNode = nodes[vId];
             elements.push(
               <div key={vId} className="variation-block">
                 <span className="pgn-num">{vNode.moveNumber}...</span>
-                <button className={`m-btn inline-btn ${currentNodeId === vId ? 'active' : ''}`} onClick={() => navigate(vId)}>{vNode.san}</button>
+                <button className={`m-btn inline-btn ${currentNodeId === vId ? 'active' : ''}`} onClick={() => navigate(vId)} onContextMenu={(e) => handleContextMenu(e, vId)}>
+                  {vNode.san}
+                  {vNode.glyphs?.map(g => <span key={g} className="nag-glyph">{g}</span>)}
+                </button>
+                {vNode.comment && <span className="inline-comment">{vNode.comment}</span>}
                 <InlineVariation nodeId={vId} />
               </div>
             );
-          }
-        });
+          });
+        }
         elements.push(...renderMoveTree(blackId || mainId));
       } else {
         elements.push(
           <div key={mainId} className="main-row">
             <span className="m-num">{mainNode.moveNumber}.</span>
-            <button className={`m-btn ${currentNodeId === mainId ? 'active' : ''}`} onClick={() => navigate(mainId)}>{mainNode.san}</button>
-            <span className="m-sep">-</span>
+            <button className={`m-btn ${currentNodeId === mainId ? 'active' : ''}`} onClick={() => navigate(mainId)} onContextMenu={(e) => handleContextMenu(e, mainId)}>
+              {mainNode.san}
+              {mainNode.glyphs?.map(g => <span key={g} className="nag-glyph">{g}</span>)}
+            </button>
             <span className="m-placeholder">...</span>
           </div>
         );
+        if (whiteComment) {
+          elements.push(<div key={`comm-${mainId}`} className="move-comment">{whiteComment}</div>);
+        }
         children.slice(1).forEach(vId => {
           const vNode = nodes[vId];
           if (vNode.san.trim().toLowerCase() === mainNode.san.trim().toLowerCase()) return;
           elements.push(
             <div key={vId} className="variation-block">
               <span className="pgn-num">{vNode.moveNumber}.</span>
-              <button className={`m-btn inline-btn ${currentNodeId === vId ? 'active' : ''}`} onClick={() => navigate(vId)}>{vNode.san}</button>
+              <button className={`m-btn inline-btn ${currentNodeId === vId ? 'active' : ''}`} onClick={() => navigate(vId)} onContextMenu={(e) => handleContextMenu(e, vId)}>
+                {vNode.san}
+                {vNode.glyphs?.map(g => <span key={g} className="nag-glyph">{g}</span>)}
+              </button>
+              {vNode.comment && <span className="inline-comment">{vNode.comment}</span>}
               <InlineVariation nodeId={vId} />
             </div>
           );
@@ -207,10 +282,31 @@ export default function ChessTestPage() {
             <div key={blackId} className="main-row">
               <span className="m-num">{blackNode.moveNumber}...</span>
               <span className="m-placeholder">...</span>
-              <span className="m-sep">-</span>
-              <button className={`m-btn ${currentNodeId === blackId ? 'active' : ''}`} onClick={() => navigate(blackId!)}>{blackNode.san}</button>
+              <button className={`m-btn ${currentNodeId === blackId ? 'active' : ''}`} onClick={() => navigate(blackId!)} onContextMenu={(e) => handleContextMenu(e, blackId!)}>
+                {blackNode.san}
+                {blackNode.glyphs?.map(g => <span key={g} className="nag-glyph">{g}</span>)}
+              </button>
             </div>
           );
+          if (blackNode.comment) {
+            elements.push(<div key={`comm-${blackId}`} className="move-comment">{blackNode.comment}</div>);
+          }
+        }
+        if (blackNode && hasBlackVars) {
+          mainNode.children.slice(1).forEach(vId => {
+            const vNode = nodes[vId];
+            elements.push(
+              <div key={vId} className="variation-block">
+                <span className="pgn-num">{vNode.moveNumber}...</span>
+                <button className={`m-btn inline-btn ${currentNodeId === vId ? 'active' : ''}`} onClick={() => navigate(vId)} onContextMenu={(e) => handleContextMenu(e, vId)}>
+                  {vNode.san}
+                  {vNode.glyphs?.map(g => <span key={g} className="nag-glyph">{g}</span>)}
+                </button>
+                {vNode.comment && <span className="inline-comment">{vNode.comment}</span>}
+                <InlineVariation nodeId={vId} />
+              </div>
+            );
+          });
         }
         elements.push(...renderMoveTree(blackId || mainId));
       }
@@ -219,10 +315,15 @@ export default function ChessTestPage() {
         <div key={mainId} className="main-row">
           <span className="m-num">{mainNode.moveNumber}...</span>
           <span className="m-placeholder">...</span>
-          <span className="m-sep">-</span>
-          <button className={`m-btn ${currentNodeId === mainId ? 'active' : ''}`} onClick={() => navigate(mainId)}>{mainNode.san}</button>
+          <button className={`m-btn ${currentNodeId === mainId ? 'active' : ''}`} onClick={() => navigate(mainId)} onContextMenu={(e) => handleContextMenu(e, mainId)}>
+            {mainNode.san}
+            {mainNode.glyphs?.map(g => <span key={g} className="nag-glyph">{g}</span>)}
+          </button>
         </div>
       );
+      if (mainNode.comment) {
+        elements.push(<div key={`comm-${mainId}`} className="move-comment">{mainNode.comment}</div>);
+      }
       elements.push(...renderMoveTree(mainId));
     }
     return elements;
@@ -251,40 +352,12 @@ export default function ChessTestPage() {
               <Users size={14} />
               <span>Room: {ROOM_ID}</span>
             </div>
-            
-            <button
-              className={`header-btn ${isLocked ? 'locked' : 'unlocked'}`}
-              onClick={() => toggleLock(!isLocked)}
-              title={isLocked ? "Unlock Moves" : "Lock Moves (Analysis Mode)"}
-            >
-              {isLocked ? <Lock size={14} /> : <Unlock size={14} />}
-              {isLocked ? 'Unlock' : 'Lock'}
-            </button>
-            
-            <button
-              className="header-btn"
-              onClick={() => clearArrows()}
-              title="Clear Arrows on current move"
-            >
-              <Eraser size={14} />
-              Clear Arrows
-            </button>
-
-            <button
-              className="reset-btn"
-              onClick={() => { if (confirm('Reset the board for everyone?')) resetBoard(); }}
-              title="Reset board for all players"
-              disabled={!isConnected}
-            >
-              <RotateCcw size={14} />
-              Reset
-            </button>
           </div>
         </header>
 
         {/* ── Main layout ── */}
         <main className="main-content">
-          <section className="board-section glass-panel">
+          <section className="board-section">
             <ChessBoard
               fen={boardFen}
               history={gameHistory}
@@ -301,6 +374,20 @@ export default function ChessTestPage() {
               arrows={currentNode?.arrows || []}
               onUpdateArrows={updateArrows}
               isLocked={isLocked}
+              isFreehand={isFreehand}
+              branches={branches}
+              selectedBranchIndex={selectedVariationIndex}
+              onSelectBranch={setSelectedVariationIndex}
+              onChooseBranch={(id) => {
+                navigate(id);
+                setSelectedVariationIndex(0);
+              }}
+              currentNode={currentNode}
+              onReset={() => setShowResetConfirm(true)}
+              onClearArrows={clearArrows}
+              onMoreTools={() => toggleLock(!isLocked)}
+              onToggleFreehand={toggleFreehand}
+              onSetupPosition={setupPosition}
             />
           </section>
 
@@ -310,7 +397,7 @@ export default function ChessTestPage() {
                 className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
                 onClick={() => setActiveTab('history')}
               >
-                <History size={16} /> History
+                <History size={16} /> Moves
               </button>
               <button 
                 className={`tab-btn ${activeTab === 'participants' ? 'active' : ''}`}
@@ -330,11 +417,25 @@ export default function ChessTestPage() {
               {activeTab === 'history' ? (
                 <div className="history-content">
                   <div className="history-scroll-area">
+                    {nodes['root']?.comment && (
+                      <div className="move-comment" style={{ marginBottom: '8px' }}>
+                        {nodes['root'].comment}
+                      </div>
+                    )}
                     {nodes['root']?.children.length === 0
                       ? <p className="empty-state">No moves yet. Make a move to start!</p>
                       : renderMoveTree('root')
                     }
                   </div>
+                  <VariationChooser
+                    variations={branches}
+                    selectedIndex={selectedVariationIndex}
+                    onSelect={setSelectedVariationIndex}
+                    onChoose={(id) => {
+                      navigate(id);
+                      setSelectedVariationIndex(0);
+                    }}
+                  />
                 </div>
               ) : activeTab === 'participants' ? (
                 <div className="participants-content">
@@ -392,33 +493,128 @@ export default function ChessTestPage() {
                 </div>
               )}
             </div>
+
+            {activeTab === 'history' && (
+              <AnnotationsPanel
+                currentNode={currentNode}
+                studyTags={studyTags}
+                isCoach={true}
+                onUpdateAnnotations={updateNodeAnnotations}
+                onSetStudyTag={setStudyTag}
+                onRemoveStudyTag={removeStudyTag}
+              />
+            )}
           </section>
         </main>
       </div>
+
+      <ConfirmDialog
+        isOpen={showResetConfirm}
+        title="Reset board?"
+        message="This will clear all moves and reset the board for everyone in the room. This action cannot be undone."
+        confirmText="Reset"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={() => {
+          resetBoard();
+          setShowResetConfirm(false);
+        }}
+        onCancel={() => setShowResetConfirm(false)}
+      />
+
+      {contextMenu && (
+        <>
+          <div 
+            className="context-menu-backdrop" 
+            onClick={() => setContextMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setContextMenu(null);
+            }}
+          />
+          {(() => {
+            const clickedNode = nodes[contextMenu.nodeId];
+            if (!clickedNode) return null;
+            const parentNode = clickedNode.parentId ? nodes[clickedNode.parentId] : null;
+            const isMainline = parentNode ? parentNode.children[0] === clickedNode.id : true;
+            const canMakeMainline = parentNode && !isMainline;
+            const canPromote = parentNode && parentNode.children.indexOf(clickedNode.id) > 0;
+            const canDeleteSubsequent = clickedNode.children.length > 0;
+            const canDeletePrevious = clickedNode.id !== 'root';
+
+            return (
+              <div 
+                className="context-menu" 
+                style={{ top: contextMenu.y, left: contextMenu.x }}
+              >
+                <div className="context-menu-header">
+                  {clickedNode.moveNumber}{clickedNode.turn === 'w' ? '.' : '...'} {clickedNode.san}
+                </div>
+                <div className="context-menu-list">
+                  <button
+                    className="context-menu-item"
+                    disabled={!canMakeMainline}
+                    onClick={() => handleMakeMainline(clickedNode.id)}
+                  >
+                    <Star size={14} />
+                    <span>Make mainline</span>
+                  </button>
+                  <button
+                    className="context-menu-item"
+                    disabled={!canPromote}
+                    onClick={() => handlePromoteVariation(clickedNode.id)}
+                  >
+                    <ArrowUp size={14} />
+                    <span>Promote variation</span>
+                  </button>
+                  <button
+                    className="context-menu-item danger"
+                    disabled={!canDeleteSubsequent}
+                    onClick={() => handleDeleteSubsequent(clickedNode.id)}
+                  >
+                    <Eraser size={14} />
+                    <span>Delete remaining moves</span>
+                  </button>
+                  <button
+                    className="context-menu-item danger"
+                    disabled={!canDeletePrevious}
+                    onClick={() => handleDeletePrevious(clickedNode.id)}
+                  >
+                    <Scissors size={14} />
+                    <span>Delete previous moves</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+        </>
+      )}
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
 
         .page-wrapper {
-          min-height: 100vh;
-          background: #0f172a;
-          background-image:
-            radial-gradient(circle at 0% 0%, rgba(139,92,246,.15) 0%, transparent 50%),
-            radial-gradient(circle at 100% 100%, rgba(139,92,246,.10) 0%, transparent 50%);
+          height: 100vh;
+          overflow: hidden;
+          background: #fdf0e4;
           display: flex;
           justify-content: center;
           align-items: flex-start;
-          padding: 2rem;
-          color: #f8fafc;
+          margin: 0;
+          padding: 0;
+          color: #4a2018;
           font-family: 'Outfit', sans-serif;
+          box-sizing: border-box;
         }
 
         .app-container {
           display: flex;
           flex-direction: column;
-          gap: 1.5rem;
+          gap: 0;
           width: 100%;
-          max-width: 1200px;
+          max-width: 100%;
+          height: 100%;
+          min-height: 0;
         }
 
         /* ── Header ── */
@@ -426,18 +622,20 @@ export default function ChessTestPage() {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding-bottom: 1rem;
-          border-bottom: 1px solid rgba(255,255,255,.1);
+          padding: 1rem 1.5rem;
+          background: #2d4a6b;
+          border-radius: 0;
+          color: #ffffff;
+          margin-bottom: 1rem;
         }
         .logo { display: flex; align-items: center; gap: .75rem; }
         .logo h1 {
           font-size: 1.6rem;
           font-weight: 700;
-          background: linear-gradient(135deg, #fff 0%, #a78bfa 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
+          color: #ffffff;
+          margin: 0;
         }
-        .text-primary { color: #8b5cf6; }
+        .text-primary { color: #c8854a; }
 
         .conn-badge {
           display: flex; align-items: center; gap: 5px;
@@ -450,9 +648,9 @@ export default function ChessTestPage() {
         .header-right { display: flex; align-items: center; gap: .75rem; }
         .room-badge {
           display: flex; align-items: center; gap: 5px;
-          font-size: .75rem; color: #94a3b8;
-          background: rgba(255,255,255,.04);
-          border: 1px solid rgba(255,255,255,.08);
+          font-size: .75rem; color: rgba(255, 255, 255, 0.7);
+          background: rgba(255,255,255,.05);
+          border: 1px solid rgba(255,255,255,.1);
           padding: 4px 10px; border-radius: 8px;
         }
         .header-btn {
@@ -460,7 +658,7 @@ export default function ChessTestPage() {
           font-size: .78rem; font-weight: 600;
           background: rgba(255,255,255,.05);
           border: 1px solid rgba(255,255,255,.1);
-          color: #f8fafc; padding: 5px 12px; border-radius: 8px;
+          color: #ffffff; padding: 5px 12px; border-radius: 8px;
           cursor: pointer; transition: all .15s;
         }
         .header-btn:hover { background: rgba(255,255,255,.1); }
@@ -480,46 +678,57 @@ export default function ChessTestPage() {
 
         /* ── Banner ── */
         .history-banner {
-          display: none; /* Replaced by shared navigation */
+          display: none;
         }
 
         /* ── Main layout ── */
         .main-content {
           display: grid;
           grid-template-columns: 1fr 400px;
-          gap: 2rem;
+          gap: 1rem;
+          flex: 1;
+          min-height: 0;
         }
         @media (max-width: 1100px) {
           .main-content { grid-template-columns: 1fr; }
         }
 
         .glass-panel {
-          background: rgba(255,255,255,.03);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
-          border: 1px solid rgba(255,255,255,.08);
-          border-radius: 24px;
-          padding: 2rem;
-          box-shadow: 0 8px 32px rgba(0,0,0,.37);
+          background: #ffffff;
+          border: 1px solid #eedcd0;
+          border-radius: 16px;
+          padding: 1.25rem;
+          box-shadow: 0 8px 32px rgba(45, 74, 107, 0.08);
+          color: #4a2018;
         }
 
         .board-section {
           display: flex;
           justify-content: center;
           align-items: center;
-          min-height: 600px;
+          height: 100%;
+          min-height: 0;
+          padding: 0.75rem !important;
         }
 
         /* ── Sidebar ── */
-        .sidebar { display: flex; flex-direction: column; gap: 0; }
+        .sidebar {
+          width: 400px;
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+          height: 100%;
+          overflow-y: auto;
+          padding-right: 4px;
+        }
         
         .tabs-container {
           display: flex;
           gap: 4px;
           padding: 4px;
-          background: rgba(255,255,255,.05);
+          background: #fdf5ea;
           border-radius: 12px 12px 0 0;
-          border: 1px solid rgba(255,255,255,.08);
+          border: 1px solid #eedcd0;
           border-bottom: none;
           margin-bottom: -1px;
           z-index: 1;
@@ -535,7 +744,7 @@ export default function ChessTestPage() {
           padding: 10px 0;
           background: transparent;
           border: none;
-          color: rgba(255,255,255,.5);
+          color: rgba(74, 32, 24, 0.6);
           font-size: 0.9rem;
           font-weight: 500;
           border-radius: 8px;
@@ -544,38 +753,48 @@ export default function ChessTestPage() {
         }
         
         .tab-btn:hover {
-          color: rgba(255,255,255,.8);
-          background: rgba(255,255,255,.03);
+          color: #4a2018;
+          background: rgba(74, 32, 24, 0.05);
         }
         
         .tab-btn.active {
-          color: #fff;
-          background: rgba(139,92,246,.2);
-          box-shadow: inset 0 1px 0 rgba(255,255,255,.1);
+          color: #4a2018;
+          background: #ffffff;
+          box-shadow: none;
+          border-bottom: 2px solid #c8854a;
+          border-radius: 8px 8px 0 0;
         }
 
         .sidebar-panel { 
-          height: 600px; 
+          flex-shrink: 0;
+          min-height: calc(100% - 46px);
           display: flex; 
           flex-direction: column; 
           border-top-left-radius: 0;
-          padding: 1.5rem;
+          padding: 1rem;
         }
 
-        .history-content, .participants-content, .chat-content {
+        .history-content {
           display: flex;
           flex-direction: column;
-          height: 100%;
+          height: auto;
+        }
+
+        .participants-content, .chat-content {
+          display: flex;
+          flex-direction: column;
+          height: calc(100vh - 180px);
+          overflow-y: auto;
+          padding-right: .5rem;
         }
 
         .history-scroll-area {
-          flex: 1; overflow-y: auto;
-          padding-right: .5rem;
           font-size: .82rem;
+          overflow-y: visible;
         }
 
         .empty-state {
-          color: rgba(255,255,255,.3);
+          color: rgba(45, 74, 107, 0.6);
           font-size: .85rem;
           text-align: center;
           margin-top: 2rem;
@@ -592,27 +811,27 @@ export default function ChessTestPage() {
           align-items: center;
           gap: 12px;
           padding: 10px 12px;
-          background: rgba(255,255,255,.03);
+          background: #fdf5ea;
           border-radius: 8px;
-          border: 1px solid rgba(255,255,255,.05);
+          border: 1px solid #eedcd0;
         }
 
         .participant-avatar {
           width: 28px;
           height: 28px;
-          background: rgba(139,92,246,.2);
+          background: rgba(45, 74, 107, 0.1);
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #a78bfa;
+          color: #4a2018;
         }
 
         .participant-name {
           flex: 1;
           font-size: 0.9rem;
           font-weight: 500;
-          color: rgba(255,255,255,.9);
+          color: #4a2018;
         }
 
         .status-dot {
@@ -638,73 +857,177 @@ export default function ChessTestPage() {
           display: flex; justify-content: space-between; align-items: center;
         }
         .chat-msg-name {
-          font-size: .8rem; font-weight: 600; color: #a78bfa;
+          font-size: .8rem; font-weight: 600; color: #c8854a;
         }
         .chat-msg-time {
-          font-size: .7rem; color: rgba(255,255,255,.4);
+          font-size: .7rem; color: rgba(45, 74, 107, 0.6);
         }
         .chat-msg-text {
-          font-size: .9rem; color: #f8fafc;
-          background: rgba(255,255,255,.05);
+          font-size: .9rem; color: #4a2018;
+          background: #fdf5ea;
           padding: 8px 12px; border-radius: 0 12px 12px 12px;
-          border: 1px solid rgba(255,255,255,.05);
+          border: 1px solid #eedcd0;
           line-height: 1.4;
         }
         .chat-input-form {
           display: flex; gap: 8px; margin-top: 16px;
         }
         .chat-input {
-          flex: 1; background: rgba(0,0,0,.2);
-          border: 1px solid rgba(255,255,255,.1);
-          color: #fff; padding: 10px 14px;
+          flex: 1; background: #ffffff;
+          border: 1px solid #eedcd0;
+          color: #4a2018; padding: 10px 14px;
           border-radius: 8px; outline: none; font-family: inherit;
         }
-        .chat-input:focus { border-color: rgba(139,92,246,.5); }
+        .chat-input:focus { border-color: #c8854a; }
         .chat-send-btn {
-          background: #8b5cf6; border: none; color: #fff;
+          background: #c8854a; border: none; color: #fff;
           padding: 0 14px; border-radius: 8px; cursor: pointer;
           display: flex; align-items: center; justify-content: center;
           transition: background .2s;
         }
-        .chat-send-btn:hover:not(:disabled) { background: #7c3aed; }
+        .chat-send-btn:hover:not(:disabled) { background: #b3643b; }
         .chat-send-btn:disabled { opacity: .5; cursor: not-allowed; }
 
         /* ── Move tree ── */
         .main-row {
-          display: flex; align-items: center; gap: 6px;
-          padding: 3px 10px;
-          background: rgba(255,255,255,.03);
-          border-radius: 4px; margin-bottom: 1px;
+          display: grid;
+          grid-template-columns: 46px 1fr 1fr;
+          align-items: stretch;
+          padding: 0;
+          background: #fdf5ea;
+          border-radius: 0;
+          margin-bottom: 0;
+          border-bottom: 1px solid #eedcd0;
         }
         .variation-block {
           display: block;
           margin-left: 12px;
-          border-left: 1px solid rgba(255,255,255,.1);
+          border-left: 1px solid #eedcd0;
           padding: 2px 0 2px 10px;
           margin: 2px 0 4px;
-          color: rgba(255,255,255,.6);
+          color: rgba(45, 74, 107, 0.8);
         }
         .variation-block::before { content: '('; margin-right: 2px; opacity: .4; }
         .variation-block::after  { content: ')'; margin-left:  2px; opacity: .4; }
         .inline-variation-line { display: inline; line-height: 1.4; }
 
-        .m-num, .pgn-num {
-          color: rgba(255,255,255,.4);
+        .m-num {
+          background: rgba(45, 74, 107, 0.05);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: rgba(45, 74, 107, 0.6);
+          font-size: .75rem; font-weight: 500;
+          border-right: 1px solid #eedcd0;
+        }
+        .pgn-num {
+          color: rgba(45, 74, 107, 0.6);
           font-size: .72rem; min-width: 28px; font-weight: 500;
         }
         .m-btn {
           background: transparent; border: none;
-          color: #f8fafc; font-weight: 600;
-          padding: 2px 6px; border-radius: 3px;
+          color: #4a2018; font-weight: 500;
+          padding: 6px 12px; border-radius: 0;
           cursor: pointer; transition: all .1s;
-          min-width: 40px; text-align: left; font-size: .82rem;
+          text-align: left; font-size: .85rem;
         }
-        .m-btn:hover   { background: rgba(255,255,255,.08); color: #8b5cf6; }
-        .m-btn.active  { background: #3692e7; color: #fff; box-shadow: 0 2px 6px rgba(54,146,231,.25); }
+        .m-btn:hover:not(.active) { background: rgba(45, 74, 107, 0.05); color: #c8854a; }
+
+        .move-comment {
+          display: block;
+          width: 100%;
+          padding: 8px 12px;
+          background: rgba(45, 74, 107, 0.02);
+          color: #4a2018;
+          font-size: 0.85rem;
+          line-height: 1.4;
+          margin: 0;
+          word-break: break-word;
+          border-radius: 0;
+          border-bottom: 1px solid #eedcd0;
+          white-space: pre-wrap;
+        }
+        .inline-comment {
+          margin: 0 6px;
+          padding: 2px 6px;
+          border-radius: 4px;
+          background: rgba(45, 74, 107, 0.05);
+          color: rgba(45, 74, 107, 0.8);
+          font-size: 0.82rem;
+          display: inline-block;
+          vertical-align: middle;
+          white-space: pre-wrap;
+        }
+        .m-btn.active  { background: #c8854a; color: #fff; }
         .m-btn.live-tip { outline: 1px solid rgba(74,222,128,.4); }
-        .inline-btn { font-weight: 500; padding: 1px 4px; min-width: fit-content; display: inline-block; font-size: .8rem; }
-        .m-sep         { color: rgba(255,255,255,.2); }
-        .m-placeholder { color: rgba(255,255,255,.05); width: 40px; text-align: center; font-size: .7rem; }
+        .inline-btn { font-weight: 500; padding: 1px 4px; border-radius: 3px; min-width: fit-content; display: inline-block; font-size: .8rem; }
+        .m-sep         { display: none; }
+        .m-placeholder { color: rgba(45, 74, 107, 0.3); padding: 6px 12px; font-size: .85rem; }
+        .nag-glyph { margin-left: 2px; color: #c8854a; font-weight: 700; font-size: 0.9em; }
+
+        .context-menu-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 9999;
+          background: transparent;
+        }
+        .context-menu {
+          position: fixed;
+          z-index: 10000;
+          background: rgba(21, 21, 21, 0.96);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 8px;
+          min-width: 200px;
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+          overflow: hidden;
+          font-family: inherit;
+          backdrop-filter: blur(12px);
+          animation: menuFadeIn 0.15s ease-out;
+        }
+        @keyframes menuFadeIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .context-menu-header {
+          padding: 8px 14px;
+          background: rgba(255, 255, 255, 0.04);
+          font-size: 0.8rem;
+          font-weight: 700;
+          color: rgba(255, 255, 255, 0.5);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+          text-align: left;
+        }
+        .context-menu-list {
+          padding: 4px 0;
+          display: flex;
+          flex-direction: column;
+        }
+        .context-menu-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 8px 14px;
+          background: transparent;
+          border: none;
+          color: #e2e8f0;
+          font-size: 0.85rem;
+          cursor: pointer;
+          transition: all 0.15s;
+          text-align: left;
+          width: 100%;
+        }
+        .context-menu-item:hover:not(:disabled) {
+          background: rgba(200, 133, 74, 0.15);
+          color: #c8854a;
+        }
+        .context-menu-item.danger:hover:not(:disabled) {
+          background: rgba(239, 68, 68, 0.15);
+          color: #ef4444;
+        }
+        .context-menu-item:disabled {
+          color: rgba(255, 255, 255, 0.25);
+          cursor: not-allowed;
+        }
       `}</style>
     </div>
   );

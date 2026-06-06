@@ -10,6 +10,11 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  transition: margin-left 0.3s ease;
+}
+
+.collapsed .mainContent {
+  margin-left: 80px;
 }
 
 .pageContent {
