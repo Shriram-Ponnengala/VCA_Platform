@@ -14,7 +14,8 @@ import {
   Calendar,
   Zap,
   Menu,
-  UserCog
+  UserCog,
+  Database
 } from 'lucide-react';
 import Image from 'next/image';
 import styles from './Sidebar.module.css';
@@ -56,6 +57,7 @@ export function Sidebar({ role, username, userId, isCollapsed, onToggle }: Sideb
     { name: 'Programs', href: '/dashboard/admin/programs', icon: BookOpen },
     { name: 'Batches', href: '/dashboard/admin/batches', icon: Calendar },
     { name: 'Classroom', href: '/classroom', icon: Zap },
+    { name: 'Database', href: '/dashboard/admin/database', icon: Database },
     { name: 'Students', href: '/dashboard/admin/students', icon: GraduationCap },
     { name: 'Coaches', href: '/dashboard/admin/coaches', icon: Users },
     { name: 'Users', href: '/dashboard/admin/users', icon: UserCog },
@@ -66,12 +68,14 @@ export function Sidebar({ role, username, userId, isCollapsed, onToggle }: Sideb
     { name: 'Dashboard', href: '/dashboard/coach', icon: Home },
     { name: 'Batches', href: '/dashboard/coach/batches', icon: Calendar },
     { name: 'Classroom', href: '/classroom', icon: Zap },
+    { name: 'Database', href: '/dashboard/coach/database', icon: Database },
     { name: 'Settings', href: '/dashboard/coach/settings', icon: Settings },
   ];
 
   const studentLinks = [
     { name: 'Dashboard', href: '/dashboard/student', icon: LayoutDashboard },
     { name: 'My Batch', href: '/dashboard/student/batches', icon: Calendar },
+    { name: 'Database', href: '/dashboard/student/database', icon: Database },
     { name: 'Settings', href: '/dashboard/student/settings', icon: Settings },
   ];
 

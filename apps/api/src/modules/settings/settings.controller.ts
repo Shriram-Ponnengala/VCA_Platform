@@ -5,7 +5,7 @@ const service = new SettingsService();
 export class SettingsController {
   async get(req: Request, res: Response) { 
     try { 
-      res.json(await service.get(req.params.key)); 
+      res.json(await service.get(req.params.key as string)); 
     } catch (e:any) { 
       res.status(500).json({ error: e.message }); 
     } 
@@ -13,7 +13,7 @@ export class SettingsController {
 
   async upsert(req: Request, res: Response) { 
     try { 
-      res.json(await service.upsert(req.params.key, req.body)); 
+      res.json(await service.upsert(req.params.key as string, req.body)); 
     } catch (e:any) { 
       res.status(500).json({ error: e.message }); 
     } 
@@ -21,7 +21,7 @@ export class SettingsController {
 
   async getBrandingCss(req: Request, res: Response) {
     try {
-      const branding = await service.get('branding') || {};
+      const branding = (await service.get('branding') || {}) as any;
       
       let css = ':root {\n';
       

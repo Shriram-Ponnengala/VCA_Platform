@@ -32,6 +32,7 @@ export interface MoveNode {
   arrows: ArrowData[];
   comment?: string;
   glyphs?: string[];
+  isNull?: boolean;
 }
 
 export interface Participant {
@@ -83,6 +84,7 @@ export interface ClientToServerEvents {
   // ─── Chess events ──────────────────────────────────────────────────────────
   "chess:join_room": (roomId: string) => void;
   "chess:make_move": (data: { roomId: string; from: string; to: string; promotion?: string; parentId: string }) => void;
+  "chess:make_null_move": (data: { roomId: string; parentId: string }) => void;
   "chess:navigate": (data: { roomId: string; nodeId: string }) => void;
   "chess:reset": (roomId: string) => void;
 
@@ -100,6 +102,7 @@ export interface ClientToServerEvents {
   "chess:promote_variation": (data: { roomId: string; nodeId: string }) => void;
   "chess:delete_subsequent_moves": (data: { roomId: string; nodeId: string }) => void;
   "chess:delete_previous_moves": (data: { roomId: string; nodeId: string }) => void;
+  "chess:delete_move": (data: { roomId: string; nodeId: string }) => void;
 }
 
 export interface InterServerEvents {}

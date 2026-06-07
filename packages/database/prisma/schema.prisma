@@ -31,6 +31,10 @@ model User {
   
   student      Student?
   coach        Coach?
+  folders      Folder[]     @relation("UserFolders")
+  collections  Collection[] @relation("UserCollections")
+  sharesSent   Share[]      @relation("SharedByRelation")
+  sharesRecv   Share[]      @relation("SharedWithRelation")
 }
 
 model Student {
@@ -214,3 +218,65 @@ model SystemSetting {
   key   String @id
   data  Json
 }
+
+model Folder {
+  id             String       @id @default(uuid())
+  ownerId        String
+  owner          User         @relation("UserFolders", fields: [ownerId], references: [id], onDelete: Cascade)
+  parentFolderId String?
+  parentFolder   Folder?      @relation("FolderHierarchy", fields: [parentFolderId], references: [id], onDelete: Cascade)
+  childFolders   Folder[]     @relation("FolderHierarchy")
+  name           String
+  visibility     String       // 'public' | 'private'
+  collections    Collection[]
+
+  @@index([ownerId])
+  @@index([parentFolderId])
+}
+
+model Collection {
+  id          String       @id @default(uuid())
+  ownerId     String
+  owner       User         @relation("UserCollections", fields: [ownerId], references: [id], onDelete: Cascade)
+  folderId    String?
+  folder      Folder?      @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  name        String
+  visibility  String       // 'public' | 'private'
+  source      String       // 'upload' | 'analysis' | 'classroom'
+  createdAt   DateTime     @default(now())
+  games       Game[]
+  shares      Share[]
+
+  @@index([ownerId])
+  @@index([folderId])
+}
+
+model Game {
+  id           String     @id @default(uuid())
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  orderIndex   Int
+  chapterName  String
+  pgn          String     @db.Text
+  headers      Json       // JSONB
+  initialFen   String?
+  result       String?
+
+  @@index([collectionId])
+}
+
+model Share {
+  id               String     @id @default(uuid())
+  collectionId     String
+  collection       Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  sharedBy         String
+  sharedByUser     User       @relation("SharedByRelation", fields: [sharedBy], references: [id], onDelete: Cascade)
+  sharedWithUser   String
+  sharedWithUserRel User      @relation("SharedWithRelation", fields: [sharedWithUser], references: [id], onDelete: Cascade)
+  permission       String     // 'read' | 'write'
+
+  @@unique([collectionId, sharedWithUser])
+  @@index([collectionId])
+  @@index([sharedWithUser])
+}
+

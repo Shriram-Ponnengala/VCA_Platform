@@ -33,6 +33,7 @@ export interface UseChessRoomReturn {
   studyTags: Record<string, string>;
   isFreehand: boolean;
   makeMove: (from: string, to: string, promotion?: string, parentId?: string) => void;
+  makeNullMove: (parentId?: string) => void;
   navigate: (nodeId: string) => void;
   resetBoard: () => void;
   updateArrows: (arrows: ArrowData[]) => void;
@@ -48,6 +49,7 @@ export interface UseChessRoomReturn {
   promoteVariation: (nodeId: string) => void;
   deleteSubsequentMoves: (nodeId: string) => void;
   deletePreviousMoves: (nodeId: string) => void;
+  deleteMove: (nodeId: string) => void;
 }
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -262,6 +264,13 @@ export function useChessRoom(
     });
   }, []);
 
+  const makeNullMove = useCallback((parentId?: string) => {
+    socketRef.current?.emit('chess:make_null_move', {
+      roomId: roomIdRef.current,
+      parentId: parentId || currentNodeIdRef.current,
+    });
+  }, []);
+
   const navigate = useCallback((nodeId: string) => {
     socketRef.current?.emit('chess:navigate', {
       roomId: roomIdRef.current,
@@ -369,10 +378,17 @@ export function useChessRoom(
     });
   }, []);
 
+  const deleteMove = useCallback((nodeId: string) => {
+    socketRef.current?.emit('chess:delete_move', {
+      roomId: roomIdRef.current,
+      nodeId
+    });
+  }, []);
+
   return { 
     nodes, currentNodeId, participants, isConnected, isReady, isLocked, isFreehand, chatHistory, studyTags,
-    makeMove, navigate, resetBoard, updateArrows, clearArrows, toggleLock, toggleFreehand, sendChatMessage,
+    makeMove, makeNullMove, navigate, resetBoard, updateArrows, clearArrows, toggleLock, toggleFreehand, sendChatMessage,
     updateNodeAnnotations, setStudyTag, removeStudyTag, setupPosition,
-    promoteToMainline, promoteVariation, deleteSubsequentMoves, deletePreviousMoves
+    promoteToMainline, promoteVariation, deleteSubsequentMoves, deletePreviousMoves, deleteMove
   };
 }

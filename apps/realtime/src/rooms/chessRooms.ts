@@ -65,6 +65,65 @@ export function getRoomState(roomId: string): ChessRoomState {
   };
 }
 
+export function nullMoveFen(fen: string): string {
+  const parts = fen.split(' ');
+  const board = parts[0];
+  const color = parts[1];
+  const castling = parts[2];
+  const newColor = color === 'w' ? 'b' : 'w';
+  const newFull = color === 'b' ? String(Number(parts[5] || 1) + 1) : (parts[5] || '1');
+  return [board, newColor, castling, '-', '0', newFull].join(' ');
+}
+
+export function applyNullMove(
+  roomId: string,
+  parentId: string
+): { node: MoveNode; currentNodeId: string } | null {
+  const room = getRoom(roomId);
+  
+  if (room.isLocked) return null; // Prevent moves if locked
+
+  const parentNode = room.nodes[parentId];
+  if (!parentNode) return null;
+
+  const nextFen = nullMoveFen(parentNode.fen);
+
+  const existingChildId = parentNode.children.find(childId => {
+    return room.nodes[childId].san === '--' || room.nodes[childId].isNull;
+  });
+
+  let newCurrentNodeId = existingChildId;
+
+  if (!newCurrentNodeId) {
+    const nodeId = `node_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    const newMoveNumber = parentNode.turn === 'b' ? parentNode.moveNumber + 1 : parentNode.moveNumber;
+    const nextTurn = parentNode.turn === 'w' ? 'b' : 'w';
+
+    const newNode: MoveNode = {
+      id: nodeId,
+      fen: nextFen,
+      san: '--',
+      isNull: true,
+      parentId,
+      children: [],
+      moveNumber: newMoveNumber,
+      turn: nextTurn,
+      arrows: []
+    };
+
+    room.nodes[nodeId] = newNode;
+    room.nodes[parentId].children.push(nodeId);
+    newCurrentNodeId = nodeId;
+  }
+
+  room.currentNodeId = newCurrentNodeId;
+
+  return {
+    node: room.nodes[newCurrentNodeId],
+    currentNodeId: newCurrentNodeId
+  };
+}
+
 export function applyMove(
   roomId: string,
   from: string,
@@ -489,6 +548,38 @@ export function deletePreviousMoves(roomId: string, nodeId: string): boolean {
 
   if (!descendants.has(room.currentNodeId) || room.currentNodeId === nodeId) {
     room.currentNodeId = 'root';
+  }
+
+  return true;
+}
+
+export function deleteMove(roomId: string, nodeId: string): boolean {
+  const room = getRoom(roomId);
+  const node = room.nodes[nodeId];
+  if (!node || nodeId === 'root') return false;
+
+  const parentId = node.parentId;
+  if (!parentId) return false;
+
+  const parentNode = room.nodes[parentId];
+  if (!parentNode) return false;
+
+  // Remove this node from its parent's children list
+  parentNode.children = parentNode.children.filter(childId => childId !== nodeId);
+
+  // Recursively delete this node and all of its descendants
+  const removeDescendants = (id: string) => {
+    const n = room.nodes[id];
+    if (n) {
+      n.children.forEach(childId => removeDescendants(childId));
+      delete room.nodes[id];
+    }
+  };
+  removeDescendants(nodeId);
+
+  // If the active node was deleted, navigate back to parentId
+  if (!room.nodes[room.currentNodeId]) {
+    room.currentNodeId = parentId;
   }
 
   return true;

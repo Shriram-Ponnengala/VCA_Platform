@@ -8,6 +8,7 @@ import setupRoutes from './modules/setup/setup.route';
 import classroomRoutes from './modules/classroom/classroom.route';
 import sessionRoutes from './modules/sessions/sessions.route';
 import settingsRoutes from './modules/settings/settings.route';
+import databaseRoutes from './modules/database/database.route';
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use('/setup', setupRoutes);
 router.use('/classrooms', classroomRoutes);
 router.use('/sessions', sessionRoutes);
 router.use('/settings', settingsRoutes);
+router.use('/database', databaseRoutes);
 
 export default router;

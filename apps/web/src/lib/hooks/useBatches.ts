@@ -115,7 +115,14 @@ export function useBatches() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(batch),
       });
-      if (!res.ok) throw new Error('Failed to create batch');
+      if (!res.ok) {
+        let errMsg = 'Failed to create batch';
+        try {
+          const errData = await res.json();
+          errMsg = errData.error || errMsg;
+        } catch (e) {}
+        throw new Error(errMsg);
+      }
       const newBatch = await res.json();
       const flattened = {
         ...newBatch,

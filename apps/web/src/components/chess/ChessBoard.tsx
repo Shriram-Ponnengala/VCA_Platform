@@ -41,6 +41,7 @@ interface ChessBoardProps {
   isFreehand?: boolean;
   onToggleFreehand?: (freehand: boolean) => void;
   onSetupPosition?: (fen: string) => void;
+  onNullMove?: () => void;
 }
 
 const ChessBoard: React.FC<ChessBoardProps> = ({
@@ -52,7 +53,8 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
   currentNode,
   onReset, onClearArrows, onMoreTools,
   isFreehand = false, onToggleFreehand,
-  onSetupPosition
+  onSetupPosition,
+  onNullMove
 }) => {
   const [orientation, setOrientation] = useState<'white' | 'black'>('white');
   const [showToolsMenu, setShowToolsMenu] = useState(false);
@@ -310,11 +312,16 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
         turnColor = fen.split(' ')[1] === 'w' ? 'white' : 'black';
       }
 
+      const lastMove = (currentNode?.from && currentNode?.to && !currentNode?.isNull && currentNode?.san !== '--')
+        ? [currentNode.from as Key, currentNode.to as Key]
+        : undefined;
+
       const config: Config = {
         fen: fen,
         orientation: orientation,
         coordinates: showCoordinates,
         turnColor: turnColor,
+        lastMove: lastMove,
         movable: {
           color: (isLockedRef.current || isHighlightMode || isArrowMode) ? undefined : (isFreehandRef.current ? 'both' : turnColor),
           free: isFreehandRef.current && !(isHighlightMode || isArrowMode),
@@ -388,11 +395,16 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
         turnColor = fen.split(' ')[1] === 'w' ? 'white' : 'black';
       }
 
+      const lastMove = (currentNode?.from && currentNode?.to && !currentNode?.isNull && currentNode?.san !== '--')
+        ? [currentNode.from as Key, currentNode.to as Key]
+        : undefined;
+
       cgRef.current.set({
         fen: fen,
         orientation: orientation,
         coordinates: showCoordinates,
         turnColor: turnColor,
+        lastMove: lastMove,
         movable: {
           color: (isLocked || isHighlightMode || isArrowMode) ? undefined : (isFreehand ? 'both' : turnColor),
           free: isFreehand && !(isHighlightMode || isArrowMode),
@@ -406,7 +418,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
         }
       });
     }
-  }, [fen, currentIndex, isLocked, arrows, orientation, showCoordinates, isFreehand, isHighlightMode, isArrowMode]);
+  }, [fen, currentIndex, isLocked, arrows, orientation, showCoordinates, isFreehand, isHighlightMode, isArrowMode, currentNode]);
 
   const getEventCoords = (e: MouseEvent | TouchEvent) => {
     if ('touches' in e && e.touches.length > 0) {
@@ -637,6 +649,15 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
                   <span className="tools-row-label">Setup Position</span>
                 </button>
               )}
+              {onNullMove && (
+                <button
+                  className="tools-menu-row tools-row-btn"
+                  onClick={() => { onNullMove(); setShowToolsMenu(false); }}
+                >
+                  <span className="tools-row-icon" style={{ fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '15px' }}>∅</span>
+                  <span className="tools-row-label">Null Move (Pass)</span>
+                </button>
+              )}
 
               <div className="tools-section-divider" />
 
@@ -767,9 +788,9 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
             </button>
 
             {onReset && (
-              <button onClick={onReset} className="btn-labeled" title="Redo / Reset">
+              <button onClick={onReset} className="btn-labeled" title="Reset Board">
                 <RefreshCw size={19} />
-                <span className="btn-label">Redo</span>
+                <span className="btn-label">Reset</span>
               </button>
             )}
 

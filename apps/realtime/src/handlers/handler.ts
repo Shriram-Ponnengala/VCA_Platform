@@ -10,6 +10,7 @@ import {
   hasRoom,
   getRoomState,
   applyMove,
+  applyNullMove,
   navigateNode,
   resetRoom,
   setupPosition,
@@ -25,7 +26,8 @@ import {
   promoteToMainline,
   promoteVariation,
   deleteSubsequentMoves,
-  deletePreviousMoves
+  deletePreviousMoves,
+  deleteMove
 } from "../rooms/chessRooms";
 import { prisma } from "@vca/database";
 import cookie from "cookie";
@@ -178,6 +180,26 @@ export function handleSocketConnection(io: IO) {
       }
     });
 
+    socket.on("chess:make_null_move", ({ roomId, parentId }) => {
+      const role = (socket as any).user?.role?.toUpperCase();
+      if (role === 'STUDENT') {
+        socket.emit("chess:move_rejected", { reason: `Only coaches can make null moves` });
+        return;
+      }
+      console.log(`[Chess] Null move request in room ${roomId} from ${socket.id}`);
+      const result = applyNullMove(roomId, parentId);
+
+      if (result) {
+        console.log(`[Chess] Null move ACCEPTED in room ${roomId}`);
+        io.to(roomId).emit("chess:move_made", result);
+      } else {
+        console.log(`[Chess] Null move REJECTED in room ${roomId} (Illegal or Locked)`);
+        socket.emit("chess:move_rejected", {
+          reason: `Illegal or locked position`,
+        });
+      }
+    });
+
     socket.on("chess:navigate", ({ roomId, nodeId }) => {
       const result = navigateNode(roomId, nodeId);
       if (result.success) {
@@ -284,6 +306,15 @@ export function handleSocketConnection(io: IO) {
       if (role === 'STUDENT') return;
 
       if (deletePreviousMoves(roomId, nodeId)) {
+        io.to(roomId).emit("chess:state", getRoomState(roomId));
+      }
+    });
+
+    socket.on("chess:delete_move", ({ roomId, nodeId }) => {
+      const role = (socket as any).user?.role?.toUpperCase();
+      if (role === 'STUDENT') return;
+
+      if (deleteMove(roomId, nodeId)) {
         io.to(roomId).emit("chess:state", getRoomState(roomId));
       }
     });

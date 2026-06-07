@@ -8,6 +8,7 @@
     "build": "tsc"
   },
   "dependencies": {
+    "@mliebelt/pgn-parser": "^1.4.19",
     "@vca/database": "*",
     "@vca/types": "*",
     "bcryptjs": "^3.0.3",

@@ -20,13 +20,22 @@ export class BatchesService {
     // Resolve Coach ID if User ID was passed
     const userId = data.coachId;
     if (userId) {
-      const coach = await prisma.coach.findUnique({
-        where: { userId }
-      });
-      if (coach) {
-        createData.coachId = coach.id;
+      const coachByUserId = await prisma.coach.findUnique({ where: { userId } });
+      if (coachByUserId) {
+        createData.coachId = coachByUserId.id;
       } else {
-        createData.coachId = userId;
+        const coachById = await prisma.coach.findUnique({ where: { id: userId } });
+        if (coachById) {
+          createData.coachId = userId;
+        } else {
+          // Auto-create missing coach profile
+          try {
+            const newCoach = await prisma.coach.create({ data: { userId } });
+            createData.coachId = newCoach.id;
+          } catch (e) {
+            throw new Error(`Invalid coach: No profile found and could not create one for ID ${userId}`);
+          }
+        }
       }
     }
 
@@ -55,13 +64,22 @@ export class BatchesService {
     // Resolve Coach ID if User ID was passed
     const userId = data.coachId;
     if (userId) {
-      const coach = await prisma.coach.findUnique({
-        where: { userId }
-      });
-      if (coach) {
-        updateData.coachId = coach.id;
+      const coachByUserId = await prisma.coach.findUnique({ where: { userId } });
+      if (coachByUserId) {
+        updateData.coachId = coachByUserId.id;
       } else {
-        updateData.coachId = userId;
+        const coachById = await prisma.coach.findUnique({ where: { id: userId } });
+        if (coachById) {
+          updateData.coachId = userId;
+        } else {
+          // Auto-create missing coach profile
+          try {
+            const newCoach = await prisma.coach.create({ data: { userId } });
+            updateData.coachId = newCoach.id;
+          } catch (e) {
+            throw new Error(`Invalid coach: No profile found and could not create one for ID ${userId}`);
+          }
+        }
       }
     }
 

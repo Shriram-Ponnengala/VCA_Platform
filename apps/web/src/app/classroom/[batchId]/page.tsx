@@ -4,9 +4,16 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ChessBoard from '@/components/chess/ChessBoard';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { History, Zap, RotateCcw, Wifi, WifiOff, Users, User, Lock, Unlock, MessageSquare, Send, Eraser, ArrowLeft, Star, ArrowUp, Scissors } from 'lucide-react';
+import { History, Zap, RotateCcw, Wifi, WifiOff, Users, User, Lock, Unlock, MessageSquare, Send, Eraser, ArrowLeft, Star, ArrowUp, Scissors, Database, Trash2 } from 'lucide-react';
 import { useChessRoom } from '@/lib/hooks/useChessRoom';
 import { MoveNode, ChatMessage } from '@vca/types';
+import EngineAnalysisPanel from '@/components/chess/EngineAnalysisPanel';
+
+const featureFlags = {
+  participants: false,
+  chat: false,
+  engineAnalysis: true
+};
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -67,10 +74,15 @@ export default function ClassroomPage() {
     setContextMenu(null);
   };
 
+  const handleDeleteMove = (nodeId: string) => {
+    deleteMove(nodeId);
+    setContextMenu(null);
+  };
+
   const { 
     nodes, currentNodeId, participants, isConnected, isReady, isLocked, chatHistory,
-    makeMove, navigate, resetBoard, updateArrows, clearArrows, toggleLock, sendChatMessage,
-    setupPosition, promoteToMainline, promoteVariation, deleteSubsequentMoves, deletePreviousMoves
+    makeMove, makeNullMove, navigate, resetBoard, updateArrows, clearArrows, toggleLock, sendChatMessage,
+    setupPosition, promoteToMainline, promoteVariation, deleteSubsequentMoves, deletePreviousMoves, deleteMove
   } = useChessRoom(ROOM_ID);
 
   const [userRole, setUserRole] = useState<'admin' | 'coach' | 'student' | null>(null);
@@ -78,11 +90,51 @@ export default function ClassroomPage() {
 
   const isCoachOrAdmin = userRole !== 'student';
 
-  const [activeTab, setActiveTab] = useState<'history' | 'participants' | 'chat'>('history');
+  const [activeTab, setActiveTab] = useState<'history' | 'participants' | 'chat' | 'analysis'>('history');
   const [selectedVariationIndex, setSelectedVariationIndex] = useState(0);
   const [chatInput, setChatInput] = useState('');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const chatMessagesEndRef = useRef<HTMLDivElement>(null);
+
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveGameName, setSaveGameName] = useState('');
+  const [savingGame, setSavingGame] = useState(false);
+
+  const handleSaveToDb = () => {
+    setSaveGameName(`Classroom Game - ${new Date().toLocaleDateString()}`);
+    setShowSaveModal(true);
+  };
+
+  const confirmSaveToDb = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!saveGameName.trim()) return;
+    setSavingGame(true);
+    try {
+      const { buildPgnFromMoveTree } = await import('@/features/database/pgnUtils');
+      const pgn = buildPgnFromMoveTree(nodes, 'root');
+      
+      const res = await fetch('/api/database/collections/save-classroom', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: saveGameName.trim(),
+          pgnText: pgn
+        })
+      });
+      if (res.ok) {
+        alert('Classroom game successfully saved to My DB!');
+        setShowSaveModal(false);
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Failed to save game');
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert('Error saving game: ' + err.message);
+    } finally {
+      setSavingGame(false);
+    }
+  };
 
   const scrollToBottom = () => {
     chatMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -450,6 +502,7 @@ export default function ClassroomPage() {
               onUpdateArrows={updateArrows}
               isLocked={isLocked}
               onSetupPosition={setupPosition}
+              onNullMove={isCoachOrAdmin ? () => makeNullMove() : undefined}
             />
           </section>
 
@@ -461,23 +514,59 @@ export default function ClassroomPage() {
               >
                 <History size={16} /> History
               </button>
-              <button 
-                className={`tab-btn ${activeTab === 'participants' ? 'active' : ''}`}
-                onClick={() => setActiveTab('participants')}
-              >
-                <Users size={16} /> Participants
-              </button>
-              <button 
-                className={`tab-btn ${activeTab === 'chat' ? 'active' : ''}`}
-                onClick={() => setActiveTab('chat')}
-              >
-                <MessageSquare size={16} /> Chat
-              </button>
+              {featureFlags.participants && (
+                <button 
+                  className={`tab-btn ${activeTab === 'participants' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('participants')}
+                >
+                  <Users size={16} /> Participants
+                </button>
+              )}
+              {featureFlags.chat && (
+                <button 
+                  className={`tab-btn ${activeTab === 'chat' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('chat')}
+                >
+                  <MessageSquare size={16} /> Chat
+                </button>
+              )}
+              {featureFlags.engineAnalysis && (
+                <button 
+                  className={`tab-btn ${activeTab === 'analysis' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('analysis')}
+                >
+                  <Zap size={16} /> Engine Analysis
+                </button>
+              )}
             </div>
 
             <div className="sidebar-panel glass-panel">
               {activeTab === 'history' ? (
                 <div className="history-content">
+                  {isCoachOrAdmin && (
+                    <div className="history-header-actions" style={{ display: 'flex', gap: '8px', padding: '8px', borderBottom: '1px solid #eedcd0' }}>
+                      <button
+                        onClick={handleSaveToDb}
+                        style={{
+                          flex: 1,
+                          background: '#c8854a',
+                          color: '#fff',
+                          border: 'none',
+                          padding: '6px 12px',
+                          borderRadius: '4px',
+                          fontSize: '0.8rem',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        <Database size={14} /> Save Classroom Game to My DB
+                      </button>
+                    </div>
+                  )}
                   <div className="history-scroll-area">
                     {nodes['root']?.comment && (
                       <div className="move-comment" style={{ marginBottom: '8px' }}>
@@ -490,7 +579,7 @@ export default function ClassroomPage() {
                     }
                   </div>
                 </div>
-              ) : activeTab === 'participants' ? (
+              ) : activeTab === 'participants' && featureFlags.participants ? (
                 <div className="participants-content">
                   <div className="panel-header">
                     <h2>Connected Users ({participants.length})</h2>
@@ -511,7 +600,7 @@ export default function ClassroomPage() {
                     </div>
                   )}
                 </div>
-              ) : (
+              ) : activeTab === 'chat' && featureFlags.chat ? (
                 <div className="chat-content">
                   <div className="chat-messages">
                     {(chatHistory || []).length === 0 ? (
@@ -544,7 +633,9 @@ export default function ClassroomPage() {
                     </button>
                   </form>
                 </div>
-              )}
+              ) : activeTab === 'analysis' && featureFlags.engineAnalysis ? (
+                <EngineAnalysisPanel fen={boardFen} />
+              ) : null}
             </div>
           </section>
         </main>
@@ -563,6 +654,79 @@ export default function ClassroomPage() {
         }}
         onCancel={() => setShowResetConfirm(false)}
       />
+
+      {showSaveModal && (
+        <div className="modal-backdrop" style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.4)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999
+        }} onClick={() => setShowSaveModal(false)}>
+          <div style={{
+            background: '#fff',
+            padding: '20px',
+            borderRadius: '8px',
+            width: '100%',
+            maxWidth: '400px',
+            border: '1px solid #eedcd0',
+            color: '#4a2018'
+          }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', fontWeight: '600' }}>Save to My DB</h3>
+            <form onSubmit={confirmSaveToDb}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: '500' }}>Game Name:</label>
+                <input
+                  type="text"
+                  required
+                  value={saveGameName}
+                  onChange={e => setSaveGameName(e.target.value)}
+                  style={{
+                    border: '1px solid #eedcd0',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    outline: 'none',
+                    color: '#4a2018'
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowSaveModal(false)}
+                  style={{
+                    border: 'none',
+                    background: '#eedcd0',
+                    color: '#4a2018',
+                    padding: '6px 12px',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingGame}
+                  style={{
+                    border: 'none',
+                    background: '#c8854a',
+                    color: '#fff',
+                    padding: '6px 12px',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {savingGame ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {contextMenu && (
         <>
@@ -624,6 +788,14 @@ export default function ClassroomPage() {
                   >
                     <Scissors size={14} />
                     <span>Delete previous moves</span>
+                  </button>
+                  <button
+                    className="context-menu-item danger"
+                    disabled={clickedNode.id === 'root'}
+                    onClick={() => handleDeleteMove(clickedNode.id)}
+                  >
+                    <Trash2 size={14} />
+                    <span>Delete move</span>
                   </button>
                 </div>
               </div>

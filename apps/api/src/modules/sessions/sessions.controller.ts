@@ -10,7 +10,7 @@ export class SessionsController {
 
   async getByBatch(req: Request, res: Response) {
     try {
-      const sessions = await this.service.getSessionsByBatch(req.params.batchId);
+      const sessions = await this.service.getSessionsByBatch(req.params.batchId as string);
       res.json(sessions);
     } catch (error) {
       console.error(error);
@@ -20,7 +20,7 @@ export class SessionsController {
 
   async getById(req: Request, res: Response) {
     try {
-      const session = await this.service.getSessionById(req.params.id);
+      const session = await this.service.getSessionById(req.params.id as string);
       if (!session) {
         res.status(404).json({ error: 'Session not found' });
         return;
@@ -40,7 +40,7 @@ export class SessionsController {
         data.date = new Date(data.date);
       }
       
-      const session = await this.service.createSession({ ...data, classId: req.params.batchId });
+      const session = await this.service.createSession({ ...data, classId: req.params.batchId as string });
       res.status(201).json(session);
     } catch (error) {
       console.error(error);
@@ -55,7 +55,7 @@ export class SessionsController {
         data.date = new Date(data.date);
       }
 
-      const session = await this.service.updateSession(req.params.id, data);
+      const session = await this.service.updateSession(req.params.id as string, data);
       res.json(session);
     } catch (error) {
       console.error(error);
@@ -65,7 +65,7 @@ export class SessionsController {
 
   async delete(req: Request, res: Response) {
     try {
-      await this.service.deleteSession(req.params.id);
+      await this.service.deleteSession(req.params.id as string);
       res.status(204).send();
     } catch (error) {
       console.error(error);
