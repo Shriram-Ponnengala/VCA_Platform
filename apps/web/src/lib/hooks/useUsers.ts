@@ -28,7 +28,13 @@ export function useUsers() {
   const fetchUsers = async () => {
     try {
       const res = await fetch('/api/users');
-      if (!res.ok) throw new Error('Failed to fetch users');
+      const contentType = res.headers.get('content-type');
+      if (!res.ok) {
+        throw new Error(`Server returned ${res.status}: Failed to fetch users`);
+      }
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Received non-JSON response from server.');
+      }
       const data = await res.json();
       setUsers(data);
       setIsLoaded(true);
@@ -49,9 +55,19 @@ export function useUsers() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData),
       });
+      const contentType = res.headers.get('content-type');
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to add user');
+        let errorMsg = 'Failed to add user';
+        if (contentType && contentType.includes('application/json')) {
+          const data = await res.json();
+          errorMsg = data.error || errorMsg;
+        } else {
+          errorMsg = `Server error: ${res.status}`;
+        }
+        throw new Error(errorMsg);
+      }
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Received non-JSON response from server.');
       }
       const newUser = await res.json();
       setUsers(prev => [newUser, ...prev]);

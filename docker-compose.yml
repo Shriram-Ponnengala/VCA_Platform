@@ -52,6 +52,7 @@ services:
       - PORT=4001
       - ALLOWED_ORIGINS=http://localhost:3000
       - DATABASE_URL=postgresql://postgres:chessenergy@db:5432/vca_attendance?schema=public
+      - JWT_SECRET=wdfghjifghjoixcvhjk
     volumes:
       - .:/app
       - node_modules_root:/app/node_modules

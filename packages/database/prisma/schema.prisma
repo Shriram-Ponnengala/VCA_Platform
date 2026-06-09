@@ -229,6 +229,7 @@ model Folder {
   name           String
   visibility     String       // 'public' | 'private'
   collections    Collection[]
+  shares         Share[]
 
   @@index([ownerId])
   @@index([parentFolderId])
@@ -243,6 +244,7 @@ model Collection {
   name        String
   visibility  String       // 'public' | 'private'
   source      String       // 'upload' | 'analysis' | 'classroom'
+  chapterCount Int         @default(0)
   createdAt   DateTime     @default(now())
   games       Game[]
   shares      Share[]
@@ -261,22 +263,31 @@ model Game {
   headers      Json       // JSONB
   initialFen   String?
   result       String?
+  shares       Share[]
 
-  @@index([collectionId])
+  @@index([collectionId, orderIndex])
 }
 
 model Share {
-  id               String     @id @default(uuid())
-  collectionId     String
-  collection       Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  id               String      @id @default(uuid())
+  folderId         String?
+  folder           Folder?     @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  collectionId     String?
+  collection       Collection? @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  gameId           String?
+  game             Game?       @relation(fields: [gameId], references: [id], onDelete: Cascade)
   sharedBy         String
-  sharedByUser     User       @relation("SharedByRelation", fields: [sharedBy], references: [id], onDelete: Cascade)
+  sharedByUser     User        @relation("SharedByRelation", fields: [sharedBy], references: [id], onDelete: Cascade)
   sharedWithUser   String
-  sharedWithUserRel User      @relation("SharedWithRelation", fields: [sharedWithUser], references: [id], onDelete: Cascade)
-  permission       String     // 'read' | 'write'
+  sharedWithUserRel User       @relation("SharedWithRelation", fields: [sharedWithUser], references: [id], onDelete: Cascade)
+  permission       String      // 'read' | 'write'
 
+  @@unique([folderId, sharedWithUser])
   @@unique([collectionId, sharedWithUser])
+  @@unique([gameId, sharedWithUser])
+  @@index([folderId])
   @@index([collectionId])
+  @@index([gameId])
   @@index([sharedWithUser])
 }
 

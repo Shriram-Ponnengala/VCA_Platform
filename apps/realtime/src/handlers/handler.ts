@@ -319,6 +319,38 @@ export function handleSocketConnection(io: IO) {
       }
     });
 
+    socket.on("chess:load_pgn", ({ roomId, nodes, currentNodeId, chapters, activeChapterIndex }) => {
+      const role = (socket as any).user?.role?.toUpperCase();
+      if (role === 'STUDENT') return;
+
+      const room = getRoom(roomId);
+      room.nodes = nodes;
+      room.currentNodeId = currentNodeId;
+      room.chapters = chapters || [];
+      room.activeChapterIndex = activeChapterIndex !== undefined ? activeChapterIndex : -1;
+      // Clear stale tags — the client emits chess:set_tag immediately after to populate fresh ones
+      room.studyTags = {};
+
+      console.log(`[Chess] Room ${roomId} loaded PGN with ${room.chapters.length} chapters`);
+      io.to(roomId).emit("chess:state", getRoomState(roomId));
+    });
+
+
+    socket.on("chess:select_chapter", ({ roomId, chapterIndex }) => {
+      const role = (socket as any).user?.role?.toUpperCase();
+      if (role === 'STUDENT') return;
+
+      const room = getRoom(roomId);
+      if (room.chapters && room.chapters[chapterIndex]) {
+        const chapter = room.chapters[chapterIndex];
+        room.nodes = chapter.nodes;
+        room.currentNodeId = chapter.currentNodeId;
+        room.activeChapterIndex = chapterIndex;
+        console.log(`[Chess] Room ${roomId} selected chapter ${chapterIndex}: ${chapter.name}`);
+        io.to(roomId).emit("chess:state", getRoomState(roomId));
+      }
+    });
+
     socket.on("chess:set_tag", ({ roomId, key, value }) => {
       const role = (socket as any).user?.role?.toUpperCase();
       if (role === 'STUDENT') return;

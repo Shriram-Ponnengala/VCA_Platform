@@ -1,13 +1,16 @@
 'use client';
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ChessBoard from '@/components/chess/ChessBoard';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { History, Zap, RotateCcw, Wifi, WifiOff, Users, User, Lock, Unlock, MessageSquare, Send, Eraser, ArrowLeft, Star, ArrowUp, Scissors, Database, Trash2 } from 'lucide-react';
+import { Toast } from '@vca/ui';
+import { History, Zap, RotateCcw, Wifi, WifiOff, Users, User, Lock, Unlock, MessageSquare, Send, Eraser, ArrowLeft, Star, ArrowUp, Scissors, Database, Trash2, BookOpen } from 'lucide-react';
 import { useChessRoom } from '@/lib/hooks/useChessRoom';
 import { MoveNode, ChatMessage } from '@vca/types';
 import EngineAnalysisPanel from '@/components/chess/EngineAnalysisPanel';
+import DatabasePanel from '@/components/chess/DatabasePanel';
+import ChapterCard from '@/components/chess/ChapterCard';
 
 const featureFlags = {
   participants: false,
@@ -25,16 +28,19 @@ export default function ClassroomPage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [token, setToken] = useState<string | undefined>(undefined);
 
   // Validate join
   useEffect(() => {
-    fetch(`/api/classrooms/${batchId}`)
+    fetch(`/api/classrooms/${batchId}`, { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         if (!data.allowed) {
           setError(data.error || 'Access denied');
         } else {
+          console.log('Current logged-in user role:', data.role);
           setUserRole(data.role);
+          setToken(data.token);
         }
         setIsLoading(false);
       })
@@ -80,17 +86,31 @@ export default function ClassroomPage() {
   };
 
   const { 
-    nodes, currentNodeId, participants, isConnected, isReady, isLocked, chatHistory,
-    makeMove, makeNullMove, navigate, resetBoard, updateArrows, clearArrows, toggleLock, sendChatMessage,
+    nodes, currentNodeId, participants, isConnected, isReady, isLocked, isFreehand, chatHistory,
+    chapters, activeChapterIndex, loadPgn, selectChapter,
+    makeMove, makeNullMove, navigate, resetBoard, updateArrows, clearArrows, toggleLock, toggleFreehand, sendChatMessage,
     setupPosition, promoteToMainline, promoteVariation, deleteSubsequentMoves, deletePreviousMoves, deleteMove
-  } = useChessRoom(ROOM_ID);
+  } = useChessRoom(ROOM_ID, token, { enabled: !!token });
 
   const [userRole, setUserRole] = useState<'admin' | 'coach' | 'student' | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
+  const [dbNav, setDbNav] = useState<{ games: any[], currentIndex: number } | null>(null);
+
+  const handleGamesContextLoaded = useCallback((games: any[], currentIndex: number) => {
+     setDbNav(games.length > 0 ? { games, currentIndex } : null);
+  }, []);
 
   const isCoachOrAdmin = userRole !== 'student';
 
-  const [activeTab, setActiveTab] = useState<'history' | 'participants' | 'chat' | 'analysis'>('history');
+  const [activeTab, setActiveTab] = useState<string>('history');
+  // Auto switch to chapters tab when chapters are loaded
+  useEffect(() => {
+    if (chapters && chapters.length > 0) {
+      setActiveTab('chapters');
+    } else {
+      setActiveTab('history');
+    }
+  }, [chapters?.length]);
   const [selectedVariationIndex, setSelectedVariationIndex] = useState(0);
   const [chatInput, setChatInput] = useState('');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -99,6 +119,7 @@ export default function ClassroomPage() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveGameName, setSaveGameName] = useState('');
   const [savingGame, setSavingGame] = useState(false);
+  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
   const handleSaveToDb = () => {
     setSaveGameName(`Classroom Game - ${new Date().toLocaleDateString()}`);
@@ -122,15 +143,21 @@ export default function ClassroomPage() {
         })
       });
       if (res.ok) {
-        alert('Classroom game successfully saved to My DB!');
+        setToast({ message: 'Classroom game successfully saved to My DB!', type: 'success' });
         setShowSaveModal(false);
       } else {
-        const err = await res.json();
-        alert(err.error || 'Failed to save game');
+        let errorMsg = 'Failed to save game';
+        try {
+          const err = await res.json();
+          errorMsg = err.error || errorMsg;
+        } catch {
+          errorMsg = `Server error: ${res.status} ${res.statusText || ''}`;
+        }
+        setToast({ message: errorMsg, type: 'error' });
       }
     } catch (err: any) {
       console.error(err);
-      alert('Error saving game: ' + err.message);
+      setToast({ message: 'Error saving game: ' + err.message, type: 'error' });
     } finally {
       setSavingGame(false);
     }
@@ -503,6 +530,49 @@ export default function ClassroomPage() {
               isLocked={isLocked}
               onSetupPosition={setupPosition}
               onNullMove={isCoachOrAdmin ? () => makeNullMove() : undefined}
+              onUploadPgn={isCoachOrAdmin ? (pgn) => { setDbNav(null); loadPgn(pgn); } : undefined}
+              onSaveToDb={userRole?.toUpperCase() === 'COACH' ? handleSaveToDb : undefined}
+              onToggleLock={toggleLock}
+              isFreehand={isFreehand}
+              onToggleFreehand={isCoachOrAdmin ? toggleFreehand : undefined}
+              onReset={isCoachOrAdmin ? () => setShowResetConfirm(true) : undefined}
+              onClearArrows={isCoachOrAdmin ? clearArrows : undefined}
+              chapterCount={dbNav ? dbNav.games.length : (chapters?.length || 0)}
+              activeChapterIndex={dbNav ? dbNav.currentIndex : activeChapterIndex}
+              onNextChapter={() => {
+                if (dbNav && dbNav.currentIndex < dbNav.games.length - 1) {
+                  const nextIndex = dbNav.currentIndex + 1;
+                  const nextGame = dbNav.games[nextIndex];
+                  if (nextGame) {
+                     setDbNav({ ...dbNav, currentIndex: nextIndex });
+                     fetch(`/api/database/games/${nextGame.id}`)
+                       .then(res => res.json())
+                       .then(data => {
+                          if (data.pgn) loadPgn(data.pgn);
+                       })
+                       .catch(console.error);
+                  }
+                } else if (!dbNav && chapters && activeChapterIndex < chapters.length - 1) {
+                  selectChapter(activeChapterIndex + 1);
+                }
+              }}
+              onPrevChapter={() => {
+                if (dbNav && dbNav.currentIndex > 0) {
+                  const prevIndex = dbNav.currentIndex - 1;
+                  const prevGame = dbNav.games[prevIndex];
+                  if (prevGame) {
+                     setDbNav({ ...dbNav, currentIndex: prevIndex });
+                     fetch(`/api/database/games/${prevGame.id}`)
+                       .then(res => res.json())
+                       .then(data => {
+                          if (data.pgn) loadPgn(data.pgn);
+                       })
+                       .catch(console.error);
+                  }
+                } else if (!dbNav && activeChapterIndex > 0) {
+                  selectChapter(activeChapterIndex - 1);
+                }
+              }}
             />
           </section>
 
@@ -514,6 +584,14 @@ export default function ClassroomPage() {
               >
                 <History size={16} /> History
               </button>
+              {chapters && chapters.length > 0 && (
+                <button 
+                  className={`tab-btn ${activeTab === 'chapters' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('chapters')}
+                >
+                  <BookOpen size={16} /> Chapters
+                </button>
+              )}
               {featureFlags.participants && (
                 <button 
                   className={`tab-btn ${activeTab === 'participants' ? 'active' : ''}`}
@@ -538,35 +616,18 @@ export default function ClassroomPage() {
                   <Zap size={16} /> Engine Analysis
                 </button>
               )}
+              <button 
+                className={`tab-btn ${activeTab === 'database' ? 'active' : ''}`}
+                onClick={() => setActiveTab('database')}
+              >
+                <Database size={16} /> Database
+              </button>
             </div>
 
             <div className="sidebar-panel glass-panel">
               {activeTab === 'history' ? (
                 <div className="history-content">
-                  {isCoachOrAdmin && (
-                    <div className="history-header-actions" style={{ display: 'flex', gap: '8px', padding: '8px', borderBottom: '1px solid #eedcd0' }}>
-                      <button
-                        onClick={handleSaveToDb}
-                        style={{
-                          flex: 1,
-                          background: '#c8854a',
-                          color: '#fff',
-                          border: 'none',
-                          padding: '6px 12px',
-                          borderRadius: '4px',
-                          fontSize: '0.8rem',
-                          fontWeight: '600',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px'
-                        }}
-                      >
-                        <Database size={14} /> Save Classroom Game to My DB
-                      </button>
-                    </div>
-                  )}
+
                   <div className="history-scroll-area">
                     {nodes['root']?.comment && (
                       <div className="move-comment" style={{ marginBottom: '8px' }}>
@@ -577,6 +638,25 @@ export default function ClassroomPage() {
                       ? <p className="empty-state">No moves yet. Make a move to start!</p>
                       : renderMoveTree('root')
                     }
+                  </div>
+                </div>
+              ) : activeTab === 'chapters' ? (
+                <div className="chapters-content" style={{ display: 'flex', flexDirection: 'column', gap: '8px', height: 'calc(100vh - 180px)', overflowY: 'auto' }}>
+                  <div className="panel-header" style={{ marginBottom: '8px' }}>
+                    <h2 style={{ fontSize: '1.05rem', fontWeight: '600', color: '#4a2018' }}>Study Chapters ({chapters?.length || 0})</h2>
+                  </div>
+                  <div className="chapters-list" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {chapters?.map((ch, idx) => (
+                      <ChapterCard
+                        key={idx}
+                        chapter={ch}
+                        idx={idx + 1}
+                        isActive={activeChapterIndex === idx}
+                        onSelect={() => selectChapter(idx)}
+                        onLoadFen={setupPosition}
+                        isStudent={userRole?.toUpperCase() === 'STUDENT'}
+                      />
+                    ))}
                   </div>
                 </div>
               ) : activeTab === 'participants' && featureFlags.participants ? (
@@ -635,6 +715,14 @@ export default function ClassroomPage() {
                 </div>
               ) : activeTab === 'analysis' && featureFlags.engineAnalysis ? (
                 <EngineAnalysisPanel fen={boardFen} />
+              ) : activeTab === 'database' ? (
+                <DatabasePanel 
+                  onLoadPgn={isCoachOrAdmin ? (pgn) => { loadPgn(pgn); } : () => {}} 
+                  onLoadFen={isCoachOrAdmin ? setupPosition : () => {}} 
+                  role={userRole} 
+                  onGamesContextLoaded={handleGamesContextLoaded}
+                  activeGameId={dbNav?.games[dbNav.currentIndex]?.id || null}
+                />
               ) : null}
             </div>
           </section>
@@ -920,11 +1008,12 @@ export default function ClassroomPage() {
           padding: 4px;
           background: #fdf5ea;
           border-radius: 12px 12px 0 0;
-          border: 1px solid #eedcd0;
+          border: 1.5px solid #c8a882;
           border-bottom: none;
           margin-bottom: -1px;
           z-index: 1;
           position: relative;
+          box-shadow: 0 -1px 0 0 #c8a882 inset;
         }
         
         .tab-btn {
@@ -1213,6 +1302,13 @@ export default function ClassroomPage() {
           cursor: not-allowed;
         }
       `}</style>
+      {toast && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
+        />
+      )}
     </div>
   );
 }

@@ -228,7 +228,8 @@ export class ClassroomController {
       return res.json({
         allowed: true,
         role: userRole,
-        classroomId: classroom.id
+        classroomId: classroom.id,
+        token: token
       });
     } catch (e: any) {
       console.error('Error validating join:', e);

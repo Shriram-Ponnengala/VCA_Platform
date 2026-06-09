@@ -3,8 +3,23 @@ import type { MoveNode, Participant, ChessRoomState, ArrowData, ChatMessage } fr
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
+interface ChessChapter {
+  name: string;
+  nodes: Record<string, MoveNode>;
+  currentNodeId: string;
+}
+
 interface ServerChessRoom extends ChessRoomState {
   participantsMap: Map<string, Participant>;
+  chapters?: ChessChapter[];
+  activeChapterIndex?: number;
+}
+
+function setCurrentNodeId(room: ServerChessRoom, nodeId: string) {
+  room.currentNodeId = nodeId;
+  if (room.chapters && room.activeChapterIndex !== undefined && room.activeChapterIndex >= 0 && room.chapters[room.activeChapterIndex]) {
+    room.chapters[room.activeChapterIndex].currentNodeId = nodeId;
+  }
 }
 
 const globalRooms = global as typeof globalThis & {
@@ -42,7 +57,9 @@ export function getRoom(roomId: string): ServerChessRoom {
       isLocked: false,
       isFreehand: false,
       chatHistory: [],
-      studyTags: {}
+      studyTags: {},
+      chapters: [],
+      activeChapterIndex: -1
     });
   }
   return rooms.get(roomId)!;
@@ -61,7 +78,9 @@ export function getRoomState(roomId: string): ChessRoomState {
     isLocked: room.isLocked || false,
     isFreehand: room.isFreehand || false,
     chatHistory: room.chatHistory || [],
-    studyTags: room.studyTags || {}
+    studyTags: room.studyTags || {},
+    chapters: room.chapters || [],
+    activeChapterIndex: room.activeChapterIndex !== undefined ? room.activeChapterIndex : -1
   };
 }
 
@@ -116,7 +135,7 @@ export function applyNullMove(
     newCurrentNodeId = nodeId;
   }
 
-  room.currentNodeId = newCurrentNodeId;
+  setCurrentNodeId(room, newCurrentNodeId);
 
   return {
     node: room.nodes[newCurrentNodeId],
@@ -195,7 +214,7 @@ export function applyMove(
       newCurrentNodeId = nodeId;
     }
 
-    room.currentNodeId = newCurrentNodeId;
+    setCurrentNodeId(room, newCurrentNodeId);
 
     return {
       node: room.nodes[newCurrentNodeId],
@@ -236,7 +255,7 @@ export function applyMove(
         newCurrentNodeId = nodeId;
       }
 
-      room.currentNodeId = newCurrentNodeId;
+      setCurrentNodeId(room, newCurrentNodeId);
 
       return {
         node: room.nodes[newCurrentNodeId],
@@ -335,7 +354,7 @@ function movePieceInFen(fen: string, from: string, to: string): { fen: string; s
 export function navigateNode(roomId: string, nodeId: string): { success: boolean; isLocked: boolean } {
   const room = getRoom(roomId);
   if (room.nodes[nodeId]) {
-    room.currentNodeId = nodeId;
+    setCurrentNodeId(room, nodeId);
     // Auto-unlock on navigation per requirements
     room.isLocked = false;
     return { success: true, isLocked: false };
@@ -346,7 +365,7 @@ export function navigateNode(roomId: string, nodeId: string): { success: boolean
 export function resetRoom(roomId: string): void {
   const room = getRoom(roomId);
   room.nodes = createInitialNodes();
-  room.currentNodeId = 'root';
+  setCurrentNodeId(room, 'root');
   room.isLocked = false;
 }
 
@@ -370,7 +389,7 @@ export function setupPosition(roomId: string, fen: string): void {
       arrows: []
     }
   };
-  room.currentNodeId = 'root';
+  setCurrentNodeId(room, 'root');
   room.isLocked = false;
 }
 
@@ -497,7 +516,7 @@ export function deleteSubsequentMoves(roomId: string, nodeId: string): boolean {
   node.children = [];
 
   if (!room.nodes[room.currentNodeId]) {
-    room.currentNodeId = nodeId;
+    setCurrentNodeId(room, nodeId);
   }
   return true;
 }
@@ -547,7 +566,7 @@ export function deletePreviousMoves(roomId: string, nodeId: string): boolean {
   }
 
   if (!descendants.has(room.currentNodeId) || room.currentNodeId === nodeId) {
-    room.currentNodeId = 'root';
+    setCurrentNodeId(room, 'root');
   }
 
   return true;
@@ -579,7 +598,7 @@ export function deleteMove(roomId: string, nodeId: string): boolean {
 
   // If the active node was deleted, navigate back to parentId
   if (!room.nodes[room.currentNodeId]) {
-    room.currentNodeId = parentId;
+    setCurrentNodeId(room, parentId);
   }
 
   return true;

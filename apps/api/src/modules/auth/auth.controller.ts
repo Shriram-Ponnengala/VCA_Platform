@@ -31,4 +31,12 @@ export class AuthController {
     res.clearCookie('auth-token');
     return res.json({ success: true });
   }
+
+  async getToken(req: Request, res: Response) {
+    const token = req.cookies['auth-token'];
+    if (!token) {
+      return res.status(401).json({ error: 'No token found' });
+    }
+    return res.json({ token });
+  }
 }

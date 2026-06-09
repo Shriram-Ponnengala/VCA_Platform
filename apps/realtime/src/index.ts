@@ -48,7 +48,9 @@ const httpServer = createServer((req, res) => {
             participants: Array.from(room.participantsMap.values()),
             isLocked: room.isLocked || false,
             chatHistory: room.chatHistory || [],
-            studyTags: room.studyTags || {}
+            studyTags: room.studyTags || {},
+            chapters: room.chapters || [],
+            activeChapterIndex: room.activeChapterIndex !== undefined ? room.activeChapterIndex : -1
           };
           
           try {
@@ -148,7 +150,8 @@ io.use(async (socket, next) => {
     const { payload: decoded } = await jose.jwtVerify(token, JWT_SECRET);
     (socket as any).user = decoded;
     next();
-  } catch {
+  } catch (err: any) {
+    console.error("[Socket Auth Middleware] Failed to authorize socket:", err.message || err);
     next(new Error("unauthorized"));
   }
 });

@@ -19,35 +19,35 @@ const NAG_BOARD: Record<string, {
   '!!': {
     label: '!!',
     gradient: ['#8b5cf6', '#6d28d9'],   // purple — Brilliant
-    fontSize: '26px',
+    fontSize: '21px',
     letterSpacing: '-1.5px',
   },
   '!': {
     label: '!',
     gradient: ['#22c55e', '#15803d'],   // green — Good
-    fontSize: '30px',
+    fontSize: '24px',
   },
   '!?': {
     label: '!?',
     gradient: ['#3b82f6', '#1d4ed8'],   // blue — Interesting
-    fontSize: '23px',
+    fontSize: '19px',
     letterSpacing: '-0.5px',
   },
   '?!': {
     label: '?!',
     gradient: ['#f59e0b', '#b45309'],   // gold — Dubious
-    fontSize: '23px',
+    fontSize: '19px',
     letterSpacing: '-0.5px',
   },
   '?': {
     label: '?',
     gradient: ['#f97316', '#c2410c'],   // orange — Mistake
-    fontSize: '30px',
+    fontSize: '24px',
   },
   '??': {
     label: '??',
     gradient: ['#ef4444', '#b91c1c'],   // red — Blunder
-    fontSize: '24px',
+    fontSize: '20px',
     letterSpacing: '-1.5px',
   },
   // positional glyphs — smaller pill, neutral grey
@@ -95,27 +95,32 @@ export const NagBadge: React.FC<NagBadgeProps> = ({ node, orientation = 'white' 
   const x = orientation === 'white' ? file     : 7 - file;
   const y = orientation === 'white' ? 7 - rank : rank;
 
-  // Position: top-right corner of the target square
-  const baseLeft = (x + 1) * 12.5;  // right edge of square (%)
+  // Position: top-center of the target square
+  const baseLeft = (x + 0.5) * 12.5; // center horizontal of square (%)
   const baseTop  = y * 12.5;         // top edge of square (%)
 
-  const BADGE_SIZE = 34; // px
+  const BADGE_SIZE = 28; // px
+  
+  // Calculate total width and starting horizontal offset so the group is centered
+  const totalWidth = validGlyphs.length * BADGE_SIZE;
+  const startX = -(totalWidth / 2) + (BADGE_SIZE / 2);
 
   return (
     <>
       {validGlyphs.map((nag, index) => {
         const d = NAG_BOARD[nag];
-        // Stack multiple badges horizontally, anchored to top-right of square
-        const offsetX = index * (BADGE_SIZE + 3);
+        // Stack multiple badges horizontally, centered over the square's top edge
+        const offsetX = startX + (index * BADGE_SIZE);
 
         return (
           <div
             key={nag}
             style={{
               position: 'absolute',
-              // Anchor to top-right corner of the square, offset badge centre
-              top:  `calc(${baseTop}% - ${BADGE_SIZE / 2}px)`,
-              left: `calc(${baseLeft}% - ${BADGE_SIZE / 2}px + ${offsetX}px)`,
+              // Anchor to top edge: shifted up so the bottom of the badge overlaps the piece head,
+              // and shifted right so it sits at the upper-right of the piece.
+              top:  `calc(${baseTop}% - 14px)`,
+              left: `calc(${baseLeft}% + ${offsetX}px - ${BADGE_SIZE / 2}px + 12px)`,
               zIndex: 10000 + index,
 
               // Circle
@@ -134,7 +139,7 @@ export const NagBadge: React.FC<NagBadgeProps> = ({ node, orientation = 'white' 
               justifyContent: 'center',
               fontWeight:     '900',
               fontFamily:     "'Georgia', serif",
-              fontSize:       d.fontSize ?? '14px',
+              fontSize:       d.fontSize ?? '12px',
               letterSpacing:  d.letterSpacing ?? '0',
               lineHeight:     '1',
               userSelect:     'none',

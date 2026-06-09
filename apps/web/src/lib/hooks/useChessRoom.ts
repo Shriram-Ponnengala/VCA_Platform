@@ -18,7 +18,8 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
-import type { ClientToServerEvents, ServerToClientEvents, MoveNode, Participant, ArrowData, ChatMessage } from '@vca/types';
+import type { ClientToServerEvents, ServerToClientEvents, MoveNode, Participant, ArrowData, ChatMessage, ChessChapter } from '@vca/types';
+import { splitPgn, parsePgnToMoveTree } from '@/features/database/pgnUtils';
 
 type ChessSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -32,6 +33,10 @@ export interface UseChessRoomReturn {
   chatHistory: ChatMessage[];
   studyTags: Record<string, string>;
   isFreehand: boolean;
+  chapters: ChessChapter[];
+  activeChapterIndex: number;
+  loadPgn: (pgnText: string) => void;
+  selectChapter: (index: number) => void;
   makeMove: (from: string, to: string, promotion?: string, parentId?: string) => void;
   makeNullMove: (parentId?: string) => void;
   navigate: (nodeId: string) => void;
@@ -65,6 +70,8 @@ export function useChessRoom(
   const actualRoomId = roomId.startsWith('batch_') ? roomId : `batch_${roomId}`;
   const [nodes, setNodes] = useState<Record<string, MoveNode>>(initialNodes);
   const [currentNodeId, setCurrentNodeId] = useState<string>('root');
+  const [chapters, setChapters] = useState<ChessChapter[]>([]);
+  const [activeChapterIndex, setActiveChapterIndex] = useState<number>(-1);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [isLocked, setIsLocked] = useState(false);
   const [isFreehand, setIsFreehand] = useState(false);
@@ -152,6 +159,8 @@ export function useChessRoom(
           setIsFreehand(state.isFreehand || false);
           setChatHistory(state.chatHistory);
           setStudyTags(state.studyTags || {});
+          setChapters(state.chapters || []);
+          setActiveChapterIndex(state.activeChapterIndex !== undefined ? state.activeChapterIndex : -1);
           setIsReady(true);
         });
 
@@ -252,7 +261,7 @@ export function useChessRoom(
         socketRef.current = null;
       }
     };
-  }, [options?.enabled]);
+  }, [options?.enabled, userJWT]);
 
   const makeMove = useCallback((from: string, to: string, promotion = 'q', parentId?: string) => {
     socketRef.current?.emit('chess:make_move', {
@@ -385,8 +394,74 @@ export function useChessRoom(
     });
   }, []);
 
+  const loadPgn = useCallback((pgnText: string) => {
+    try {
+      const games = splitPgn(pgnText);
+      if (games.length === 0) return;
+
+      if (games.length === 1) {
+        const parsed = parsePgnToMoveTree(pgnText);
+        socketRef.current?.emit('chess:load_pgn', {
+          roomId: roomIdRef.current,
+          nodes: parsed.nodes,
+          currentNodeId: parsed.rootId,
+          chapters: [],
+          activeChapterIndex: -1
+        });
+
+        // Populate study tags from PGN headers
+        if (parsed.tags) {
+          const SKIP_TAGS = new Set(['FEN', 'SetUp', 'ChapterName']);
+          // First clear all existing tags by removing them
+          const socket = socketRef.current;
+          if (socket) {
+            // Set each meaningful header as a study tag
+            for (const [key, val] of Object.entries(parsed.tags)) {
+              if (SKIP_TAGS.has(key)) continue;
+              const strVal = String(val ?? '').trim();
+              if (!strVal || strVal === '?') continue;
+              socket.emit('chess:set_tag', {
+                roomId: roomIdRef.current,
+                key: key.toUpperCase(),
+                value: strVal
+              });
+            }
+          }
+        }
+      } else {
+        const builtChapters = games.map((gameText, idx) => {
+          const parsed = parsePgnToMoveTree(gameText);
+          const name = parsed.chapterName || `Chapter ${idx + 1}`;
+          return {
+            name,
+            nodes: parsed.nodes,
+            currentNodeId: parsed.rootId
+          };
+        });
+
+        socketRef.current?.emit('chess:load_pgn', {
+          roomId: roomIdRef.current,
+          nodes: builtChapters[0].nodes,
+          currentNodeId: builtChapters[0].currentNodeId,
+          chapters: builtChapters,
+          activeChapterIndex: 0
+        });
+      }
+    } catch (err) {
+      console.error('[ChessRoom] Error loading PGN:', err);
+    }
+  }, []);
+
+  const selectChapter = useCallback((index: number) => {
+    socketRef.current?.emit('chess:select_chapter', {
+      roomId: roomIdRef.current,
+      chapterIndex: index
+    });
+  }, []);
+
   return { 
     nodes, currentNodeId, participants, isConnected, isReady, isLocked, isFreehand, chatHistory, studyTags,
+    chapters, activeChapterIndex, loadPgn, selectChapter,
     makeMove, makeNullMove, navigate, resetBoard, updateArrows, clearArrows, toggleLock, toggleFreehand, sendChatMessage,
     updateNodeAnnotations, setStudyTag, removeStudyTag, setupPosition,
     promoteToMainline, promoteVariation, deleteSubsequentMoves, deletePreviousMoves, deleteMove

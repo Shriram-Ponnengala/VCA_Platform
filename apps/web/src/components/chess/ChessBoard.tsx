@@ -4,11 +4,13 @@ import { Chess, Move } from 'chess.js';
 import type { Api } from 'chessground/api';
 import type { Config } from 'chessground/config';
 import type { Key } from 'chessground/types';
-import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, RefreshCw, Eraser, RotateCcw, MoreHorizontal, Lock, LayoutGrid, Copy, FileText, Eye, EyeOff, ArrowUpRight, Square, Pen, Wrench, ChevronDown } from 'lucide-react';
+import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, RefreshCw, Eraser, RotateCcw, MoreHorizontal, Lock, LayoutGrid, Copy, FileText, Eye, ArrowUpRight, Square, Pen, Wrench, ChevronDown, Upload, ArrowUpDown, Database, SkipBack, SkipForward, Smile } from 'lucide-react';
 import type { ArrowData, MoveNode } from '@vca/types';
 import { VariationData } from './VariationChooser';
 import { NagBadge } from './NagBadge';
 import SetupPositionModal from './SetupPositionModal';
+import UploadPgnModal from './UploadPgnModal';
+import { EmojiReactions } from './EmojiReactions';
 
 import 'chessground/assets/chessground.base.css';
 import 'chessground/assets/chessground.brown.css';
@@ -42,6 +44,13 @@ interface ChessBoardProps {
   onToggleFreehand?: (freehand: boolean) => void;
   onSetupPosition?: (fen: string) => void;
   onNullMove?: () => void;
+  onUploadPgn?: (pgnText: string) => void;
+  onSaveToDb?: () => void;
+  chapterCount?: number;
+  activeChapterIndex?: number;
+  onNextChapter?: () => void;
+  onPrevChapter?: () => void;
+  onToggleLock?: (locked: boolean) => void;
 }
 
 const ChessBoard: React.FC<ChessBoardProps> = ({
@@ -54,7 +63,14 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
   onReset, onClearArrows, onMoreTools,
   isFreehand = false, onToggleFreehand,
   onSetupPosition,
-  onNullMove
+  onNullMove,
+  onUploadPgn,
+  onSaveToDb,
+  chapterCount = 0,
+  activeChapterIndex = -1,
+  onNextChapter,
+  onPrevChapter,
+  onToggleLock,
 }) => {
   const [orientation, setOrientation] = useState<'white' | 'black'>('white');
   const [showToolsMenu, setShowToolsMenu] = useState(false);
@@ -63,7 +79,16 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
   const [isHighlightMode, setIsHighlightMode] = useState(false);
   const [isArrowMode, setIsArrowMode] = useState(false);
   const [showSetupModal, setShowSetupModal] = useState(false);
+  const [showUploadPgnModal, setShowUploadPgnModal] = useState(false);
   const [promotionPending, setPromotionPending] = useState<{ from: string; to: string; color: 'w' | 'b' } | null>(null);
+  const [isEmojiMode, setIsEmojiMode] = useState(false);
+  const [shakeClass, setShakeClass] = useState<'heavy' | 'medium' | 'light' | 'none'>('none');
+
+  useEffect(() => {
+    if (isFreehand) {
+      setIsEmojiMode(false);
+    }
+  }, [isFreehand]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const cgRef = useRef<Api | null>(null);
@@ -264,7 +289,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
       try {
         const chess = new Chess(currentFen);
         turnColor = chess.turn() === 'w' ? 'white' : 'black';
-        dests = (isFreehandRef.current || isHighlightMode || isArrowMode) ? undefined : toDests(chess);
+        dests = (isFreehandRef.current || isHighlightMode || isArrowMode || isEmojiMode) ? undefined : toDests(chess);
       } catch (e) {
         turnColor = currentFen.split(' ')[1] === 'w' ? 'white' : 'black';
       }
@@ -272,8 +297,8 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
         fen: currentFen,
         turnColor: turnColor,
         movable: {
-          color: (isLockedRef.current || isHighlightMode || isArrowMode) ? undefined : (isFreehandRef.current ? 'both' : turnColor),
-          free: isFreehandRef.current && !(isHighlightMode || isArrowMode),
+          color: (isLockedRef.current || isHighlightMode || isArrowMode || isEmojiMode) ? undefined : (isFreehandRef.current ? 'both' : turnColor),
+          free: isFreehandRef.current && !(isHighlightMode || isArrowMode || isEmojiMode),
           dests: dests,
           events: {
             after: handleMove,
@@ -307,7 +332,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
       try {
         const chess = new Chess(fen);
         turnColor = chess.turn() === 'w' ? 'white' : 'black';
-        dests = isFreehandRef.current ? undefined : toDests(chess);
+        dests = (isFreehandRef.current || isHighlightMode || isArrowMode || isEmojiMode) ? undefined : toDests(chess);
       } catch (e) {
         turnColor = fen.split(' ')[1] === 'w' ? 'white' : 'black';
       }
@@ -323,8 +348,8 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
         turnColor: turnColor,
         lastMove: lastMove,
         movable: {
-          color: (isLockedRef.current || isHighlightMode || isArrowMode) ? undefined : (isFreehandRef.current ? 'both' : turnColor),
-          free: isFreehandRef.current && !(isHighlightMode || isArrowMode),
+          color: (isLockedRef.current || isHighlightMode || isArrowMode || isEmojiMode) ? undefined : (isFreehandRef.current ? 'both' : turnColor),
+          free: isFreehandRef.current && !(isHighlightMode || isArrowMode || isEmojiMode),
           dests: dests,
           events: {
             after: handleMove,
@@ -390,7 +415,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
       try {
         const chess = new Chess(fen);
         turnColor = chess.turn() === 'w' ? 'white' : 'black';
-        dests = (isFreehand || isHighlightMode || isArrowMode) ? undefined : toDests(chess);
+        dests = (isFreehand || isHighlightMode || isArrowMode || isEmojiMode) ? undefined : toDests(chess);
       } catch (e) {
         turnColor = fen.split(' ')[1] === 'w' ? 'white' : 'black';
       }
@@ -406,8 +431,8 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
         turnColor: turnColor,
         lastMove: lastMove,
         movable: {
-          color: (isLocked || isHighlightMode || isArrowMode) ? undefined : (isFreehand ? 'both' : turnColor),
-          free: isFreehand && !(isHighlightMode || isArrowMode),
+          color: (isLocked || isHighlightMode || isArrowMode || isEmojiMode) ? undefined : (isFreehand ? 'both' : turnColor),
+          free: isFreehand && !(isHighlightMode || isArrowMode || isEmojiMode),
           dests: dests,
           events: {
             after: handleMove,
@@ -418,7 +443,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
         }
       });
     }
-  }, [fen, currentIndex, isLocked, arrows, orientation, showCoordinates, isFreehand, isHighlightMode, isArrowMode, currentNode]);
+  }, [fen, currentIndex, isLocked, arrows, orientation, showCoordinates, isFreehand, isHighlightMode, isArrowMode, isEmojiMode, currentNode]);
 
   const getEventCoords = (e: MouseEvent | TouchEvent) => {
     if ('touches' in e && e.touches.length > 0) {
@@ -560,10 +585,122 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
     };
   }, [isHighlightMode, isArrowMode, orientation]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Do not trigger shortcuts if user is typing in an input or textarea
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.shiftKey) return; // Shift + key is reserved for Emoji Reactions
+      
+      const key = e.key.toLowerCase();
+      const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+
+      if (isCtrlOrCmd) {
+        if (key === 's') {
+          e.preventDefault();
+          if (onSaveToDb) onSaveToDb();
+        } else if (key === 'c') {
+          // Only copy PGN if no text is selected on the page
+          const selection = window.getSelection()?.toString();
+          if (!selection) {
+            e.preventDefault();
+            try {
+              const chess = new Chess();
+              history.slice(0, currentIndex + 1).forEach(san => { try { chess.move(san); } catch(err){} });
+              navigator.clipboard.writeText(chess.pgn());
+            } catch(err) {
+              navigator.clipboard.writeText(history.slice(0, currentIndex + 1).join(' '));
+            }
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          }
+        }
+        return;
+      }
+
+      switch (e.key) {
+        case 'PageUp':
+          if (onPrevChapter) { e.preventDefault(); onPrevChapter(); }
+          break;
+        case 'PageDown':
+          if (onNextChapter) { e.preventDefault(); onNextChapter(); }
+          break;
+        case 'ArrowLeft':
+          if (canPrev) { e.preventDefault(); onPrev(); }
+          break;
+        case 'ArrowRight':
+          if (canNext) { e.preventDefault(); onNext(); }
+          break;
+        case 'f':
+        case 'F':
+          e.preventDefault();
+          setOrientation(o => o === 'white' ? 'black' : 'white');
+          break;
+        case 'r':
+        case 'R':
+          if (onReset) { e.preventDefault(); onReset(); }
+          break;
+        case 's':
+        case 'S':
+          if (onSetupPosition) { e.preventDefault(); setShowSetupModal(true); }
+          break;
+        case 'u':
+        case 'U':
+          if (onUploadPgn) { e.preventDefault(); setShowUploadPgnModal(true); }
+          break;
+        case 'n':
+        case 'N':
+          if (onNullMove) { e.preventDefault(); onNullMove(); }
+          break;
+        case 'l':
+        case 'L':
+          if (onToggleLock) { e.preventDefault(); onToggleLock(!isLocked); }
+          break;
+        case 'o':
+        case 'O':
+          e.preventDefault();
+          setShowCoordinates(prev => !prev);
+          break;
+        case 'a':
+        case 'A':
+          e.preventDefault();
+          setIsArrowMode(prev => {
+            const next = !prev;
+            if (next) setIsHighlightMode(false);
+            return next;
+          });
+          break;
+        case 'h':
+        case 'H':
+          e.preventDefault();
+          setIsHighlightMode(prev => {
+            const next = !prev;
+            if (next) setIsArrowMode(false);
+            return next;
+          });
+          break;
+        case 'd':
+        case 'D':
+          if (onToggleFreehand) { e.preventDefault(); onToggleFreehand(!isFreehand); }
+          break;
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    onPrevChapter, onNextChapter, canPrev, canNext, onPrev, onNext,
+    onReset, onSetupPosition, onUploadPgn, onSaveToDb, onNullMove,
+    onToggleLock, isLocked, onToggleFreehand, isFreehand,
+    history, currentIndex
+  ]);
+
   return (
     <div className="chess-container" style={boardWidth ? { maxWidth: `${boardWidth}px` } : undefined}>
       <div 
-        className="board-wrapper cburnett brown" 
+        className={`board-wrapper cburnett brown ${
+          shakeClass === 'heavy' ? 'shake-heavy' :
+          shakeClass === 'medium' ? 'shake-medium' :
+          shakeClass === 'light' ? 'shake-light' : ''
+        }`} 
         style={{ 
           position: 'relative',
           width: boardWidth ? `${boardWidth}px` : undefined
@@ -571,7 +708,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
       >
         {/* board-clip: clips the chessground to the rounded border, keeps overflow:hidden */}
         <div className="board-clip">
-          <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+          <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative' }} />
           {promotionPending && (
             <div className="promotion-overlay">
               <div className="promotion-card">
@@ -599,6 +736,14 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
             </div>
           )}
         </div>
+
+        {/* EmojiReactions is OUTSIDE board-clip so the floating panel isn't clipped */}
+        <EmojiReactions
+          boardWidth={boardWidth}
+          isEmojiMode={isEmojiMode}
+          onShake={setShakeClass}
+          onClose={() => setIsEmojiMode(false)}
+        />
 
         {/* nag-overlay is OUTSIDE board-clip so badges are never clipped */}
         <div className="nag-overlay" style={{
@@ -628,12 +773,12 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
               {/* BOARD */}
               <div className="tools-section-label">BOARD</div>
               {onMoreTools && (
-                <div className="tools-menu-row">
+                <div className="tools-menu-row tools-menu-row-clickable" onClick={() => { onMoreTools(); }}>
                   <span className="tools-row-icon"><Lock size={15} /></span>
                   <span className="tools-row-label">Board Lock</span>
                   <button
                     className={`tools-toggle ${isLocked ? 'tools-toggle-on' : ''}`}
-                    onClick={() => { onMoreTools(); }}
+                    onClick={(e) => { e.stopPropagation(); onMoreTools(); }}
                     aria-label="Toggle Board Lock"
                   >
                     <span className="tools-toggle-knob" />
@@ -647,6 +792,24 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
                 >
                   <span className="tools-row-icon"><LayoutGrid size={15} /></span>
                   <span className="tools-row-label">Setup Position</span>
+                </button>
+              )}
+              {onUploadPgn && (
+                <button
+                  className="tools-menu-row tools-row-btn"
+                  onClick={() => { setShowUploadPgnModal(true); setShowToolsMenu(false); }}
+                >
+                  <span className="tools-row-icon"><Upload size={15} /></span>
+                  <span className="tools-row-label">Upload PGN</span>
+                </button>
+              )}
+              {onSaveToDb && (
+                <button
+                  className="tools-menu-row tools-row-btn"
+                  onClick={() => { onSaveToDb(); setShowToolsMenu(false); }}
+                >
+                  <span className="tools-row-icon"><Database size={15} /></span>
+                  <span className="tools-row-label">Save to My DB</span>
                 </button>
               )}
               {onNullMove && (
@@ -697,24 +860,13 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
 
               {/* VIEW */}
               <div className="tools-section-label">VIEW</div>
-              <div className="tools-menu-row">
-                <span className="tools-row-icon"><EyeOff size={15} /></span>
-                <span className="tools-row-label">Hide Coordinates</span>
-                <button
-                  className={`tools-toggle ${!showCoordinates ? 'tools-toggle-on' : ''}`}
-                  onClick={() => setShowCoordinates(false)}
-                  aria-label="Hide Coordinates"
-                >
-                  <span className="tools-toggle-knob" />
-                </button>
-              </div>
-              <div className="tools-menu-row">
+              <div className="tools-menu-row tools-menu-row-clickable" onClick={() => setShowCoordinates(prev => !prev)}>
                 <span className="tools-row-icon"><Eye size={15} /></span>
                 <span className="tools-row-label">Show Coordinates</span>
                 <button
                   className={`tools-toggle ${showCoordinates ? 'tools-toggle-on' : ''}`}
-                  onClick={() => setShowCoordinates(true)}
-                  aria-label="Show Coordinates"
+                  onClick={(e) => { e.stopPropagation(); setShowCoordinates(prev => !prev); }}
+                  aria-label="Toggle Coordinates"
                 >
                   <span className="tools-toggle-knob" />
                 </button>
@@ -724,52 +876,84 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
 
               {/* ANNOTATION TOOLS */}
               <div className="tools-section-label">ANNOTATION TOOLS</div>
-              <div className="tools-menu-row">
+              <div className="tools-menu-row tools-menu-row-clickable" onClick={() => {
+                  setIsArrowMode(prev => {
+                    const next = !prev;
+                    if (next) setIsHighlightMode(false);
+                    return next;
+                  });
+                }}>
                 <span className="tools-row-icon"><ArrowUpRight size={15} /></span>
                 <span className="tools-row-label">Arrow</span>
                 <button
                   className={`tools-toggle ${isArrowMode ? 'tools-toggle-on' : ''}`}
-                  onClick={() => {
-                    setIsArrowMode(prev => {
-                      const next = !prev;
-                      if (next) setIsHighlightMode(false);
-                      return next;
-                    });
-                  }}
+                  onClick={(e) => { e.stopPropagation(); setIsArrowMode(prev => { const next = !prev; if (next) setIsHighlightMode(false); return next; }); }}
                   aria-label="Toggle Arrow Mode"
                 >
                   <span className="tools-toggle-knob" />
                 </button>
               </div>
-              <div className="tools-menu-row">
+              <div className="tools-menu-row tools-menu-row-clickable" onClick={() => {
+                  setIsHighlightMode(prev => {
+                    const next = !prev;
+                    if (next) setIsArrowMode(false);
+                    return next;
+                  });
+                }}>
                 <span className="tools-row-icon"><Square size={15} /></span>
                 <span className="tools-row-label">Highlight Square</span>
                 <button
                   className={`tools-toggle ${isHighlightMode ? 'tools-toggle-on' : ''}`}
-                  onClick={() => {
-                    setIsHighlightMode(prev => {
-                      const next = !prev;
-                      if (next) setIsArrowMode(false);
-                      return next;
-                    });
-                  }}
+                  onClick={(e) => { e.stopPropagation(); setIsHighlightMode(prev => { const next = !prev; if (next) setIsArrowMode(false); return next; }); }}
                   aria-label="Toggle Highlight Mode"
                 >
                   <span className="tools-toggle-knob" />
                 </button>
               </div>
               {onToggleFreehand && (
-                <div className="tools-menu-row">
+                <div className="tools-menu-row tools-menu-row-clickable" onClick={() => { onToggleFreehand(!isFreehand); }}>
                   <span className="tools-row-icon"><Pen size={15} /></span>
                   <span className="tools-row-label">Freehand</span>
                   <button
                     className={`tools-toggle ${isFreehand ? 'tools-toggle-on' : ''}`}
-                    onClick={() => { onToggleFreehand(!isFreehand); }}
+                    onClick={(e) => { e.stopPropagation(); onToggleFreehand(!isFreehand); }}
                     aria-label="Toggle Freehand"
                   >
                     <span className="tools-toggle-knob" />
                   </button>
                 </div>
+              )}
+              <div className="tools-menu-row tools-menu-row-clickable" onClick={() => {
+                  setIsEmojiMode(prev => {
+                    const next = !prev;
+                    if (next) {
+                      setIsArrowMode(false);
+                      setIsHighlightMode(false);
+                      if (onToggleFreehand && isFreehand) {
+                        onToggleFreehand(false);
+                      }
+                    }
+                    return next;
+                  });
+                }}>
+                <span className="tools-row-icon"><Smile size={15} /></span>
+                <span className="tools-row-label">Emoji Reactions</span>
+                <button
+                  className={`tools-toggle ${isEmojiMode ? 'tools-toggle-on' : ''}`}
+                  onClick={(e) => { e.stopPropagation(); setIsEmojiMode(prev => { const next = !prev; if (next) { setIsArrowMode(false); setIsHighlightMode(false); if (onToggleFreehand && isFreehand) onToggleFreehand(false); } return next; }); }}
+                  aria-label="Toggle Emoji Mode"
+                >
+                  <span className="tools-toggle-knob" />
+                </button>
+              </div>
+              {onClearArrows && (
+                <button
+                  className="tools-menu-row tools-row-btn"
+                  onClick={() => { onClearArrows(); setShowToolsMenu(false); }}
+                >
+                  <span className="tools-row-icon"><Eraser size={15} /></span>
+                  <span className="tools-row-label">Clear Annotations</span>
+                </button>
               )}
             </div>
           </>
@@ -778,15 +962,6 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
 
           {/* Left group: Undo / Redo / Clear — icon + label */}
           <div className="tools-group">
-            <button
-              onClick={() => setOrientation(o => o === 'white' ? 'black' : 'white')}
-              className="btn-labeled"
-              title="Undo / Flip"
-            >
-              <RotateCcw size={19} />
-              <span className="btn-label">Undo</span>
-            </button>
-
             {onReset && (
               <button onClick={onReset} className="btn-labeled" title="Reset Board">
                 <RefreshCw size={19} />
@@ -794,30 +969,55 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
               </button>
             )}
 
-            {onClearArrows && (
-              <button onClick={onClearArrows} className="btn-labeled" title="Clear">
-                <Eraser size={19} />
-                <span className="btn-label">Clear</span>
-              </button>
-            )}
+            <button
+              onClick={() => setOrientation(o => o === 'white' ? 'black' : 'white')}
+              className="btn-labeled"
+              title="Flip Board"
+            >
+              <ArrowUpDown size={19} />
+              <span className="btn-label">Flip</span>
+            </button>
 
             <div className="control-separator" />
           </div>
 
-          {/* Centre: nav buttons — each with its own card */}
-          <div className="nav-group">
-            <button onClick={onStart} className="btn-nav-card" title="First Move" disabled={!canPrev}>
-              <ChevronsLeft size={20} />
-            </button>
-            <button onClick={onPrev} className="btn-nav-card" title="Previous Move" disabled={!canPrev}>
-              <ChevronLeft size={20} />
-            </button>
-            <button onClick={onNext} className="btn-nav-card" title="Next Move" disabled={!canNext}>
-              <ChevronRight size={20} />
-            </button>
-            <button onClick={onEnd} className="btn-nav-card" title="Last Move" disabled={!canNext}>
-              <ChevronsRight size={20} />
-            </button>
+          {/* Centre: nav buttons and game nav buttons grouped together for the middle grid column */}
+          <div className="nav-center-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="nav-group">
+              <button onClick={onStart} className="btn-nav-card" title="First Move" disabled={!canPrev}>
+                <ChevronsLeft size={20} />
+              </button>
+              <button onClick={onPrev} className="btn-nav-card" title="Previous Move" disabled={!canPrev}>
+                <ChevronLeft size={20} />
+              </button>
+              <button onClick={onNext} className="btn-nav-card" title="Next Move" disabled={!canNext}>
+                <ChevronRight size={20} />
+              </button>
+              <button onClick={onEnd} className="btn-nav-card" title="Last Move" disabled={!canNext}>
+                <ChevronsRight size={20} />
+              </button>
+            </div>
+
+            {/* Game Nav (always visible, disabled if 1 or 0 games) */}
+            <div className="control-separator" />
+            <div className="game-nav-group">
+              <button 
+                onClick={onPrevChapter} 
+                className="btn-nav-card game-nav-btn" 
+                title={chapterCount > 1 ? `Previous game (${activeChapterIndex + 1} of ${chapterCount})` : "Previous game"} 
+                disabled={chapterCount <= 1 || activeChapterIndex <= 0}
+              >
+                <SkipBack size={18} />
+              </button>
+              <button 
+                onClick={onNextChapter} 
+                className="btn-nav-card game-nav-btn" 
+                title={chapterCount > 1 ? `Next game (${activeChapterIndex + 1} of ${chapterCount})` : "Next game"} 
+                disabled={chapterCount <= 1 || activeChapterIndex >= chapterCount - 1}
+              >
+                <SkipForward size={18} />
+              </button>
+            </div>
           </div>
 
           {/* Right: Tools button */}
@@ -826,7 +1026,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
             {onMoreTools && (
               <button
                 onClick={() => setShowToolsMenu(prev => !prev)}
-                className={`btn-tools-new ${(showToolsMenu || isHighlightMode || isArrowMode || isFreehand) ? 'active' : ''}`}
+                className={`btn-tools-new ${(showToolsMenu || isHighlightMode || isArrowMode || isFreehand || isLocked) ? 'active' : ''}`}
                 title="Tools"
               >
                 <Wrench size={16} className="tools-wrench" />
@@ -847,6 +1047,17 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
               }
             }}
             initialFen={fen}
+          />
+        )}
+        {showUploadPgnModal && (
+          <UploadPgnModal
+            isOpen={showUploadPgnModal}
+            onClose={() => setShowUploadPgnModal(false)}
+            onUpload={(pgnText) => {
+              if (onUploadPgn) {
+                onUploadPgn(pgnText);
+              }
+            }}
           />
         )}
       </div>
@@ -936,6 +1147,18 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           justify-content: center;
           align-items: center;
         }
+        .game-nav-group {
+          display: flex;
+          gap: 6px;
+          justify-content: center;
+          align-items: center;
+        }
+        .game-nav-btn {
+          color: #c8854a !important;
+        }
+        .game-nav-btn:hover:not(:disabled) {
+          color: #e6a05e !important;
+        }
         /* Labeled buttons: Undo / Redo / Clear */
         .btn-labeled {
           display: flex;
@@ -1016,19 +1239,24 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           color: #fff;
         }
         .btn-tools-new.active {
-          background: rgba(200,133,74,0.18);
+          background: rgba(255,255,255,0.08);
           color: #c8854a;
         }
         .btn-tools-new .tools-wrench {
-          color: #c8854a;
+          color: inherit;
           flex-shrink: 0;
         }
         .btn-tools-new .btn-tools-label {
           font-family: inherit;
+          display: flex;
+          align-items: center;
+          line-height: 1;
+          margin-top: 1px;
         }
         .btn-tools-new .tools-chevron {
-          transition: transform 0.2s ease;
+          transition: transform 0.2s ease, color 0.2s ease;
           opacity: 0.7;
+          color: inherit;
         }
         .btn-tools-new .tools-chevron.open {
           transform: rotate(180deg);
@@ -1092,6 +1320,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           letter-spacing: 0.01em;
           border-bottom: 1px solid #f0e8e0;
           background: #fdf8f4;
+          text-align: center;
         }
         .tools-section-label {
           padding: 8px 16px 4px;
@@ -1116,6 +1345,9 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
         }
         .tools-menu-row:hover {
           background: #fdf5ea;
+        }
+        .tools-menu-row-clickable {
+          cursor: pointer;
         }
         .tools-row-btn {
           background: transparent;
@@ -1279,6 +1511,30 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
         .promo-cancel-btn:hover {
           background: #c8854a;
           box-shadow: 0 4px 8px rgba(200, 133, 74, 0.3);
+        }
+
+        /* Chess Board Shaking Animations */
+        .shake-heavy {
+          animation: shake-heavy-anim 0.45s cubic-bezier(.36,.07,.19,.97) both;
+          transform: translate3d(0, 0, 0);
+        }
+        .shake-light {
+          animation: shake-light-anim 0.35s cubic-bezier(.36,.07,.19,.97) both;
+          transform: translate3d(0, 0, 0);
+        }
+
+        @keyframes shake-heavy-anim {
+          10%, 90% { transform: translate3d(-6px, -4px, 0) rotate(-1.5deg); }
+          20%, 80% { transform: translate3d(8px, 6px, 0) rotate(2deg); }
+          30%, 50%, 70% { transform: translate3d(-10px, -8px, 0) rotate(-2.5deg); }
+          40%, 60% { transform: translate3d(10px, 8px, 0) rotate(2.5deg); }
+        }
+
+        @keyframes shake-light-anim {
+          10%, 90% { transform: translate3d(-2px, -1px, 0) rotate(-0.5deg); }
+          20%, 80% { transform: translate3d(3px, 2px, 0) rotate(0.5deg); }
+          30%, 50%, 70% { transform: translate3d(-4px, -3px, 0) rotate(-1deg); }
+          40%, 60% { transform: translate3d(4px, 3px, 0) rotate(1deg); }
         }
       `}</style>
     </div>

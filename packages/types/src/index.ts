@@ -40,6 +40,12 @@ export interface Participant {
   name: string;
 }
 
+export interface ChessChapter {
+  name: string;
+  nodes: Record<string, MoveNode>;
+  currentNodeId: string;
+}
+
 export interface ChessRoomState {
   nodes: Record<string, MoveNode>;
   currentNodeId: string;
@@ -48,6 +54,8 @@ export interface ChessRoomState {
   isFreehand?: boolean;
   chatHistory: ChatMessage[];
   studyTags: Record<string, string>;
+  chapters?: ChessChapter[];
+  activeChapterIndex?: number;
 }
 
 export interface ServerToClientEvents {
@@ -103,6 +111,8 @@ export interface ClientToServerEvents {
   "chess:delete_subsequent_moves": (data: { roomId: string; nodeId: string }) => void;
   "chess:delete_previous_moves": (data: { roomId: string; nodeId: string }) => void;
   "chess:delete_move": (data: { roomId: string; nodeId: string }) => void;
+  "chess:load_pgn": (data: { roomId: string; nodes: Record<string, MoveNode>; currentNodeId: string; chapters?: ChessChapter[]; activeChapterIndex?: number }) => void;
+  "chess:select_chapter": (data: { roomId: string; chapterIndex: number }) => void;
 }
 
 export interface InterServerEvents {}

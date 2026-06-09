@@ -73,9 +73,16 @@ export function useCoaches() {
     console.log('[Hook] useCoaches: Fetching coaches from API...');
     try {
       const res = await fetch('/api/users?role=COACH');
+      const contentType = res.headers.get('content-type');
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to fetch coaches');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || 'Failed to fetch coaches');
+        }
+        throw new Error(`Server returned ${res.status}: API might be down or restarting`);
+      }
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Received non-JSON response from server. API might be restarting.');
       }
       const data = await res.json();
       console.log(`[Hook] useCoaches: Successfully fetched ${data.length} coaches`);
@@ -115,10 +122,21 @@ export function useCoaches() {
           role: 'COACH'
         }),
       });
+      const contentType = res.headers.get('content-type');
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to add coach');
+        let errorMsg = 'Failed to add coach';
+        if (contentType && contentType.includes('application/json')) {
+          const err = await res.json();
+          errorMsg = err.error || errorMsg;
+        } else {
+          errorMsg = `Server error: ${res.status}`;
+        }
+        throw new Error(errorMsg);
       }
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Received non-JSON response from server.');
+      }
+      const newCoach = await res.json();
       console.log('[Hook] useCoaches: Coach added successfully');
       await fetchCoaches();
       return true;

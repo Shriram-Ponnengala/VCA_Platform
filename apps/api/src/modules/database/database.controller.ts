@@ -26,7 +26,7 @@ export class DatabaseController {
       if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
       const result = await service.getTree(user.id);
-      res.json(result);
+      res.json({ ...result, userId: user.id });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -132,13 +132,123 @@ export class DatabaseController {
       const user = await getUser(req);
       if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-      const { collectionId, sharedWithUsername, permission } = req.body;
-      if (!collectionId || !sharedWithUsername) {
-        return res.status(400).json({ error: 'collectionId and sharedWithUsername are required.' });
+      const { entityType, entityId, collectionId, sharedWithUsername, permission } = req.body;
+      const type = entityType || 'collection';
+      const id = entityId || collectionId;
+
+      if (!id || !sharedWithUsername) {
+        return res.status(400).json({ error: 'entityId and sharedWithUsername are required.' });
       }
 
-      const result = await service.shareCollection(user.id, collectionId, sharedWithUsername, permission || 'read');
+      let result;
+      if (type === 'folder') {
+        result = await service.shareFolder(user.id, id, sharedWithUsername, permission || 'read');
+      } else if (type === 'collection') {
+        result = await service.shareCollection(user.id, id, sharedWithUsername, permission || 'read');
+      } else if (type === 'game') {
+        result = await service.shareGame(user.id, id, sharedWithUsername, permission || 'read');
+      } else {
+        return res.status(400).json({ error: 'Invalid entityType.' });
+      }
+
       res.status(201).json(result);
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  }
+
+  async renameCollection(req: Request, res: Response) {
+    try {
+      const user = await getUser(req);
+      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+      const { name } = req.body;
+      if (!name) return res.status(400).json({ error: 'Name is required.' });
+
+      const result = await service.renameCollection(user.id, user.role, req.params.id as string, name);
+      res.json(result);
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  }
+
+  async deleteCollection(req: Request, res: Response) {
+    try {
+      const user = await getUser(req);
+      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+      const result = await service.deleteCollection(user.id, user.role, req.params.id as string);
+      res.json(result);
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  }
+
+  async renameGame(req: Request, res: Response) {
+    try {
+      const user = await getUser(req);
+      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+      const { name } = req.body;
+      if (!name) return res.status(400).json({ error: 'Name is required.' });
+
+      const result = await service.renameGame(user.id, user.role, req.params.id as string, name);
+      res.json(result);
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  }
+
+  async deleteGame(req: Request, res: Response) {
+    try {
+      const user = await getUser(req);
+      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+      const result = await service.deleteGame(user.id, user.role, req.params.id as string);
+      res.json(result);
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  }
+
+  async moveFolder(req: Request, res: Response) {
+    try {
+      const user = await getUser(req);
+      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+      const { targetFolderId } = req.body;
+      const result = await service.moveFolder(user.id, user.role, req.params.id as string, targetFolderId || null);
+      res.json(result);
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  }
+
+  async moveCollection(req: Request, res: Response) {
+    try {
+      const user = await getUser(req);
+      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+      const { targetFolderId } = req.body;
+      const result = await service.moveCollection(user.id, user.role, req.params.id as string, targetFolderId || null);
+      res.json(result);
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  }
+
+  async moveGame(req: Request, res: Response) {
+    try {
+      const user = await getUser(req);
+      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+      const { targetCollectionId } = req.body;
+      if (!targetCollectionId) {
+        return res.status(400).json({ error: 'targetCollectionId is required.' });
+      }
+
+      const result = await service.moveGame(user.id, user.role, req.params.id as string, targetCollectionId);
+      res.json(result);
     } catch (e: any) {
       res.status(400).json({ error: e.message });
     }
@@ -150,6 +260,19 @@ export class DatabaseController {
       if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
       const result = await service.getGame(user.id, req.params.id as string);
+      res.json(result);
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  }
+
+  async getCollectionGames(req: Request, res: Response) {
+    try {
+      const user = await getUser(req);
+      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+      const page = parseInt(req.query.page as string, 10) || 1;
+      const result = await service.getCollectionGames(user.id, req.params.id as string, page);
       res.json(result);
     } catch (e: any) {
       res.status(400).json({ error: e.message });

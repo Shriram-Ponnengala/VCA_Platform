@@ -1,41 +1,200 @@
 'use client';
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import ChessBoard from '@/components/chess/ChessBoard';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { VariationChooser } from '@/components/chess/VariationChooser';
+import { Toast } from '@vca/ui';
 import { AnnotationsPanel } from '@/components/chess/AnnotationsPanel';
-import { History, Zap, Wifi, WifiOff, Users, User, MessageSquare, Send, Star, ArrowUp, Scissors, Eraser, Database, Trash2 } from 'lucide-react';
+import { History, Zap, Wifi, WifiOff, Users, User, MessageSquare, Send, Star, ArrowUp, Scissors, Eraser, Database, Trash2, Compass, BookOpen } from 'lucide-react';
 import { useChessRoom } from '@/lib/hooks/useChessRoom';
 import { MoveNode, ChatMessage } from '@vca/types';
 import EngineAnalysisPanel from '@/components/chess/EngineAnalysisPanel';
+import OpeningExplorerPanel from '@/components/chess/OpeningExplorerPanel';
+import DatabasePanel from '@/components/chess/DatabasePanel';
+import ChapterCard from '@/components/chess/ChapterCard';
+import { Chess } from 'chess.js';
 
 const featureFlags = {
   participants: false,
   chat: false,
-  engineAnalysis: true
+  engineAnalysis: true,
+  openingExplorer: true
 };
 
 const ROOM_ID = 'test-room';
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
 export default function ClassroomPage() {
+  const router = useRouter();
+  const [token, setToken] = useState<string | undefined>(undefined);
+  const [isLoadingToken, setIsLoadingToken] = useState(true);
+  const [isAuthError, setIsAuthError] = useState(false);
+  const [userRole, setUserRole] = useState<'admin' | 'coach' | 'student' | null>(null);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveGameName, setSaveGameName] = useState('');
+  const [savingGame, setSavingGame] = useState(false);
+  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/token', { credentials: 'include' })
+      .then(res => {
+        if (res.ok) return res.json();
+        throw new Error('Not authenticated');
+      })
+      .then(data => {
+        setToken(data.token);
+        try {
+          const payload = JSON.parse(atob(data.token.split('.')[1]));
+          console.log('Current logged-in user role (generic classroom):', payload.role);
+          setUserRole(payload.role);
+        } catch (e) {
+          console.error('Error decoding token role:', e);
+        }
+        setIsLoadingToken(false);
+      })
+      .catch(err => {
+        setIsAuthError(true);
+        setIsLoadingToken(false);
+        // Redirect to login after a short delay so user can see the message
+        setTimeout(() => router.push('/'), 1500);
+      });
+  }, []);
+
+
   const { 
     nodes, currentNodeId, participants, isConnected, isReady, isLocked, isFreehand, chatHistory, studyTags,
+    chapters, activeChapterIndex, loadPgn, selectChapter,
     makeMove, makeNullMove, navigate, resetBoard, updateArrows, clearArrows, toggleLock, toggleFreehand, sendChatMessage,
     updateNodeAnnotations, setStudyTag, removeStudyTag, setupPosition,
     promoteToMainline, promoteVariation, deleteSubsequentMoves, deletePreviousMoves, deleteMove
-  } = useChessRoom(ROOM_ID);
+  } = useChessRoom(ROOM_ID, token, { enabled: !!token });
 
-  const [activeTab, setActiveTab] = useState<'history' | 'participants' | 'chat' | 'analysis'>('history');
+  const [activeTab, setActiveTab] = useState<string>('history');
+
+  // Auto switch to chapters tab when chapters are loaded
+  useEffect(() => {
+    if (chapters.length > 0) {
+      setActiveTab('chapters');
+    } else {
+      setActiveTab('history');
+    }
+  }, [chapters.length]);
+
+
   const [selectedVariationIndex, setSelectedVariationIndex] = useState(0);
   const [chatInput, setChatInput] = useState('');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
+  const [dbNav, setDbNav] = useState<{ games: any[], currentIndex: number } | null>(null);
 
-  const [showSaveModal, setShowSaveModal] = useState(false);
-  const [saveGameName, setSaveGameName] = useState('');
-  const [savingGame, setSavingGame] = useState(false);
+  const handleGamesContextLoaded = useCallback((games: any[], currentIndex: number) => {
+     setDbNav(games.length > 0 ? { games, currentIndex } : null);
+  }, []);
+
+  // ── Resizable split between Moves panel and Annotations panel ──
+  const SPLIT_KEY = 'classroom_split_ratio';
+  const [splitRatio, setSplitRatio] = useState<number>(() => {
+    try {
+      const stored = localStorage.getItem(SPLIT_KEY);
+      if (stored) {
+        const v = parseFloat(stored);
+        if (!isNaN(v) && v > 0.1 && v < 0.9) return v;
+      }
+    } catch {}
+    return 0.60;
+  });
+  const sidebarBodyRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
+  const dragStartYRef = useRef(0);
+  const dragStartRatioRef = useRef(0);
+  const lastRatioRef = useRef(splitRatio);
+  // Keep lastRatioRef in sync
+  lastRatioRef.current = splitRatio;
+
+  const handleSplitterMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    dragStartYRef.current = e.clientY;
+    dragStartRatioRef.current = lastRatioRef.current;
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!isDraggingRef.current || !sidebarBodyRef.current) return;
+      const totalH = sidebarBodyRef.current.getBoundingClientRect().height;
+      if (totalH <= 0) return;
+      const delta = ev.clientY - dragStartYRef.current;
+      const deltaRatio = delta / totalH;
+      const newRatio = Math.min(0.85, Math.max(0.15, dragStartRatioRef.current + deltaRatio));
+      lastRatioRef.current = newRatio;
+      setSplitRatio(newRatio);
+    };
+
+    const onMouseUp = () => {
+      isDraggingRef.current = false;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }, []);
+
+  // Persist ratio to localStorage on change
+  useEffect(() => {
+    try { localStorage.setItem(SPLIT_KEY, String(splitRatio)); } catch {}
+  }, [splitRatio]);
+
+  // ── Horizontal sidebar resizer ──────────────────────────────────────────
+  const SIDEBAR_WIDTH_KEY = 'classroom_sidebar_width';
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    try {
+      const stored = localStorage.getItem(SIDEBAR_WIDTH_KEY);
+      if (stored) {
+        const v = parseFloat(stored);
+        if (!isNaN(v) && v >= 260 && v <= 640) return v;
+      }
+    } catch {}
+    return 400;
+  });
+  const mainContentRef = useRef<HTMLElement>(null);
+  const isHDraggingRef = useRef(false);
+  const hDragStartXRef = useRef(0);
+  const hDragStartWidthRef = useRef(0);
+  const lastSidebarWidthRef = useRef(sidebarWidth);
+  lastSidebarWidthRef.current = sidebarWidth;
+
+  const handleHResizerMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isHDraggingRef.current = true;
+    hDragStartXRef.current = e.clientX;
+    hDragStartWidthRef.current = lastSidebarWidthRef.current;
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!isHDraggingRef.current) return;
+      // Dragging left increases width, right decreases width
+      const delta = hDragStartXRef.current - ev.clientX;
+      const newWidth = Math.min(640, Math.max(260, hDragStartWidthRef.current + delta));
+      lastSidebarWidthRef.current = newWidth;
+      setSidebarWidth(newWidth);
+    };
+
+    const onMouseUp = () => {
+      isHDraggingRef.current = false;
+      document.body.style.cursor = '';
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth)); } catch {}
+  }, [sidebarWidth]);
+
 
   const handleSaveToDb = () => {
     setSaveGameName(`Analysis Game - ${new Date().toLocaleDateString()}`);
@@ -59,15 +218,21 @@ export default function ClassroomPage() {
         })
       });
       if (res.ok) {
-        alert('Game successfully saved to My DB!');
+        setToast({ message: 'Game successfully saved to My DB!', type: 'success' });
         setShowSaveModal(false);
       } else {
-        const err = await res.json();
-        alert(err.error || 'Failed to save game');
+        let errorMsg = 'Failed to save game';
+        try {
+          const err = await res.json();
+          errorMsg = err.error || errorMsg;
+        } catch {
+          errorMsg = `Server error: ${res.status} ${res.statusText || ''}`;
+        }
+        setToast({ message: errorMsg, type: 'error' });
       }
     } catch (err: any) {
       console.error(err);
-      alert('Error saving game: ' + err.message);
+      setToast({ message: 'Error saving game: ' + err.message, type: 'error' });
     } finally {
       setSavingGame(false);
     }
@@ -188,6 +353,18 @@ export default function ClassroomPage() {
   // ── Move handler — emit to server from current node ─────────────
   const handleMove = (move: any, _index: number, _after: string) => {
     makeMove(move.from, move.to, move.promotion ?? 'q', currentNodeId);
+  };
+
+  const handleExplorerMove = (moveSan: string) => {
+    try {
+      const chess = new Chess(boardFen);
+      const result = chess.move(moveSan);
+      if (result) {
+        makeMove(result.from, result.to, result.promotion ?? 'q', currentNodeId);
+      }
+    } catch (err) {
+      console.error('[ClassroomPage] Error making explorer move:', err);
+    }
   };
 
   // ── Move history tree renderer ────────────────────────────────────────────
@@ -385,12 +562,28 @@ export default function ClassroomPage() {
   const displayFen = currentNode?.fen ?? START_FEN;
   const boardFen = displayFen;
 
+  if (isLoadingToken) {
+    return (
+      <div className="page-wrapper" style={{ alignItems: 'center', justifyContent: 'center' }}>
+        <h2 style={{ color: '#4a2018' }}>Connecting...</h2>
+      </div>
+    );
+  }
+
+  if (isAuthError) {
+    return (
+      <div className="page-wrapper" style={{ alignItems: 'center', justifyContent: 'center' }}>
+        <h2 style={{ color: '#4a2018' }}>Not authenticated. Redirecting to login...</h2>
+      </div>
+    );
+  }
+
   return (
     <div className="page-wrapper">
       <div className="app-container">
 
         {/* ── Main layout ── */}
-        <main className="main-content">
+        <main className="main-content" ref={mainContentRef}>
           <section className="board-section">
             <ChessBoard
               fen={boardFen}
@@ -423,10 +616,58 @@ export default function ClassroomPage() {
               onToggleFreehand={toggleFreehand}
               onSetupPosition={setupPosition}
               onNullMove={() => makeNullMove()}
+              onUploadPgn={(pgn) => {
+                setDbNav(null);
+                loadPgn(pgn);
+              }}
+              onSaveToDb={userRole?.toUpperCase() === 'COACH' ? handleSaveToDb : undefined}
+              chapterCount={dbNav ? dbNav.games.length : (chapters?.length || 0)}
+              activeChapterIndex={dbNav ? dbNav.currentIndex : activeChapterIndex}
+              onNextChapter={() => {
+                if (dbNav && dbNav.currentIndex < dbNav.games.length - 1) {
+                  const nextIndex = dbNav.currentIndex + 1;
+                  const nextGame = dbNav.games[nextIndex];
+                  if (nextGame) {
+                     setDbNav({ ...dbNav, currentIndex: nextIndex });
+                     fetch(`/api/database/games/${nextGame.id}`)
+                       .then(res => res.json())
+                       .then(data => {
+                          if (data.pgn) loadPgn(data.pgn);
+                       })
+                       .catch(console.error);
+                  }
+                } else if (!dbNav && chapters && activeChapterIndex < chapters.length - 1) {
+                  selectChapter(activeChapterIndex + 1);
+                }
+              }}
+              onPrevChapter={() => {
+                if (dbNav && dbNav.currentIndex > 0) {
+                  const prevIndex = dbNav.currentIndex - 1;
+                  const prevGame = dbNav.games[prevIndex];
+                  if (prevGame) {
+                     setDbNav({ ...dbNav, currentIndex: prevIndex });
+                     fetch(`/api/database/games/${prevGame.id}`)
+                       .then(res => res.json())
+                       .then(data => {
+                          if (data.pgn) loadPgn(data.pgn);
+                       })
+                       .catch(console.error);
+                  }
+                } else if (!dbNav && activeChapterIndex > 0) {
+                  selectChapter(activeChapterIndex - 1);
+                }
+              }}
             />
           </section>
 
-          <section className="sidebar">
+          {/* ── Horizontal resize handle ── */}
+          <div
+            className="h-resizer"
+            onMouseDown={handleHResizerMouseDown}
+            title="Drag to resize sidebar"
+          />
+
+          <section className="sidebar" style={{ width: sidebarWidth, flexShrink: 0, minWidth: 260, maxWidth: 640 }}>
             <div className="tabs-container">
               <button 
                 className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
@@ -434,6 +675,14 @@ export default function ClassroomPage() {
               >
                 <History size={16} /> Moves
               </button>
+              {chapters.length > 0 && (
+                <button 
+                  className={`tab-btn ${activeTab === 'chapters' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('chapters')}
+                >
+                  <BookOpen size={16} /> Chapters
+                </button>
+              )}
               {featureFlags.participants && (
                 <button 
                   className={`tab-btn ${activeTab === 'participants' ? 'active' : ''}`}
@@ -458,122 +707,167 @@ export default function ClassroomPage() {
                   <Zap size={16} /> Engine Analysis
                 </button>
               )}
+              {featureFlags.openingExplorer && (
+                <button 
+                  className={`tab-btn ${activeTab === 'explorer' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('explorer')}
+                >
+                  <Compass size={16} /> Opening Explorer
+                </button>
+              )}
+              <button 
+                className={`tab-btn ${activeTab === 'database' ? 'active' : ''}`}
+                onClick={() => setActiveTab('database')}
+              >
+                <Database size={16} /> Database
+              </button>
             </div>
 
-            <div className="sidebar-panel glass-panel">
-              {activeTab === 'history' ? (
-                <div className="history-content">
-                  <div className="history-header-actions" style={{ display: 'flex', gap: '8px', padding: '8px', borderBottom: '1px solid #eedcd0' }}>
-                    <button
-                      onClick={handleSaveToDb}
-                      style={{
-                        flex: 1,
-                        background: '#c8854a',
-                        color: '#fff',
-                        border: 'none',
-                        padding: '6px 12px',
-                        borderRadius: '4px',
-                        fontSize: '0.8rem',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px'
+            {/* ── When on history tab: resizable split between Moves and Annotations ── */}
+            {activeTab === 'history' ? (
+              <div className="sidebar-body" ref={sidebarBodyRef}>
+                <div
+                  className="sidebar-panel glass-panel"
+                  style={{ height: `calc(${splitRatio * 100}% - 4px)` }}
+                >
+                  <div className="history-content">
+                    <div className="history-scroll-area">
+                      {nodes['root']?.comment && (
+                        <div className="move-comment" style={{ marginBottom: '8px' }}>
+                          {nodes['root'].comment}
+                        </div>
+                      )}
+                      {nodes['root']?.children.length === 0
+                        ? <p className="empty-state">No moves yet. Make a move to start!</p>
+                        : renderMoveTree('root')
+                      }
+                    </div>
+                    <VariationChooser
+                      variations={branches}
+                      selectedIndex={selectedVariationIndex}
+                      onSelect={setSelectedVariationIndex}
+                      onChoose={(id) => {
+                        navigate(id);
+                        setSelectedVariationIndex(0);
                       }}
-                    >
-                      <Database size={14} /> Save Game to My DB
-                    </button>
+                    />
                   </div>
-                  <div className="history-scroll-area">
-                    {nodes['root']?.comment && (
-                      <div className="move-comment" style={{ marginBottom: '8px' }}>
-                        {nodes['root'].comment}
-                      </div>
-                    )}
-                    {nodes['root']?.children.length === 0
-                      ? <p className="empty-state">No moves yet. Make a move to start!</p>
-                      : renderMoveTree('root')
-                    }
-                  </div>
-                  <VariationChooser
-                    variations={branches}
-                    selectedIndex={selectedVariationIndex}
-                    onSelect={setSelectedVariationIndex}
-                    onChoose={(id) => {
-                      navigate(id);
-                      setSelectedVariationIndex(0);
-                    }}
+                </div>
+
+                {/* Drag handle / splitter */}
+                <div
+                  className="sidebar-splitter"
+                  onMouseDown={handleSplitterMouseDown}
+                  title="Drag to resize"
+                />
+
+                <div
+                  className="annotations-wrapper"
+                  style={{ height: `calc(${(1 - splitRatio) * 100}% - 4px)` }}
+                >
+                  <AnnotationsPanel
+                    currentNode={currentNode}
+                    studyTags={studyTags}
+                    isCoach={true}
+                    onUpdateAnnotations={updateNodeAnnotations}
+                    onSetStudyTag={setStudyTag}
+                    onRemoveStudyTag={removeStudyTag}
                   />
                 </div>
-              ) : activeTab === 'participants' && featureFlags.participants ? (
-                <div className="participants-content">
-                  <div className="panel-header">
-                    <h2>Connected Users ({participants.length})</h2>
-                  </div>
-                  {participants.length === 0 ? (
-                    <p className="empty-state">No participants connected.</p>
-                  ) : (
-                    <div className="participants-list">
-                      {participants.map(p => (
-                        <div key={p.id} className="participant-item">
-                          <div className="participant-avatar">
-                            <User size={16} />
-                          </div>
-                          <span className="participant-name">{p.name}</span>
-                          <span className="status-dot online"></span>
-                        </div>
+              </div>
+            ) : (
+              <div className="sidebar-panel glass-panel sidebar-panel-full">
+                {activeTab === 'chapters' ? (
+                  <div className="chapters-content" style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, minHeight: 0, overflowY: 'auto' }}>
+                    <div className="panel-header" style={{ marginBottom: '8px' }}>
+                      <h2 style={{ fontSize: '1.05rem', fontWeight: '600', color: '#4a2018' }}>Study Chapters ({chapters.length})</h2>
+                    </div>
+                    <div className="chapters-list" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {chapters.map((ch, idx) => (
+                        <ChapterCard
+                          key={idx}
+                          chapter={ch}
+                          idx={idx + 1}
+                          isActive={activeChapterIndex === idx}
+                          onSelect={() => selectChapter(idx)}
+                          onLoadFen={setupPosition}
+                          isStudent={userRole?.toUpperCase() === 'STUDENT'}
+                        />
                       ))}
                     </div>
-                  )}
-                </div>
-              ) : activeTab === 'chat' && featureFlags.chat ? (
-                <div className="chat-content">
-                  <div className="chat-messages">
-                    {(chatHistory || []).length === 0 ? (
-                      <p className="empty-state">No messages yet. Say hi!</p>
-                    ) : (
-                      (chatHistory || []).map((msg: ChatMessage) => (
-                        <div key={msg.id} className="chat-message">
-                          <div className="chat-msg-header">
-                            <span className="chat-msg-name">{msg.username}</span>
-                            <span className="chat-msg-time">
-                              {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          </div>
-                          <div className="chat-msg-text">{msg.message}</div>
-                        </div>
-                      ))
-                    )}
-                    <div ref={chatMessagesEndRef} />
                   </div>
-                  <form className="chat-input-form" onSubmit={handleSendChat}>
-                    <input
-                      type="text"
-                      placeholder="Type a message..."
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      className="chat-input"
-                    />
-                    <button type="submit" className="chat-send-btn" disabled={!chatInput.trim()}>
-                      <Send size={16} />
-                    </button>
-                  </form>
-                </div>
-              ) : activeTab === 'analysis' && featureFlags.engineAnalysis ? (
-                <EngineAnalysisPanel fen={boardFen} />
-              ) : null}
-            </div>
-
-            {activeTab === 'history' && (
-              <AnnotationsPanel
-                currentNode={currentNode}
-                studyTags={studyTags}
-                isCoach={true}
-                onUpdateAnnotations={updateNodeAnnotations}
-                onSetStudyTag={setStudyTag}
-                onRemoveStudyTag={removeStudyTag}
-              />
+                ) : activeTab === 'participants' && featureFlags.participants ? (
+                  <div className="participants-content">
+                    <div className="panel-header">
+                      <h2>Connected Users ({participants.length})</h2>
+                    </div>
+                    {participants.length === 0 ? (
+                      <p className="empty-state">No participants connected.</p>
+                    ) : (
+                      <div className="participants-list">
+                        {participants.map(p => (
+                          <div key={p.id} className="participant-item">
+                            <div className="participant-avatar">
+                              <User size={16} />
+                            </div>
+                            <span className="participant-name">{p.name}</span>
+                            <span className="status-dot online"></span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : activeTab === 'chat' && featureFlags.chat ? (
+                  <div className="chat-content">
+                    <div className="chat-messages">
+                      {(chatHistory || []).length === 0 ? (
+                        <p className="empty-state">No messages yet. Say hi!</p>
+                      ) : (
+                        (chatHistory || []).map((msg: ChatMessage) => (
+                          <div key={msg.id} className="chat-message">
+                            <div className="chat-msg-header">
+                              <span className="chat-msg-name">{msg.username}</span>
+                              <span className="chat-msg-time">
+                                {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <div className="chat-msg-text">{msg.message}</div>
+                          </div>
+                        ))
+                      )}
+                      <div ref={chatMessagesEndRef} />
+                    </div>
+                    <form className="chat-input-form" onSubmit={handleSendChat}>
+                      <input
+                        type="text"
+                        placeholder="Type a message..."
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        className="chat-input"
+                      />
+                      <button type="submit" className="chat-send-btn" disabled={!chatInput.trim()}>
+                        <Send size={16} />
+                      </button>
+                    </form>
+                  </div>
+                ) : activeTab === 'analysis' && featureFlags.engineAnalysis ? (
+                  <EngineAnalysisPanel fen={boardFen} />
+                ) : activeTab === 'explorer' && featureFlags.openingExplorer ? (
+                  <OpeningExplorerPanel 
+                    fen={boardFen} 
+                    onMoveClick={handleExplorerMove} 
+                    onLoadPgn={(pgn) => { loadPgn(pgn); }}
+                  />
+                ) : activeTab === 'database' ? (
+                  <DatabasePanel 
+                    onLoadPgn={(pgn) => { loadPgn(pgn); }} 
+                    onLoadFen={setupPosition} 
+                    role={userRole} 
+                    onGamesContextLoaded={handleGamesContextLoaded}
+                    activeGameId={dbNav?.games[dbNav.currentIndex]?.id || null}
+                  />
+                ) : null}
+              </div>
             )}
           </section>
         </main>
@@ -835,14 +1129,47 @@ export default function ClassroomPage() {
 
         /* ── Main layout ── */
         .main-content {
-          display: grid;
-          grid-template-columns: 1fr 400px;
-          gap: 1rem;
+          display: flex;
+          flex-direction: row;
+          gap: 0;
           flex: 1;
           min-height: 0;
+          overflow: hidden;
         }
         @media (max-width: 1100px) {
-          .main-content { grid-template-columns: 1fr; }
+          .main-content { flex-direction: column; }
+          .h-resizer { display: none; }
+        }
+
+        /* ── Horizontal drag handle ── */
+        .h-resizer {
+          width: 6px;
+          flex-shrink: 0;
+          cursor: col-resize;
+          background: transparent;
+          position: relative;
+          z-index: 10;
+          transition: background 0.15s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .h-resizer::after {
+          content: '';
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 3px;
+          height: 40px;
+          background: #eedcd0;
+          border-radius: 2px;
+          transition: background 0.15s, height 0.15s;
+        }
+        .h-resizer:hover::after,
+        .h-resizer:active::after {
+          background: #c8854a;
+          height: 60px;
         }
 
         .glass-panel {
@@ -860,17 +1187,17 @@ export default function ClassroomPage() {
           align-items: center;
           height: 100%;
           min-height: 0;
+          flex: 1;
+          min-width: 0;
           padding: 0.75rem !important;
         }
 
-        /* ── Sidebar ── */
         .sidebar {
-          width: 400px;
           display: flex;
           flex-direction: column;
           gap: 0.5rem;
           height: 100%;
-          overflow-y: auto;
+          overflow: hidden;
           padding-right: 4px;
         }
         
@@ -918,31 +1245,93 @@ export default function ClassroomPage() {
         }
 
         .sidebar-panel { 
-          flex-shrink: 0;
-          min-height: calc(100% - 46px);
           display: flex; 
           flex-direction: column; 
           border-top-left-radius: 0;
           padding: 1rem;
+          overflow: hidden;
+        }
+
+        /* Full-height panel when no annotations section */
+        .sidebar-panel-full {
+          flex: 1;
+          min-height: 0;
+        }
+
+        /* Resizable body: holds moves panel + splitter + annotations */
+        .sidebar-body {
+          flex: 1;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+        }
+
+        /* The splitter bar */
+        .sidebar-splitter {
+          flex-shrink: 0;
+          height: 8px;
+          cursor: row-resize;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+          z-index: 2;
+          user-select: none;
+        }
+        .sidebar-splitter::before {
+          content: '';
+          display: block;
+          width: 40px;
+          height: 3px;
+          border-radius: 2px;
+          background: #eedcd0;
+          transition: background 0.15s, width 0.15s;
+        }
+        .sidebar-splitter:hover::before {
+          background: #c8854a;
+          width: 56px;
+        }
+        .sidebar-splitter:active::before {
+          background: #a06030;
+        }
+
+        /* Annotations wrapper so overflow is contained */
+        .annotations-wrapper {
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+        }
+        .annotations-wrapper .annotations-panel {
+          flex: 1;
+          min-height: 0;
+          margin-top: 0;
+          overflow: hidden;
         }
 
         .history-content {
           display: flex;
           flex-direction: column;
-          height: auto;
+          height: 100%;
+          flex: 1;
+          min-height: 0;
         }
 
         .participants-content, .chat-content {
           display: flex;
           flex-direction: column;
-          height: calc(100vh - 180px);
+          flex: 1;
+          min-height: 0;
           overflow-y: auto;
           padding-right: .5rem;
         }
 
         .history-scroll-area {
           font-size: .82rem;
-          overflow-y: visible;
+          overflow-y: auto;
+          flex: 1;
+          min-height: 0;
         }
 
         .empty-state {
@@ -1181,6 +1570,13 @@ export default function ClassroomPage() {
           cursor: not-allowed;
         }
       `}</style>
+      {toast && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
+        />
+      )}
     </div>
   );
 }

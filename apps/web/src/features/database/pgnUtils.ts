@@ -4,8 +4,27 @@ import { MoveNode } from '@vca/types';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
+export function sanitizeFen(fen: string): string {
+  if (!fen) return START_FEN;
+  const parts = fen.trim().split(/\s+/);
+  const board = parts[0] || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
+  const color = parts[1] === 'w' || parts[1] === 'b' ? parts[1] : 'w';
+  const castling = parts[2] || '-';
+  const ep = parts[3] || '-';
+  let halfmove = parts[4] || '0';
+  if (isNaN(parseInt(halfmove, 10)) || parseInt(halfmove, 10) < 0) {
+    halfmove = '0';
+  }
+  let fullmove = parts[5] || '1';
+  const fullmoveInt = parseInt(fullmove, 10);
+  if (isNaN(fullmoveInt) || fullmoveInt < 1) {
+    fullmove = '1';
+  }
+  return [board, color, castling, ep, halfmove, fullmove].join(' ');
+}
+
 export function nullMoveFen(fen: string): string {
-  const parts = fen.split(' ');
+  const parts = sanitizeFen(fen).split(' ');
   const board = parts[0];
   const color = parts[1];
   const castling = parts[2];
@@ -14,7 +33,17 @@ export function nullMoveFen(fen: string): string {
   return [board, newColor, castling, '-', '0', newFull].join(' ');
 }
 
-export function parsePgnToMoveTree(pgnText: string): { nodes: Record<string, MoveNode>; rootId: string } {
+export function splitPgn(pgnText: string): string[] {
+  const parts = pgnText.split(/(?:\r?\n){2,}(?=\[[a-zA-Z]+)/g);
+  return parts.map(p => p.trim()).filter(p => p.length > 0);
+}
+
+export function parsePgnToMoveTree(pgnText: string): { 
+  nodes: Record<string, MoveNode>; 
+  rootId: string; 
+  tags?: Record<string, string>;
+  chapterName?: string;
+} {
   let parsed: any;
   try {
     parsed = parse(pgnText, { startRule: 'game' });
@@ -34,8 +63,27 @@ export function parsePgnToMoveTree(pgnText: string): { nodes: Record<string, Mov
     return { nodes: { root: rootNode }, rootId: 'root' };
   }
 
-  const startFen = parsed.tags?.FEN || START_FEN;
+  const startFen = sanitizeFen(parsed.tags?.FEN || START_FEN);
   const nodes: Record<string, MoveNode> = {};
+
+  // Extract chapter name based on preferences
+  let chapterName = 'Untitled';
+  if (parsed.tags?.ChapterName && parsed.tags.ChapterName !== '?') {
+    chapterName = parsed.tags.ChapterName;
+  } else {
+    const white = parsed.tags?.White;
+    const black = parsed.tags?.Black;
+    if (white && white !== '?' && black && black !== '?') {
+      chapterName = `${white} vs ${black}`;
+    } else {
+      const eventTag = parsed.tags?.Event || '';
+      if (eventTag.includes(':')) {
+        chapterName = eventTag.split(':').slice(1).join(':').trim();
+      } else if (eventTag.trim() && eventTag.trim() !== '?' && eventTag.trim() !== 'Untitled') {
+        chapterName = eventTag.trim();
+      }
+    }
+  }
 
   // Initialize root
   const rootNode: MoveNode = {
@@ -71,12 +119,23 @@ export function parsePgnToMoveTree(pgnText: string): { nodes: Record<string, Mov
       const turn = pm.turn; // 'w' | 'b'
       const moveNumber = pm.moveNumber;
 
-      const chess = new Chess(prevFen);
+      let chess: Chess;
+      try {
+        chess = new Chess(sanitizeFen(prevFen));
+      } catch (e) {
+        console.warn('Failed to parse FEN in PGN parser walk:', prevFen, e);
+        try {
+          chess = new Chess(START_FEN);
+        } catch (_) {
+          chess = new Chess();
+        }
+      }
+
       let moveObj: any = null;
       let fen = prevFen;
       let isNull = false;
 
-      if (san === '--' || san === 'Z0') {
+      if (san === '--' || san === 'Z0' || san === '0000' || san === 'pass' || san === 'null') {
         isNull = true;
         fen = nullMoveFen(prevFen);
       } else {
@@ -84,8 +143,9 @@ export function parsePgnToMoveTree(pgnText: string): { nodes: Record<string, Mov
           moveObj = chess.move(san);
           fen = chess.fen();
         } catch (e) {
-          console.warn('Invalid move in PGN parser walk:', san, e);
-          fen = chess.fen();
+          console.warn('Invalid/illegal move in PGN parser walk:', san, e);
+          isNull = true;
+          fen = nullMoveFen(prevFen);
         }
       }
 
@@ -135,7 +195,7 @@ export function parsePgnToMoveTree(pgnText: string): { nodes: Record<string, Mov
     walk(parsed.moves, 'root', startFen);
   }
 
-  return { nodes, rootId: 'root' };
+  return { nodes, rootId: 'root', chapterName, tags: parsed.tags };
 }
 
 export function buildPgnFromMoveTree(

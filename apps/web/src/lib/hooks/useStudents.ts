@@ -97,9 +97,16 @@ export function useStudents() {
     console.log('[Hook] useStudents: Fetching students from API...');
     try {
       const res = await fetch('/api/users?role=STUDENT');
+      const contentType = res.headers.get('content-type');
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to fetch students');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || 'Failed to fetch students');
+        }
+        throw new Error(`Server returned ${res.status}: API might be down or restarting`);
+      }
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Received non-JSON response from server. API might be restarting.');
       }
       const data = await res.json();
       console.log(`[Hook] useStudents: Successfully fetched ${data.length} students`);
@@ -140,11 +147,22 @@ export function useStudents() {
           role: 'STUDENT'
         }),
       });
+      const contentType = res.headers.get('content-type');
       if (!res.ok) {
-        const err = await res.json();
-        console.error('[Hook] useStudents: Add failed:', err.error);
-        throw new Error(err.error || 'Failed to add student');
+        let errorMsg = 'Failed to add student';
+        if (contentType && contentType.includes('application/json')) {
+          const err = await res.json();
+          errorMsg = err.error || errorMsg;
+        } else {
+          errorMsg = `Server error: ${res.status}`;
+        }
+        console.error('[Hook] useStudents: Add failed:', errorMsg);
+        throw new Error(errorMsg);
       }
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Received non-JSON response from server.');
+      }
+      const newUser = await res.json();
       console.log('[Hook] useStudents: Student added successfully');
       await fetchStudents();
       return true;

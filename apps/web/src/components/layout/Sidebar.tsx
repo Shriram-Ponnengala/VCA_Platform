@@ -15,7 +15,8 @@ import {
   Zap,
   Menu,
   UserCog,
-  Database
+  Database,
+  HelpCircle
 } from 'lucide-react';
 import Image from 'next/image';
 import styles from './Sidebar.module.css';
@@ -31,6 +32,7 @@ interface SidebarProps {
 export function Sidebar({ role, username, userId, isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const [profilePhoto, setProfilePhoto] = React.useState<string | null>(null);
+  const [showHelpModal, setShowHelpModal] = React.useState(false);
 
   React.useEffect(() => {
     if (userId) {
@@ -146,7 +148,65 @@ export function Sidebar({ role, username, userId, isCollapsed, onToggle }: Sideb
           <LogOut size={20} />
           <span>Sign Out</span>
         </button>
+        <button className={styles.helpBtn} onClick={() => setShowHelpModal(true)}>
+          <HelpCircle size={20} />
+          <span>Help & Shortcuts</span>
+        </button>
       </div>
+
+      {showHelpModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowHelpModal(false)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2>Platform Help & Shortcuts</h2>
+              <button className={styles.closeBtn} onClick={() => setShowHelpModal(false)}>
+                &times;
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <section className={styles.section}>
+                <h3>Interactive Board Drawing</h3>
+                <ul>
+                  <li><strong>Arrow drawing:</strong> Right-click and drag on the board. Modifier keys: Shift (Red arrow), Ctrl (Green arrow), Alt (Yellow arrow), default (Blue arrow).</li>
+                  <li><strong>Square highlighting:</strong> Right-click any square. Modifier keys: Shift (Red square), Ctrl (Green square), Alt (Yellow square), default (Blue square).</li>
+                  <li><strong>Freehand drawing:</strong> Select the Freehand tool and click-and-drag with left click.</li>
+                  <li><strong>Emoji Reactions:</strong> Click anywhere on the board (when Emoji Mode is active) to trigger an animated emoji reaction at the click point.</li>
+                </ul>
+              </section>
+
+              <section className={styles.section}>
+                <h3>Board Shortcuts</h3>
+                <div className={styles.shortcutGrid}>
+                  <div className={styles.shortcutItem}><kbd>→</kbd><span>Next move</span></div>
+                  <div className={styles.shortcutItem}><kbd>←</kbd><span>Previous move</span></div>
+                  <div className={styles.shortcutItem}><kbd>↑</kbd><span>Go to start of line</span></div>
+                  <div className={styles.shortcutItem}><kbd>↓</kbd><span>Go to end of line</span></div>
+                  <div className={styles.shortcutItem}><kbd>Space</kbd><span>Toggle engine analysis</span></div>
+                </div>
+              </section>
+
+              <section className={styles.section}>
+                <h3>Emoji Reactions (Shift + Key)</h3>
+                <div className={styles.emojiGrid}>
+                  <div className={styles.emojiItem}><kbd>Shift+P</kbd><span>👊 Punch</span></div>
+                  <div className={styles.emojiItem}><kbd>Shift+A</kbd><span>😠 Angry</span></div>
+                  <div className={styles.emojiItem}><kbd>Shift+C</kbd><span>😭 Crying</span></div>
+                  <div className={styles.emojiItem}><kbd>Shift+W</kbd><span>😉 Winking</span></div>
+                  <div className={styles.emojiItem}><kbd>Shift+L</kbd><span>😂 Laughing</span></div>
+                  <div className={styles.emojiItem}><kbd>Shift+H</kbd><span>😄 Happy</span></div>
+                  <div className={styles.emojiItem}><kbd>Shift+S</kbd><span>😢 Sad</span></div>
+                  <div className={styles.emojiItem}><kbd>Shift+T</kbd><span>😜 Teasing</span></div>
+                  <div className={styles.emojiItem}><kbd>Shift+Y</kbd><span>😋 Yummy</span></div>
+                  <div className={styles.emojiItem}><kbd>Shift+I</kbd><span>👋 Hello (Wave)</span></div>
+                  <div className={styles.emojiItem}><kbd>Shift+K</kbd><span>🤝 Handshake</span></div>
+                  <div className={styles.emojiItem}><kbd>Shift+Z</kbd><span>😴 Sleeping</span></div>
+                  <div className={styles.emojiItem}><kbd>Shift+N</kbd><span>🥱 Yawning</span></div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

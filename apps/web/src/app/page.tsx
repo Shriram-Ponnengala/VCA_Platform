@@ -30,15 +30,20 @@ export default function LoginPage() {
 
       console.log('[Login] Response status:', res.status);
 
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch (err) {
+        // Fallback if the response is not valid JSON
+      }
 
       if (!res.ok) {
-        throw new Error(data.error || 'Login failed');
+        throw new Error('Wrong user name or password.');
       }
 
       router.push(`/dashboard/${data.role.toLowerCase()}`);
     } catch (err: any) {
-      setError(err.message);
+      setError('Wrong user name or password.');
     } finally {
       setLoading(false);
     }

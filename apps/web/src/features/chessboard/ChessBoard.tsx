@@ -265,7 +265,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ isLocked = false }) => {
           width: boardWidth ? `${boardWidth}px` : undefined
         }}
       >
-        <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+        <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative' }} />
         {promotionPending && (
           <div className="promotion-overlay">
             <div className="promotion-card">

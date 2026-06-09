@@ -364,9 +364,8 @@ export const AnnotationsPanel: React.FC<AnnotationsPanelProps> = ({
           background: #fdf5ea;
           border: 1px solid #eedcd0;
           border-radius: 12px;
-          margin-top: 8px;
-          min-height: 180px;
           overflow: hidden;
+          height: 100%;
         }
 
         .ap-tabs {
