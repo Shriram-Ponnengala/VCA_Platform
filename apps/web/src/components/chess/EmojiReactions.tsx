@@ -51,7 +51,7 @@ export const EMOJIS: EmojiConfig[] = [
     id: 'crying',
     glyph: '😭',
     name: 'crying',
-    shortcutKey: '',           // palette-only (C re-assigned to clap)
+    shortcutKey: 'C',
     animation: 'droop',
     shakeLevel: 'none',
     shock: false,
@@ -64,7 +64,7 @@ export const EMOJIS: EmojiConfig[] = [
     id: 'winking',
     glyph: '😉',
     name: 'winking',
-    shortcutKey: '',           // palette-only (W removed)
+    shortcutKey: 'W',
     animation: 'giggle',
     shakeLevel: 'none',
     shock: false,
@@ -116,7 +116,7 @@ export const EMOJIS: EmojiConfig[] = [
     id: 'teasing',
     glyph: '😜',
     name: 'teasing',
-    shortcutKey: '',           // palette-only (T removed)
+    shortcutKey: 'T',
     animation: 'wag',
     shakeLevel: 'none',
     shock: false,
@@ -129,7 +129,7 @@ export const EMOJIS: EmojiConfig[] = [
     id: 'yummy',
     glyph: '😋',
     name: 'yummy',
-    shortcutKey: '',           // palette-only (Y re-assigned to yawning)
+    shortcutKey: 'Y',
     animation: 'giggle',
     shakeLevel: 'none',
     shock: false,
@@ -142,7 +142,7 @@ export const EMOJIS: EmojiConfig[] = [
     id: 'hii',
     glyph: '👋',
     name: 'hii (wave)',
-    shortcutKey: '',           // palette-only (I removed)
+    shortcutKey: 'I',
     animation: 'wag',
     shakeLevel: 'none',
     shock: false,
@@ -155,7 +155,7 @@ export const EMOJIS: EmojiConfig[] = [
     id: 'handshake',
     glyph: '🤝',
     name: 'handshake',
-    shortcutKey: '',           // palette-only (K removed)
+    shortcutKey: 'K',
     animation: 'slam',
     shakeLevel: 'heavy',
     shock: true,
@@ -181,7 +181,7 @@ export const EMOJIS: EmojiConfig[] = [
     id: 'yawning',
     glyph: '🥱',
     name: 'yawning',
-    shortcutKey: 'Y',          // Shift+Y ✓ (was N, reassigned)
+    shortcutKey: 'N',
     animation: 'bob',
     shakeLevel: 'none',
     shock: false,
@@ -326,7 +326,7 @@ export const EMOJIS: EmojiConfig[] = [
     id: 'clap',
     glyph: '👏',
     name: 'clap',
-    shortcutKey: 'C',          // Shift+C ✓ (new owner)
+    shortcutKey: '',
     animation: 'slam',
     shakeLevel: 'light',
     shock: false,
