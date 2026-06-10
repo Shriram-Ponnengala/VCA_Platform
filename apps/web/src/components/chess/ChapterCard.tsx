@@ -246,15 +246,15 @@ export default function ChapterCard({ chapter, idx, isActive, onSelect, onLoadFe
         .game-card {
           display: flex;
           gap: 16px;
-          background: #ffffff;
-          border: 1px solid #eedcd0;
+          background: var(--panel-card-bg, #ffffff);
+          border: 1px solid var(--panel-border-color, #eedcd0);
           border-radius: 12px;
           padding: 16px;
-          box-shadow: 0 2px 8px rgba(74, 32, 24, 0.04);
+          box-shadow: var(--panel-box-shadow, 0 2px 8px rgba(74, 32, 24, 0.04));
         }
         .active-chapter-card {
-          border-color: #c8854a;
-          background: #fdf5ea;
+          border-color: var(--panel-accent-color, #c8854a);
+          background: var(--panel-bg-inner, #fdf5ea);
         }
         .card-right-panel {
           display: flex;
@@ -266,7 +266,7 @@ export default function ChapterCard({ chapter, idx, isActive, onSelect, onLoadFe
           font-family: inherit;
           font-size: 0.95rem;
           font-weight: 700;
-          color: #2d4a6b;
+          color: var(--panel-text-color, #2d4a6b);
           margin: 0 0 2px 0;
           white-space: nowrap;
           overflow: hidden;
@@ -274,7 +274,7 @@ export default function ChapterCard({ chapter, idx, isActive, onSelect, onLoadFe
         }
         .game-subtitle {
           font-size: 0.78rem;
-          color: #7a625d;
+          color: var(--panel-subtext-color, #7a625d);
           margin: 0;
           white-space: nowrap;
           overflow: hidden;
@@ -282,7 +282,7 @@ export default function ChapterCard({ chapter, idx, isActive, onSelect, onLoadFe
         }
         .card-divider {
           border: 0;
-          border-top: 1.5px solid #fdf5ea;
+          border-top: 1.5px solid var(--panel-border-color, #fdf5ea);
           margin: 10px 0;
         }
         .pgn-toggle-header {
@@ -294,7 +294,7 @@ export default function ChapterCard({ chapter, idx, isActive, onSelect, onLoadFe
           padding: 0;
           margin: 0 0 8px 0;
           cursor: pointer;
-          color: #4a2018;
+          color: var(--panel-text-color, #4a2018);
           font-weight: 600;
           font-size: 0.8rem;
           outline: none;
@@ -303,26 +303,26 @@ export default function ChapterCard({ chapter, idx, isActive, onSelect, onLoadFe
         }
         .arrow-icon {
           font-size: 0.68rem;
-          color: #7a625d;
+          color: var(--panel-subtext-color, #7a625d);
           display: inline-block;
           line-height: 1;
         }
         .pgn-label {
-          color: #4a2018;
+          color: var(--panel-text-color, #4a2018);
           letter-spacing: 0.03em;
         }
         .pgn-toggle-header:hover .pgn-label {
-          color: #c8854a;
+          color: var(--panel-accent-color, #c8854a);
         }
         .pgn-expanded-panel {
-          background: #fdf5ea;
-          border: 1px solid #eedcd0;
+          background: var(--panel-bg-inner, #fdf5ea);
+          border: 1px solid var(--panel-border-color, #eedcd0);
           border-radius: 6px;
           padding: 10px;
           margin-bottom: 12px;
           font-size: 0.8rem;
           line-height: 1.4;
-          color: #4a2018;
+          color: var(--panel-text-color, #4a2018);
           word-break: break-word;
           max-height: 100px;
           overflow-y: auto;
@@ -339,11 +339,11 @@ export default function ChapterCard({ chapter, idx, isActive, onSelect, onLoadFe
         .nav-btn {
           min-width: 32px;
           height: 28px;
-          background: #fdf5ea;
-          border: 1px solid #eedcd0;
+          background: var(--panel-bg-inner, #fdf5ea);
+          border: 1px solid var(--panel-border-color, #eedcd0);
           border-radius: 4px;
           font-size: 0.85rem;
-          color: #4a2018;
+          color: var(--panel-text-color, #4a2018);
           cursor: pointer;
           display: flex;
           align-items: center;

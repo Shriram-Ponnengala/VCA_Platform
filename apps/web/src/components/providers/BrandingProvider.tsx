@@ -109,6 +109,68 @@ export default function BrandingProvider() {
           document.documentElement.style.setProperty('--board-frame-padding', `${branding.boardFramePadding}px`);
         }
 
+        // Apply panel themes (Panel Style)
+        const pStyle = (branding.panelStyle || 'solid').toLowerCase();
+        const pOpacity = branding.panelOpacity !== undefined ? branding.panelOpacity : 95;
+        const pBlur = branding.panelBlur !== undefined ? branding.panelBlur : 0;
+
+        let panelBg = '#ffffff';
+        let panelBackdropFilter = 'none';
+        let panelTextColor = '#4a2018';
+        let panelBorderColor = '#eedcd0';
+        let panelBoxShadow = '0 8px 32px rgba(45, 74, 107, 0.08)';
+        let panelAccentColor = '#c8854a';
+        let panelSubtextColor = 'rgba(74, 32, 24, 0.6)';
+        let panelCardBg = '#ffffff';
+        let panelBgInner = '#fdf5ea';
+        let panelBgImage = 'none';
+        let panelBgSize = 'auto';
+        let panelBgPosition = '0 0';
+        let panelAvatarBg = 'rgba(45, 74, 107, 0.1)';
+
+        if (pStyle === 'solid') {
+          panelBg = `rgba(255, 255, 255, ${pOpacity / 100})`;
+          panelBorderColor = `rgba(238, 220, 208, ${pOpacity / 100})`;
+        } else if (pStyle === 'glass') {
+          panelBg = `rgba(255, 255, 255, ${pOpacity / 100})`;
+          panelBackdropFilter = `blur(${pBlur}px)`;
+          panelBorderColor = `rgba(255, 255, 255, 0.25)`;
+          panelBoxShadow = '0 8px 32px rgba(31, 38, 135, 0.06)';
+        } else if (pStyle === 'slate') {
+          panelBg = '#2d4a6b';
+          panelTextColor = '#ffffff';
+          panelBorderColor = 'rgba(255, 255, 255, 0.15)';
+          panelBoxShadow = '0 8px 32px rgba(0, 0, 0, 0.2)';
+          panelAccentColor = '#e58e26';
+          panelSubtextColor = 'rgba(255, 255, 255, 0.7)';
+          panelCardBg = 'rgba(255, 255, 255, 0.05)';
+          panelBgInner = 'rgba(0, 0, 0, 0.2)';
+          panelAvatarBg = 'rgba(255, 255, 255, 0.15)';
+        } else if (pStyle === 'parchment') {
+          panelBg = '#fdf5ea';
+          panelBgImage = 'radial-gradient(#eedcd0 1px, transparent 0), radial-gradient(#eedcd0 1px, #fdf5ea 0)';
+          panelBgSize = '8px 8px';
+          panelBgPosition = '0 0, 4px 4px';
+          panelBoxShadow = '0 8px 32px rgba(74, 32, 24, 0.04)';
+          panelBgInner = '#eedcd0';
+        } else if (pStyle === 'gradient') {
+          panelBg = 'linear-gradient(to bottom, #ffffff, #fdf5ea)';
+        }
+
+        document.documentElement.style.setProperty('--panel-bg', panelBg);
+        document.documentElement.style.setProperty('--panel-backdrop-filter', panelBackdropFilter);
+        document.documentElement.style.setProperty('--panel-text-color', panelTextColor);
+        document.documentElement.style.setProperty('--panel-border-color', panelBorderColor);
+        document.documentElement.style.setProperty('--panel-box-shadow', panelBoxShadow);
+        document.documentElement.style.setProperty('--panel-accent-color', panelAccentColor);
+        document.documentElement.style.setProperty('--panel-subtext-color', panelSubtextColor);
+        document.documentElement.style.setProperty('--panel-card-bg', panelCardBg);
+        document.documentElement.style.setProperty('--panel-bg-inner', panelBgInner);
+        document.documentElement.style.setProperty('--panel-bg-image', panelBgImage);
+        document.documentElement.style.setProperty('--panel-bg-size', panelBgSize);
+        document.documentElement.style.setProperty('--panel-bg-position', panelBgPosition);
+        document.documentElement.style.setProperty('--panel-avatar-bg', panelAvatarBg);
+
       } catch (e) {
         console.error('Failed to apply branding settings', e);
       }

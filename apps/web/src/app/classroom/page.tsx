@@ -1173,12 +1173,18 @@ export default function ClassroomPage() {
         }
 
         .glass-panel {
-          background: #ffffff;
-          border: 1px solid #eedcd0;
+          background: var(--panel-bg, #ffffff);
+          background-image: var(--panel-bg-image, none);
+          background-size: var(--panel-bg-size, auto);
+          background-position: var(--panel-bg-position, 0 0);
+          border: 1px solid var(--panel-border-color, #eedcd0);
           border-radius: 16px;
           padding: 1.25rem;
-          box-shadow: 0 8px 32px rgba(45, 74, 107, 0.08);
-          color: #4a2018;
+          box-shadow: var(--panel-box-shadow, 0 8px 32px rgba(45, 74, 107, 0.08));
+          color: var(--panel-text-color, #4a2018);
+          backdrop-filter: var(--panel-backdrop-filter, none);
+          -webkit-backdrop-filter: var(--panel-backdrop-filter, none);
+          transition: all 0.3s ease;
         }
 
         .board-section {
@@ -1205,13 +1211,17 @@ export default function ClassroomPage() {
           display: flex;
           gap: 4px;
           padding: 4px;
-          background: #fdf5ea;
-          border-radius: 12px 12px 0 0;
-          border: 1px solid #eedcd0;
-          border-bottom: none;
-          margin-bottom: -1px;
+          background: var(--panel-bg, #fdf5ea);
+          background-image: var(--panel-bg-image, none);
+          background-size: var(--panel-bg-size, auto);
+          background-position: var(--panel-bg-position, 0 0);
+          border-radius: 12px;
+          border: 1px solid var(--panel-border-color, #eedcd0);
+          backdrop-filter: var(--panel-backdrop-filter, none);
+          -webkit-backdrop-filter: var(--panel-backdrop-filter, none);
           z-index: 1;
           position: relative;
+          transition: all 0.3s ease;
         }
         
         .tab-btn {
@@ -1223,7 +1233,7 @@ export default function ClassroomPage() {
           padding: 10px 0;
           background: transparent;
           border: none;
-          color: rgba(74, 32, 24, 0.6);
+          color: var(--panel-subtext-color, rgba(74, 32, 24, 0.6));
           font-size: 0.9rem;
           font-weight: 500;
           border-radius: 8px;
@@ -1232,15 +1242,15 @@ export default function ClassroomPage() {
         }
         
         .tab-btn:hover {
-          color: #4a2018;
-          background: rgba(74, 32, 24, 0.05);
+          color: var(--panel-text-color, #4a2018);
+          background: var(--panel-avatar-bg, rgba(74, 32, 24, 0.05));
         }
         
         .tab-btn.active {
-          color: #4a2018;
-          background: #ffffff;
+          color: var(--panel-text-color, #4a2018);
+          background: var(--panel-card-bg, #ffffff);
           box-shadow: none;
-          border-bottom: 2px solid #c8854a;
+          border-bottom: 2px solid var(--panel-accent-color, #c8854a);
           border-radius: 8px 8px 0 0;
         }
 
@@ -1335,7 +1345,7 @@ export default function ClassroomPage() {
         }
 
         .empty-state {
-          color: rgba(45, 74, 107, 0.6);
+          color: var(--panel-subtext-color, rgba(45, 74, 107, 0.6));
           font-size: .85rem;
           text-align: center;
           margin-top: 2rem;
@@ -1352,27 +1362,27 @@ export default function ClassroomPage() {
           align-items: center;
           gap: 12px;
           padding: 10px 12px;
-          background: #fdf5ea;
+          background: var(--panel-card-bg, #fdf5ea);
           border-radius: 8px;
-          border: 1px solid #eedcd0;
+          border: 1px solid var(--panel-border-color, #eedcd0);
         }
 
         .participant-avatar {
           width: 28px;
           height: 28px;
-          background: rgba(45, 74, 107, 0.1);
+          background: var(--panel-avatar-bg, rgba(45, 74, 107, 0.1));
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #4a2018;
+          color: var(--panel-text-color, #4a2018);
         }
 
         .participant-name {
           flex: 1;
           font-size: 0.9rem;
           font-weight: 500;
-          color: #4a2018;
+          color: var(--panel-text-color, #4a2018);
         }
 
         .status-dot {
@@ -1398,25 +1408,25 @@ export default function ClassroomPage() {
           display: flex; justify-content: space-between; align-items: center;
         }
         .chat-msg-name {
-          font-size: .8rem; font-weight: 600; color: #c8854a;
+          font-size: .8rem; font-weight: 600; color: var(--panel-accent-color, #c8854a);
         }
         .chat-msg-time {
-          font-size: .7rem; color: rgba(45, 74, 107, 0.6);
+          font-size: .7rem; color: var(--panel-subtext-color, rgba(45, 74, 107, 0.6));
         }
         .chat-msg-text {
-          font-size: .9rem; color: #4a2018;
-          background: #fdf5ea;
+          font-size: .9rem; color: var(--panel-text-color, #4a2018);
+          background: var(--panel-card-bg, #fdf5ea);
           padding: 8px 12px; border-radius: 0 12px 12px 12px;
-          border: 1px solid #eedcd0;
+          border: 1px solid var(--panel-border-color, #eedcd0);
           line-height: 1.4;
         }
         .chat-input-form {
           display: flex; gap: 8px; margin-top: 16px;
         }
         .chat-input {
-          flex: 1; background: #ffffff;
-          border: 1px solid #eedcd0;
-          color: #4a2018; padding: 10px 14px;
+          flex: 1; background: var(--panel-bg-inner, #ffffff);
+          border: 1px solid var(--panel-border-color, #eedcd0);
+          color: var(--panel-text-color, #4a2018); padding: 10px 14px;
           border-radius: 8px; outline: none; font-family: inherit;
         }
         .chat-input:focus { border-color: #c8854a; }

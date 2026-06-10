@@ -92,9 +92,10 @@ const INITIAL_STUDENTS: Student[] = [
 export function useStudents() {
   const [students, setStudents] = useState<Student[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchStudents = async () => {
-    console.log('[Hook] useStudents: Fetching students from API...');
+  const fetchStudents = async (retryCount = 0) => {
+    console.log(`[Hook] useStudents: Fetching students from API... (Attempt ${retryCount + 1})`);
     try {
       const res = await fetch('/api/users?role=STUDENT');
       const contentType = res.headers.get('content-type');
@@ -124,10 +125,25 @@ export function useStudents() {
         };
       });
       setStudents(mapped);
+      setError(null);
       setIsLoaded(true);
-    } catch (e) {
-      console.error('[Hook] useStudents: Fetch error:', e);
-      setIsLoaded(true);
+    } catch (e: any) {
+      console.error(`[Hook] useStudents: Fetch error (Attempt ${retryCount + 1}):`, e);
+      const maxRetries = 3;
+      if (retryCount < maxRetries) {
+        const delay = 2000 * (retryCount + 1);
+        console.log(`[Hook] useStudents: Retrying in ${delay}ms...`);
+        setTimeout(() => {
+          fetchStudents(retryCount + 1);
+        }, delay);
+      } else {
+        setError(e.message || 'Failed to fetch students');
+        setIsLoaded(true);
+        if (students.length === 0) {
+          console.warn('[Hook] useStudents: Falling back to INITIAL_STUDENTS mock data');
+          setStudents(INITIAL_STUDENTS);
+        }
+      }
     }
   };
 
@@ -209,6 +225,7 @@ export function useStudents() {
   return {
     students,
     isLoaded,
+    error,
     addStudent,
     updateStudent,
     deleteStudent,

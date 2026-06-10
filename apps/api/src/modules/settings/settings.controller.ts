@@ -99,6 +99,68 @@ export class SettingsController {
       pieces.forEach(p => {
         css += `  --piece-${p.toLowerCase()}: url(https://lichess1.org/assets/_L5MIdy/piece/${pTheme}/${p}.svg);\n`;
       });
+
+      // Panel Style CSS Custom Properties
+      const pStyle = (branding.panelStyle || 'solid').toLowerCase();
+      const pOpacity = branding.panelOpacity !== undefined ? branding.panelOpacity : 95;
+      const pBlur = branding.panelBlur !== undefined ? branding.panelBlur : 0;
+
+      let panelBg = '#ffffff';
+      let panelBackdropFilter = 'none';
+      let panelTextColor = '#4a2018';
+      let panelBorderColor = '#eedcd0';
+      let panelBoxShadow = '0 8px 32px rgba(45, 74, 107, 0.08)';
+      let panelAccentColor = '#c8854a';
+      let panelSubtextColor = 'rgba(74, 32, 24, 0.6)';
+      let panelCardBg = '#ffffff';
+      let panelBgInner = '#fdf5ea';
+      let panelBgImage = 'none';
+      let panelBgSize = 'auto';
+      let panelBgPosition = '0 0';
+      let panelAvatarBg = 'rgba(45, 74, 107, 0.1)';
+
+      if (pStyle === 'solid') {
+        panelBg = `rgba(255, 255, 255, ${pOpacity / 100})`;
+        panelBorderColor = `rgba(238, 220, 208, ${pOpacity / 100})`;
+      } else if (pStyle === 'glass') {
+        panelBg = `rgba(255, 255, 255, ${pOpacity / 100})`;
+        panelBackdropFilter = `blur(${pBlur}px)`;
+        panelBorderColor = `rgba(255, 255, 255, 0.25)`;
+        panelBoxShadow = '0 8px 32px rgba(31, 38, 135, 0.06)';
+      } else if (pStyle === 'slate') {
+        panelBg = '#2d4a6b';
+        panelTextColor = '#ffffff';
+        panelBorderColor = 'rgba(255, 255, 255, 0.15)';
+        panelBoxShadow = '0 8px 32px rgba(0, 0, 0, 0.2)';
+        panelAccentColor = '#e58e26';
+        panelSubtextColor = 'rgba(255, 255, 255, 0.7)';
+        panelCardBg = 'rgba(255, 255, 255, 0.05)';
+        panelBgInner = 'rgba(0, 0, 0, 0.2)';
+        panelAvatarBg = 'rgba(255, 255, 255, 0.15)';
+      } else if (pStyle === 'parchment') {
+        panelBg = '#fdf5ea';
+        panelBgImage = 'radial-gradient(#eedcd0 1px, transparent 0), radial-gradient(#eedcd0 1px, #fdf5ea 0)';
+        panelBgSize = '8px 8px';
+        panelBgPosition = '0 0, 4px 4px';
+        panelBoxShadow = '0 8px 32px rgba(74, 32, 24, 0.04)';
+        panelBgInner = '#eedcd0';
+      } else if (pStyle === 'gradient') {
+        panelBg = 'linear-gradient(to bottom, #ffffff, #fdf5ea)';
+      }
+
+      css += `  --panel-bg: ${panelBg};\n`;
+      css += `  --panel-backdrop-filter: ${panelBackdropFilter};\n`;
+      css += `  --panel-text-color: ${panelTextColor};\n`;
+      css += `  --panel-border-color: ${panelBorderColor};\n`;
+      css += `  --panel-box-shadow: ${panelBoxShadow};\n`;
+      css += `  --panel-accent-color: ${panelAccentColor};\n`;
+      css += `  --panel-subtext-color: ${panelSubtextColor};\n`;
+      css += `  --panel-card-bg: ${panelCardBg};\n`;
+      css += `  --panel-bg-inner: ${panelBgInner};\n`;
+      css += `  --panel-bg-image: ${panelBgImage};\n`;
+      css += `  --panel-bg-size: ${panelBgSize};\n`;
+      css += `  --panel-bg-position: ${panelBgPosition};\n`;
+      css += `  --panel-avatar-bg: ${panelAvatarBg};\n`;
       
       css += '}';
       

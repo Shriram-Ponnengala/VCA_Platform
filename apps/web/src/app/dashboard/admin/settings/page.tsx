@@ -51,7 +51,10 @@ export default function SettingsPage() {
     boardTheme: 'brown',
     pieceTheme: 'cburnett',
     boardFrameColor: '#FDF0E4',
-    boardFramePadding: 10
+    boardFramePadding: 10,
+    panelStyle: 'solid',
+    panelOpacity: 95,
+    panelBlur: 0
   });
 
   useEffect(() => {
@@ -82,7 +85,10 @@ export default function SettingsPage() {
               boardTheme: data.boardTheme || 'brown',
               pieceTheme: data.pieceTheme || 'cburnett',
               boardFrameColor: data.boardFrameColor || '#FDF0E4',
-              boardFramePadding: data.boardFramePadding ?? 10
+              boardFramePadding: data.boardFramePadding ?? 10,
+              panelStyle: data.panelStyle || 'solid',
+              panelOpacity: data.panelOpacity ?? 95,
+              panelBlur: data.panelBlur ?? 0
             });
             loadedBranding = true;
           }
@@ -106,7 +112,10 @@ export default function SettingsPage() {
               boardTheme: data.boardTheme || 'brown',
               pieceTheme: data.pieceTheme || 'cburnett',
               boardFrameColor: data.boardFrameColor || '#FDF0E4',
-              boardFramePadding: data.boardFramePadding ?? 10
+              boardFramePadding: data.boardFramePadding ?? 10,
+              panelStyle: data.panelStyle || 'solid',
+              panelOpacity: data.panelOpacity ?? 95,
+              panelBlur: data.panelBlur ?? 0
             });
           } catch (e) {}
         }
@@ -628,9 +637,86 @@ export default function SettingsPage() {
                             <span className={styles.pieceName}>{pieceSet.name}</span>
                           </div>
                         ))}
-                      </div>
                     </div>
                   </div>
+                </div>
+
+                {/* Panel Style Customization Card */}
+                <div className={styles.chessSettingsCard}>
+                  <h3 className={styles.cardTitle}>
+                    <Palette size={18} /> Panel Style
+                  </h3>
+                  <p style={{ marginTop: '-18px', marginBottom: '20px', fontSize: '0.85rem', color: '#64748b' }}>
+                    Same features. Different look.
+                  </p>
+                  
+                  <div className={styles.panelThemeGrid}>
+                    {[
+                      { id: 'solid', name: 'Solid', previewStyle: { background: '#ffffff', border: '1.5px solid #eedcd0' } },
+                      { id: 'glass', name: 'Glass', previewStyle: { background: 'rgba(255, 255, 255, 0.45)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', border: '1.5px solid rgba(255,255,255,0.3)' } },
+                      { id: 'slate', name: 'Slate', previewStyle: { background: '#2d4a6b', border: '1.5px solid rgba(255,255,255,0.15)' } },
+                      { id: 'parchment', name: 'Parch.', previewStyle: { background: '#fdf5ea', backgroundImage: 'radial-gradient(#eedcd0 1px, transparent 0), radial-gradient(#eedcd0 1px, #fdf5ea 0)', backgroundSize: '4px 4px', backgroundPosition: '0 0, 2px 2px', border: '1.5px solid #eedcd0' } },
+                      { id: 'gradient', name: 'Grad.', previewStyle: { background: 'linear-gradient(to bottom, #ffffff, #fdf5ea)', border: '1.5px solid #eedcd0' } },
+                    ].map(theme => (
+                      <div 
+                        key={theme.id}
+                        className={`${styles.panelThemeItem} ${branding.panelStyle === theme.id ? styles.activePanelTheme : ''}`}
+                        onClick={() => setBranding({ ...branding, panelStyle: theme.id })}
+                      >
+                        <div className={styles.panelPreviewBox} style={theme.previewStyle} />
+                        <span className={styles.panelThemeName}>{theme.name}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {/* Opacity Slider */}
+                    {(branding.panelStyle === 'solid' || branding.panelStyle === 'glass') && (
+                      <div className={styles.fieldGroup}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <label className={styles.frameSubLabel} style={{ margin: 0 }}>Opacity</label>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--primary)' }}>{branding.panelOpacity ?? 95}%</span>
+                        </div>
+                        <div className={styles.sliderRow} style={{ margin: 0 }}>
+                          <input
+                            type="range"
+                            min={10}
+                            max={100}
+                            step={5}
+                            value={branding.panelOpacity ?? 95}
+                            onChange={(e) => setBranding({ ...branding, panelOpacity: Number(e.target.value) })}
+                            className={styles.paddingSlider}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Blur Slider */}
+                    {branding.panelStyle === 'glass' && (
+                      <div className={styles.fieldGroup}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <label className={styles.frameSubLabel} style={{ margin: 0 }}>Blur</label>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--primary)' }}>{branding.panelBlur ?? 0}px</span>
+                        </div>
+                        <div className={styles.sliderRow} style={{ margin: 0 }}>
+                          <input
+                            type="range"
+                            min={0}
+                            max={20}
+                            step={1}
+                            value={branding.panelBlur ?? 0}
+                            onChange={(e) => setBranding({ ...branding, panelBlur: Number(e.target.value) })}
+                            className={styles.paddingSlider}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '4px 0 0 0', lineHeight: '1.4' }}>
+                      Opacity applies to Solid + Glass · Blur applies to Glass only · Changes apply to all right-side panels
+                    </p>
+                  </div>
+                </div>
                 </div>
 
               </div>

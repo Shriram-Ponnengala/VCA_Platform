@@ -68,9 +68,10 @@ const INITIAL_COACHES: Coach[] = [
 export function useCoaches() {
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchCoaches = async () => {
-    console.log('[Hook] useCoaches: Fetching coaches from API...');
+  const fetchCoaches = async (retryCount = 0) => {
+    console.log(`[Hook] useCoaches: Fetching coaches from API... (Attempt ${retryCount + 1})`);
     try {
       const res = await fetch('/api/users?role=COACH');
       const contentType = res.headers.get('content-type');
@@ -100,10 +101,25 @@ export function useCoaches() {
         };
       });
       setCoaches(mapped);
+      setError(null);
       setIsLoaded(true);
-    } catch (e) {
-      console.error('[Hook] useCoaches: Fetch error:', e);
-      setIsLoaded(true);
+    } catch (e: any) {
+      console.error(`[Hook] useCoaches: Fetch error (Attempt ${retryCount + 1}):`, e);
+      const maxRetries = 3;
+      if (retryCount < maxRetries) {
+        const delay = 2000 * (retryCount + 1);
+        console.log(`[Hook] useCoaches: Retrying in ${delay}ms...`);
+        setTimeout(() => {
+          fetchCoaches(retryCount + 1);
+        }, delay);
+      } else {
+        setError(e.message || 'Failed to fetch coaches');
+        setIsLoaded(true);
+        if (coaches.length === 0) {
+          console.warn('[Hook] useCoaches: Falling back to INITIAL_COACHES mock data');
+          setCoaches(INITIAL_COACHES);
+        }
+      }
     }
   };
 
@@ -182,6 +198,7 @@ export function useCoaches() {
   return {
     coaches,
     isLoaded,
+    error,
     addCoach,
     updateCoach,
     deleteCoach,

@@ -754,4 +754,57 @@
   box-shadow: 0 0 0 2px var(--primary);
 }
 
+.panelThemeGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.panelThemeItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  background-color: #fafafa;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.panelThemeItem:hover {
+  background-color: #f0ebe6;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.panelPreviewBox {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  transition: transform 0.15s ease;
+}
+
+.panelThemeItem:hover .panelPreviewBox {
+  transform: scale(1.05);
+}
+
+.panelThemeName {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #5a4a3a;
+  margin-top: 8px;
+  text-align: center;
+}
+
+.activePanelTheme {
+  border-color: var(--primary) !important;
+  background-color: white !important;
+  box-shadow: 0 0 0 2px var(--primary), 0 4px 12px rgba(0,0,0,0.1) !important;
+}
+
 
