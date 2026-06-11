@@ -273,6 +273,26 @@ export class DatabaseService {
     });
   }
 
+  async updateGamePgn(userId: string, role: string, id: string, pgn: string) {
+    const game = await prisma.game.findUnique({
+      where: { id },
+      include: { collection: true }
+    });
+    if (!game) throw new Error('Game not found.');
+
+    if (game.collection.visibility === 'public' && role !== 'ADMIN') {
+      throw new Error('Only administrators can modify games in public collections.');
+    }
+    if (game.collection.visibility === 'private' && game.collection.ownerId !== userId) {
+      throw new Error('Permission denied.');
+    }
+
+    return prisma.game.update({
+      where: { id },
+      data: { pgn }
+    });
+  }
+
   async deleteGame(userId: string, role: string, id: string) {
     const game = await prisma.game.findUnique({
       where: { id },
@@ -448,16 +468,19 @@ export class DatabaseService {
 
       let chapterName = 'Untitled';
       const eventTag = parsed.tags?.Event || '';
-      if (eventTag.includes(':')) {
+      const white = parsed.tags?.White;
+      const black = parsed.tags?.Black;
+      
+      if (parsed.tags?.ChapterName) {
+        chapterName = parsed.tags.ChapterName;
+      } else if (eventTag.includes(':')) {
         chapterName = eventTag.split(':').slice(1).join(':').trim();
-      } else if (eventTag.trim()) {
+      } else if (white && black && white !== '?' && black !== '?') {
+        chapterName = `${white} - ${black}`;
+      } else if (eventTag.trim() && eventTag !== '?') {
         chapterName = eventTag.trim();
       } else {
-        const white = parsed.tags?.White;
-        const black = parsed.tags?.Black;
-        if (white && black) {
-          chapterName = `${white} vs ${black}`;
-        }
+        chapterName = 'Untitled';
       }
 
       gamesData.push({

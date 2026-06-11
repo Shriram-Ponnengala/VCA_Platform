@@ -4,6 +4,44 @@ import { MoveNode } from '@vca/types';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
+const NAG_TO_SYMBOL: Record<string, string> = {
+  '$1': '!',
+  '$2': '?',
+  '$3': '!!',
+  '$4': '??',
+  '$5': '!?',
+  '$6': '?!',
+  '$7': '□',
+  '$8': '□',
+  '$10': '=',
+  '$11': '=',
+  '$13': '∞',
+  '$14': '⩲',
+  '$15': '⩱',
+  '$16': '±',
+  '$17': '∓',
+  '$18': '+-',
+  '$19': '-+',
+};
+
+const SYMBOL_TO_NAG: Record<string, string> = {
+  '!': '$1',
+  '?': '$2',
+  '!!': '$3',
+  '??': '$4',
+  '!?': '$5',
+  '?!': '$6',
+  '□': '$7',
+  '=': '$10',
+  '∞': '$13',
+  '⩲': '$14',
+  '⩱': '$15',
+  '±': '$16',
+  '∓': '$17',
+  '+-': '$18',
+  '-+': '$19',
+};
+
 export function sanitizeFen(fen: string): string {
   if (!fen) return START_FEN;
   const parts = fen.trim().split(/\s+/);
@@ -167,7 +205,7 @@ export function parsePgnToMoveTree(pgnText: string): {
         to: moveObj?.to,
         arrows: [],
         comment,
-        glyphs: pm.nag || [],
+        glyphs: (pm.nag || []).map((nag: string) => NAG_TO_SYMBOL[nag] || nag),
       };
 
       nodes[nodeId] = node;
@@ -243,7 +281,7 @@ export function buildPgnFromMoveTree(
 
     if (mainChild.glyphs && mainChild.glyphs.length > 0) {
       for (const g of mainChild.glyphs) {
-        res += ` ${g}`;
+        res += ` ${SYMBOL_TO_NAG[g] || g}`;
       }
     }
 
@@ -265,7 +303,7 @@ export function buildPgnFromMoveTree(
         }
         if (varChild.glyphs && varChild.glyphs.length > 0) {
           for (const g of varChild.glyphs) {
-            varPgn += ` ${g}`;
+            varPgn += ` ${SYMBOL_TO_NAG[g] || g}`;
           }
         }
         if (varChild.comment) {
@@ -291,4 +329,126 @@ export function buildPgnFromMoveTree(
   const movesText = traverse(rootId).trim();
   pgn += movesText || '*';
   return pgn;
+}
+
+// --- Tree manipulation logic for local editing ---
+
+export function promoteToMainline(nodes: Record<string, MoveNode>, nodeId: string): boolean {
+  const node = nodes[nodeId];
+  if (!node || !node.parentId) return false;
+
+  const parent = nodes[node.parentId];
+  if (!parent) return false;
+
+  const index = parent.children.indexOf(nodeId);
+  if (index > 0) {
+    parent.children.splice(index, 1);
+    parent.children.unshift(nodeId);
+    return true;
+  }
+  return false;
+}
+
+export function promoteVariation(nodes: Record<string, MoveNode>, nodeId: string): boolean {
+  const node = nodes[nodeId];
+  if (!node || !node.parentId) return false;
+
+  const parent = nodes[node.parentId];
+  if (!parent) return false;
+
+  const index = parent.children.indexOf(nodeId);
+  if (index > 0) {
+    const temp = parent.children[index - 1];
+    parent.children[index - 1] = nodeId;
+    parent.children[index] = temp;
+    return true;
+  }
+  return false;
+}
+
+export function deleteSubsequentMoves(nodes: Record<string, MoveNode>, nodeId: string): boolean {
+  const node = nodes[nodeId];
+  if (!node) return false;
+
+  const removeDescendants = (id: string) => {
+    const n = nodes[id];
+    if (n) {
+      n.children.forEach(childId => removeDescendants(childId));
+      delete nodes[id];
+    }
+  };
+
+  node.children.forEach(childId => removeDescendants(childId));
+  node.children = [];
+  return true;
+}
+
+export function deletePreviousMoves(nodes: Record<string, MoveNode>, nodeId: string): boolean {
+  const node = nodes[nodeId];
+  if (!node || nodeId === 'root') return false;
+
+  const descendants = new Set<string>();
+  const collectDescendants = (id: string) => {
+    descendants.add(id);
+    const n = nodes[id];
+    if (n) {
+      n.children.forEach(childId => collectDescendants(childId));
+    }
+  };
+  collectDescendants(nodeId);
+
+  const rootNode = nodes['root'];
+  if (!rootNode) return false;
+
+  rootNode.fen = node.fen;
+  rootNode.san = '';
+  rootNode.parentId = null;
+  rootNode.children = node.children;
+  rootNode.moveNumber = node.moveNumber;
+  rootNode.turn = node.turn;
+  rootNode.arrows = node.arrows || [];
+  rootNode.comment = node.comment;
+  rootNode.glyphs = node.glyphs;
+
+  rootNode.children.forEach(childId => {
+    if (nodes[childId]) {
+      nodes[childId].parentId = 'root';
+    }
+  });
+
+  Object.keys(nodes).forEach(id => {
+    if (id !== 'root' && !descendants.has(id)) {
+      delete nodes[id];
+    }
+  });
+
+  if (nodeId !== 'root') {
+    delete nodes[nodeId];
+  }
+
+  return true;
+}
+
+export function deleteMove(nodes: Record<string, MoveNode>, nodeId: string): boolean {
+  const node = nodes[nodeId];
+  if (!node || nodeId === 'root') return false;
+
+  const parentId = node.parentId;
+  if (!parentId) return false;
+
+  const parentNode = nodes[parentId];
+  if (!parentNode) return false;
+
+  parentNode.children = parentNode.children.filter(childId => childId !== nodeId);
+
+  const removeDescendants = (id: string) => {
+    const n = nodes[id];
+    if (n) {
+      n.children.forEach(childId => removeDescendants(childId));
+      delete nodes[id];
+    }
+  };
+  removeDescendants(nodeId);
+
+  return true;
 }

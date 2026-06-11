@@ -11,6 +11,7 @@ import { MoveNode, ChatMessage } from '@vca/types';
 import EngineAnalysisPanel from '@/components/chess/EngineAnalysisPanel';
 import DatabasePanel from '@/components/chess/DatabasePanel';
 import ChapterCard from '@/components/chess/ChapterCard';
+import { applyContextMenuPosition } from '@/lib/utils/contextMenuUtils';
 
 const featureFlags = {
   participants: false,
@@ -829,17 +830,25 @@ export default function ClassroomPage() {
           {(() => {
             const clickedNode = nodes[contextMenu.nodeId];
             if (!clickedNode) return null;
-            const parentNode = clickedNode.parentId ? nodes[clickedNode.parentId] : null;
-            const isMainline = parentNode ? parentNode.children[0] === clickedNode.id : true;
-            const canMakeMainline = parentNode && !isMainline;
-            const canPromote = parentNode && parentNode.children.indexOf(clickedNode.id) > 0;
+
+            let varRoot = clickedNode;
+            let varParent = varRoot.parentId ? nodes[varRoot.parentId] : null;
+            while (varParent && varParent.children[0] === varRoot.id && varParent.id !== 'root') {
+              varRoot = varParent;
+              varParent = varRoot.parentId ? nodes[varRoot.parentId] : null;
+            }
+
+            const isMainline = varParent ? varParent.children[0] === varRoot.id : true;
+            const canMakeMainline = varParent && !isMainline;
+            const canPromote = varParent && varParent.children.indexOf(varRoot.id) > 0;
             const canDeleteSubsequent = clickedNode.children.length > 0;
             const canDeletePrevious = clickedNode.id !== 'root';
 
             return (
               <div 
                 className="context-menu" 
-                style={{ top: contextMenu.y, left: contextMenu.x }}
+                ref={(el) => applyContextMenuPosition(el, contextMenu.x, contextMenu.y)}
+                style={{ top: contextMenu.y, left: contextMenu.x, visibility: 'hidden' }}
               >
                 <div className="context-menu-header">
                   {clickedNode.moveNumber}{clickedNode.turn === 'w' ? '.' : '...'} {clickedNode.san}
@@ -848,7 +857,7 @@ export default function ClassroomPage() {
                   <button
                     className="context-menu-item"
                     disabled={!canMakeMainline}
-                    onClick={() => handleMakeMainline(clickedNode.id)}
+                    onClick={() => handleMakeMainline(varRoot.id)}
                   >
                     <Star size={14} />
                     <span>Make mainline</span>
@@ -856,7 +865,7 @@ export default function ClassroomPage() {
                   <button
                     className="context-menu-item"
                     disabled={!canPromote}
-                    onClick={() => handlePromoteVariation(clickedNode.id)}
+                    onClick={() => handlePromoteVariation(varRoot.id)}
                   >
                     <ArrowUp size={14} />
                     <span>Promote variation</span>

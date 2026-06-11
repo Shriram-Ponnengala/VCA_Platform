@@ -4,6 +4,68 @@ export class AttendanceRepository {
   async findAll() { return prisma.attendance.findMany(); }
   async create(data: any) { return prisma.attendance.create({ data }); }
 
+  async getBatchSessions(batchId: string) {
+    return prisma.batchSession.findMany({
+      where: { classId: batchId },
+      orderBy: { sessionDate: 'desc' },
+      include: {
+        attendanceRecords: true
+      }
+    });
+  }
+
+  async createBatchSession(data: any) {
+    return prisma.batchSession.create({
+      data: {
+        classId: data.batchId,
+        sessionDate: new Date(data.sessionDate),
+        startTime: data.startTime,
+        endTime: data.endTime,
+        createdById: data.createdById
+      }
+    });
+  }
+
+  async getAttendanceRecords(sessionId: string) {
+    return prisma.attendanceRecord.findMany({
+      where: { sessionId },
+      include: {
+        student: true
+      }
+    });
+  }
+
+  async upsertAttendanceRecords(sessionId: string, records: any[], markedById: string) {
+    // records is an array of { studentId, status, isGuest, comment }
+    const results = [];
+    for (const record of records) {
+      results.push(await prisma.attendanceRecord.upsert({
+        where: {
+          sessionId_studentId: {
+            sessionId,
+            studentId: record.studentId
+          }
+        },
+        create: {
+          sessionId,
+          studentId: record.studentId,
+          status: record.status,
+          isGuest: record.isGuest || false,
+          comment: record.comment || null,
+          markedById
+        },
+        update: {
+          status: record.status,
+          isGuest: record.isGuest || false,
+          comment: record.comment || null,
+          markedById,
+          markedAt: new Date()
+        }
+      }));
+    }
+    return results;
+  }
+
   async getMakeovers(user: any) {
     let where: any = {};
     if (user?.role === 'COACH') {

@@ -106,7 +106,7 @@ function formatMovesWithNumbers(fen: string, sanMoves: string[]): string {
 }
 
 export default function EngineAnalysisPanel({ fen }: EngineAnalysisPanelProps) {
-  const [isEngineOn, setIsEngineOn] = useState<boolean>(true);
+  const [isEngineOn, setIsEngineOn] = useState<boolean>(false);
   const [numLines, setNumLines] = useState<number>(3);
   
   const [status, setStatus] = useState<EngineStatus>('initializing');

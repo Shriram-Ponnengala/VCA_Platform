@@ -4,7 +4,49 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronRight, Home } from 'lucide-react';
+import { useBatches } from '@/lib/hooks/useBatches';
+import { extractBatchId } from '@/lib/utils/urlUtils';
 import styles from './Breadcrumbs.module.css';
+
+function DynamicLabel({ path, defaultLabel, prevPath }: { path: string, defaultLabel: string, prevPath?: string }) {
+  const [label, setLabel] = React.useState(defaultLabel);
+  const { batches } = useBatches();
+
+  React.useEffect(() => {
+    if (prevPath === 'batches' && batches.length > 0) {
+      const batchId = extractBatchId(path, batches);
+      const batch = batches.find(b => b.id === batchId);
+      if (batch) {
+        setLabel(batch.name);
+        return;
+      }
+    }
+
+    if (path.length >= 20 && prevPath) {
+      let endpoint = '';
+      if (prevPath === 'students') endpoint = `/api/students/${path}`;
+      else if (prevPath === 'coaches') endpoint = `/api/coaches/${path}`;
+      else if (prevPath === 'users') endpoint = `/api/users/${path}`;
+
+      if (endpoint) {
+        fetch(endpoint)
+          .then(res => {
+            if (!res.ok) throw new Error('Not found');
+            return res.json();
+          })
+          .then(data => {
+            if (data) {
+              const name = data.name || data.className || (data.user ? `${data.user.firstName} ${data.user.lastName}` : null) || data.username;
+              if (name) setLabel(name);
+            }
+          })
+          .catch(() => {}); // silently fail and keep default label
+      }
+    }
+  }, [path, prevPath, batches]);
+
+  return <>{label}</>;
+}
 
 export function Breadcrumbs() {
   const pathname = usePathname();
@@ -19,24 +61,29 @@ export function Breadcrumbs() {
 
   return (
     <nav className={styles.breadcrumbs}>
-      <Link href="/dashboard/admin" className={styles.homeLink}>
+      <Link href="/dashboard/coach" className={styles.homeLink}>
         <Home size={14} />
       </Link>
       
       {displayPaths.map((path, index) => {
         const href = `/${paths.slice(0, index + 3).join('/')}`;
         const isLast = index === displayPaths.length - 1;
+        const prevPath = index > 0 ? displayPaths[index - 1] : undefined;
         
         // Format label: capitalize and replace dashes with spaces
-        const label = path.charAt(0).toUpperCase() + path.slice(1).replace(/-/g, ' ');
+        const defaultLabel = path.charAt(0).toUpperCase() + path.slice(1).replace(/-/g, ' ');
         
         return (
           <React.Fragment key={path}>
             <ChevronRight size={14} className={styles.separator} />
             {isLast ? (
-              <span className={styles.current}>{label}</span>
+              <span className={styles.current}>
+                <DynamicLabel path={path} defaultLabel={defaultLabel} prevPath={prevPath} />
+              </span>
             ) : (
-              <Link href={href} className={styles.link}>{label}</Link>
+              <Link href={href} className={styles.link}>
+                <DynamicLabel path={path} defaultLabel={defaultLabel} prevPath={prevPath} />
+              </Link>
             )}
           </React.Fragment>
         );

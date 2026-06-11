@@ -15,6 +15,7 @@ router.put('/collections/:id', controller.renameCollection.bind(controller));
 router.delete('/collections/:id', controller.deleteCollection.bind(controller));
 
 router.put('/games/:id', controller.renameGame.bind(controller));
+router.put('/games/:id/pgn', controller.updateGamePgn.bind(controller));
 router.delete('/games/:id', controller.deleteGame.bind(controller));
 
 router.put('/folders/:id/move', controller.moveFolder.bind(controller));
@@ -27,6 +28,7 @@ router.post('/collections/save-classroom', controller.saveClassroomGame.bind(con
 router.post('/shares', controller.shareCollection.bind(controller));
 router.get('/collections/:id/games', controller.getCollectionGames.bind(controller));
 router.get('/games/:id', controller.getGame.bind(controller));
+router.get('/fetch-lichess', controller.fetchLichessStudy.bind(controller));
 router.get('/access-games', accessGamesCtrl.fetchGames.bind(accessGamesCtrl));
 
 export default router;

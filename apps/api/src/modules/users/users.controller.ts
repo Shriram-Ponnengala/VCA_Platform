@@ -1,8 +1,36 @@
 import { Request, Response } from 'express';
 import { UsersService } from './users.service';
+import * as jose from 'jose';
+
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || 'wdfghjifghjoixcvhjk'
+);
+
+async function getUser(req: Request) {
+  const token = req.cookies?.['auth-token'] || req.cookies?.['token'];
+  if (!token) return null;
+  try {
+    const { payload } = await jose.jwtVerify(token, JWT_SECRET);
+    return payload as { id: string; role: string; username: string };
+  } catch (e) {
+    return null;
+  }
+}
+
 const service = new UsersService();
 
 export class UsersController {
+  async getShareSearch(req: Request, res: Response) {
+    try {
+      const user = await getUser(req);
+      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+      res.json(await service.getShareSearch(user.id, user.role));
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  }
+
   async getAll(req: Request, res: Response) { 
     try { 
       const role = req.query.role as string;

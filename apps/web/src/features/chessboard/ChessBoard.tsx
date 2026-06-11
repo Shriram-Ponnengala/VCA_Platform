@@ -209,6 +209,32 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ isLocked = false }) => {
       cgRef.current = Chessground(containerRef.current, config);
     }
 
+    // Set up ResizeObserver to recalculate board bounds on container size changes
+    let observer: ResizeObserver | null = null;
+    if (containerRef.current) {
+      observer = new ResizeObserver(() => {
+        if (cgRef.current) {
+          cgRef.current.redrawAll();
+        }
+      });
+      observer.observe(containerRef.current);
+    }
+
+    // Set up window resize listener
+    const handleResize = () => {
+      if (cgRef.current) {
+        cgRef.current.redrawAll();
+      }
+    };
+    window.addEventListener('resize', handleResize);
+
+    // Initial delay recalculation to handle any mounting shifts/transitions
+    const mountTimer = setTimeout(() => {
+      if (cgRef.current) {
+        cgRef.current.redrawAll();
+      }
+    }, 150);
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
@@ -233,6 +259,11 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ isLocked = false }) => {
         cgRef.current = null;
       }
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', handleResize);
+      if (observer) {
+        observer.disconnect();
+      }
+      clearTimeout(mountTimer);
     };
   }, []);
 
@@ -265,7 +296,15 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ isLocked = false }) => {
           width: boardWidth ? `${boardWidth}px` : undefined
         }}
       >
-        <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative' }} />
+        {/* Outer frame: handles all theme styling, padding, and borders */}
+        <div className="board-outer-frame board-clip" style={{ display: 'flex', width: '100%', height: '100%', boxSizing: 'border-box' }}>
+          {/* Inner element: STRICTLY the 8x8 playing area. No padding, no border, no margin. */}
+          <div 
+            ref={containerRef} 
+            className="board-inner-playing-area" 
+            style={{ width: '100%', height: '100%', padding: 0, margin: 0, border: 'none', position: 'relative' }} 
+          />
+        </div>
         {promotionPending && (
           <div className="promotion-overlay">
             <div className="promotion-card">
@@ -318,10 +357,17 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ isLocked = false }) => {
           max-width: 100%;
           aspect-ratio: 1 / 1;
           border-radius: 8px;
-          overflow: hidden;
+          overflow: visible;  /* allow badges or elements to bleed past the edge if needed */
           box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
           box-sizing: border-box;
           /* frame color & padding come from --board-frame-color / --board-frame-padding via globals.css */
+        }
+        .board-clip {
+          width: 100%;
+          height: 100%;
+          border-radius: 8px;
+          overflow: hidden;
+          position: relative;
         }
         .resize-handle {
           position: absolute;
@@ -470,6 +516,11 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ isLocked = false }) => {
         .promo-cancel-btn:hover {
           background: #c8854a;
           box-shadow: 0 4px 8px rgba(200, 133, 74, 0.3);
+        }
+
+        /* Ensure coordinates do not occupy layout space */
+        .cg-wrap coords {
+          position: absolute !important;
         }
       `}</style>
     </div>

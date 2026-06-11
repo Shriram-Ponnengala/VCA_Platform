@@ -35,6 +35,9 @@ model User {
   collections  Collection[] @relation("UserCollections")
   sharesSent   Share[]      @relation("SharedByRelation")
   sharesRecv   Share[]      @relation("SharedWithRelation")
+  
+  createdBatchSessions BatchSession[]
+  markedAttendanceRecords AttendanceRecord[]
 }
 
 model Student {
@@ -56,6 +59,7 @@ model Student {
   attendance   Attendance[]
   enrollments  Enrollment[]
   makeovers    Makeover[]
+  attendanceRecords AttendanceRecord[]
 }
 
 model Coach {
@@ -89,6 +93,7 @@ model Class {
   originalMakeovers Makeover[] @relation("OriginalClass")
   targetMakeovers   Makeover[] @relation("TargetClass")
   sessions          Session[]
+  batchSessions     BatchSession[]
 }
 
 model Enrollment {
@@ -291,3 +296,43 @@ model Share {
   @@index([sharedWithUser])
 }
 
+model BatchSession {
+  id             String    @id @default(uuid())
+  classId        String    @map("batch_id")
+  sessionDate    DateTime  @db.Date
+  startTime      String
+  endTime        String
+  isRescheduled  Boolean   @default(false)
+  originalDate   DateTime? @db.Date
+  originalTime   String?
+  createdById    String    @map("created_by")
+  
+  class          Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  createdBy      User      @relation(fields: [createdById], references: [id])
+  
+  attendanceRecords AttendanceRecord[]
+  
+  @@map("batch_sessions")
+}
+
+model AttendanceRecord {
+  id                     String    @id @default(uuid())
+  sessionId              String    @map("session_id")
+  studentId              String    @map("student_id")
+  status                 String    // 'present', 'absent', 'compensated'
+  isGuest                Boolean   @default(false)
+  compensatesAbsenceId   String?   @unique @map("compensates_absence_id")
+  comment                String?
+  markedById             String    @map("marked_by")
+  markedAt               DateTime  @default(now()) @map("marked_at")
+
+  session                BatchSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student                Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  markedBy               User         @relation(fields: [markedById], references: [id])
+  
+  compensatesAbsence     AttendanceRecord?  @relation("CompensatesRelation", fields: [compensatesAbsenceId], references: [id])
+  compensatedBy          AttendanceRecord?  @relation("CompensatesRelation")
+
+  @@unique([sessionId, studentId])
+  @@map("attendance_records")
+}

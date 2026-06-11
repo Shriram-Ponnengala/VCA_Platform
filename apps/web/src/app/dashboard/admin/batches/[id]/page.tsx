@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, User, BookOpen, Plus, X as XIcon, ClipboardCheck } from 'lucide-react';
 import { useBatches } from '@/lib/hooks/useBatches';
 import { useStudents } from '@/lib/hooks/useStudents';
+import { extractBatchId } from '@/lib/utils/urlUtils';
 import { BatchModal } from '../BatchModal';
 import { ConfirmModal } from '@vca/ui';
 import styles from './batchDetail.module.css';
@@ -22,7 +23,8 @@ export default function BatchDetailPage() {
   const [isRemoveStudentModalOpen, setIsRemoveStudentModalOpen] = useState(false);
   const [studentToRemove, setStudentToRemove] = useState<{ id: string; name: string } | null>(null);
 
-  const batchId = params.id as string;
+  const rawId = decodeURIComponent(params.id as string);
+  const batchId = extractBatchId(rawId, batches);
   const batch = batches.find(b => b.id === batchId);
 
   if (!isLoaded || !studentsLoaded) return <div className={styles.container}>Loading...</div>;
@@ -30,9 +32,6 @@ export default function BatchDetailPage() {
   if (!batch) {
     return (
       <div className={styles.container}>
-        <button className={styles.backLink} onClick={() => router.push('/dashboard/admin/batches')}>
-          <ArrowLeft size={16} /> Back to Batches
-        </button>
         <h2>Batch not found</h2>
       </div>
     );
@@ -82,9 +81,7 @@ export default function BatchDetailPage() {
 
   return (
     <div className={styles.container}>
-      <button className={styles.backLink} onClick={() => router.push('/dashboard/admin/batches')}>
-        <ArrowLeft size={16} /> Batches &gt; {batch.name}
-      </button>
+
 
       <header className={styles.header}>
         <div className={styles.titleArea}>

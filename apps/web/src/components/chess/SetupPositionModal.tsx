@@ -83,6 +83,9 @@ export default function SetupPositionModal({ isOpen, onClose, onSave, initialFen
   useEffect(() => {
     if (!isOpen) return;
 
+    let observer: ResizeObserver | null = null;
+    let transitionTimer: NodeJS.Timeout | null = null;
+
     // Small delay to ensure DOM is ready and client bounding box is populated
     const timer = setTimeout(() => {
       if (boardRef.current) {
@@ -108,11 +111,41 @@ export default function SetupPositionModal({ isOpen, onClose, onSave, initialFen
         };
 
         cgRef.current = Chessground(boardRef.current, config);
+
+        // Set up ResizeObserver to handle any layout shifts or resizing of the board
+        observer = new ResizeObserver(() => {
+          if (cgRef.current) {
+            cgRef.current.redrawAll();
+          }
+        });
+        observer.observe(boardRef.current);
       }
     }, 50);
 
+    // Set up window resize listener
+    const handleResize = () => {
+      if (cgRef.current) {
+        cgRef.current.redrawAll();
+      }
+    };
+    window.addEventListener('resize', handleResize);
+
+    // Recalculate board bounds after modal slide-up animation completes (duration 200ms)
+    transitionTimer = setTimeout(() => {
+      if (cgRef.current) {
+        cgRef.current.redrawAll();
+      }
+    }, 300);
+
     return () => {
       clearTimeout(timer);
+      if (transitionTimer) {
+        clearTimeout(transitionTimer);
+      }
+      window.removeEventListener('resize', handleResize);
+      if (observer) {
+        observer.disconnect();
+      }
       if (cgRef.current) {
         cgRef.current.destroy();
         cgRef.current = null;
@@ -284,7 +317,15 @@ export default function SetupPositionModal({ isOpen, onClose, onSave, initialFen
                 onClick={handleBoardClick}
                 style={{ cursor: activePiece === null ? 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23ef4444\' stroke-width=\'3\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cline x1=\'18\' y1=\'6\' x2=\'6\' y2=\'18\'%3E%3C/line%3E%3Cline x1=\'6\' y1=\'6\' x2=\'18\' y2=\'18\'%3E%3C/line%3E%3C/svg%3E") 8 8, auto' : 'crosshair' }}
               >
-                <div ref={boardRef} style={{ width: '100%', height: '100%', position: 'relative' }} />
+                {/* Outer frame: handles all theme styling, padding, and borders */}
+                <div className="board-outer-frame board-clip" style={{ display: 'flex', width: '100%', height: '100%', boxSizing: 'border-box' }}>
+                  {/* Inner element: STRICTLY the 8x8 playing area. No padding, no border, no margin. */}
+                  <div 
+                    ref={boardRef} 
+                    className="board-inner-playing-area" 
+                    style={{ width: '100%', height: '100%', padding: 0, margin: 0, border: 'none', position: 'relative' }} 
+                  />
+                </div>
               </div>
             </div>
 
@@ -840,6 +881,11 @@ export default function SetupPositionModal({ isOpen, onClose, onSave, initialFen
             flex-wrap: wrap;
             justify-content: center;
           }
+        }
+
+        /* Ensure coordinates do not occupy layout space */
+        .cg-wrap coords {
+          position: absolute !important;
         }
       `}</style>
     </div>,

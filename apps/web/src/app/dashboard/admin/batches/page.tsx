@@ -2,10 +2,11 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Users, Clock, Calendar, ChevronRight, ClipboardCheck } from 'lucide-react';
+import { Plus, Users, Clock, Calendar, ChevronRight, ClipboardCheck, Search, Filter } from 'lucide-react';
 import { Button } from '@vca/ui';
 import { Badge } from '@vca/ui';
 import { useBatches } from '@/lib/hooks/useBatches';
+import { generateBatchSlug } from '@/lib/utils/urlUtils';
 import { BatchModal } from './BatchModal';
 import { Toast } from '@vca/ui';
 import styles from './batches.module.css';
@@ -16,6 +17,22 @@ export default function BatchesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterCoach, setFilterCoach] = useState('All');
+  const [filterProgram, setFilterProgram] = useState('All');
+  const [filterType, setFilterType] = useState('All');
+
+  const uniqueCoaches = Array.from(new Set(batches.map(b => b.coach).filter(Boolean)));
+  const uniquePrograms = Array.from(new Set(batches.map(b => b.program).filter(Boolean)));
+
+  const filteredBatches = batches.filter(batch => {
+    const matchesSearch = batch.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCoach = filterCoach === 'All' || batch.coach === filterCoach;
+    const matchesProgram = filterProgram === 'All' || batch.program === filterProgram;
+    const matchesType = filterType === 'All' || batch.type === filterType;
+    return matchesSearch && matchesCoach && matchesProgram && matchesType;
+  });
+
   const handleCreateBatch = async (data: any) => {
     try {
       const newId = await addBatch(data);
@@ -24,7 +41,13 @@ export default function BatchesPage() {
         setIsModalOpen(false);
         // Give time for toast to be seen before redirecting
         setTimeout(() => {
-          router.push(`/dashboard/admin/batches/${newId}`);
+          // We need to resolve the batch to generate the slug, but `addBatch` returns an ID.
+          // Since the batch list might not have the newly created batch immediately if it relies on SWR/re-fetch,
+          // the backend might just redirect via ID. But wait, `addBatch` in `useBatches.ts` updates local state synchronously!
+          // We can find the batch.
+          const createdBatch = batches.find(b => b.id === newId);
+          const slug = createdBatch ? generateBatchSlug(createdBatch.id, createdBatch.name, batches) : newId;
+          router.push(`/dashboard/admin/batches/${slug}`);
         }, 1000);
       }
     } catch (error) {
@@ -47,12 +70,62 @@ export default function BatchesPage() {
         </Button>
       </header>
 
+      <div className={styles.filterSection}>
+        <div className={styles.searchWrapper}>
+          <Search size={18} className={styles.searchIcon} />
+          <input 
+            type="text" 
+            placeholder="Search batches by name..." 
+            className={styles.searchInput}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
+        <select 
+          className={styles.filterSelect}
+          value={filterCoach}
+          onChange={(e) => setFilterCoach(e.target.value)}
+        >
+          <option value="All">All Coaches</option>
+          {uniqueCoaches.map(coach => (
+            <option key={coach} value={coach}>{coach}</option>
+          ))}
+        </select>
+
+        <select 
+          className={styles.filterSelect}
+          value={filterProgram}
+          onChange={(e) => setFilterProgram(e.target.value)}
+        >
+          <option value="All">All Levels</option>
+          {uniquePrograms.map(prog => (
+            <option key={prog} value={prog}>{prog}</option>
+          ))}
+        </select>
+
+        <select 
+          className={styles.filterSelect}
+          value={filterType}
+          onChange={(e) => setFilterType(e.target.value)}
+        >
+          <option value="All">All Types</option>
+          <option value="Group">Group</option>
+          <option value="One-on-One">One-on-One</option>
+        </select>
+      </div>
+
       <div className={styles.grid}>
-        {batches.map((batch) => (
+        {filteredBatches.length === 0 ? (
+          <div className={styles.noResults}>
+            <p>No batches found matching your filters.</p>
+          </div>
+        ) : (
+          filteredBatches.map((batch) => (
           <div 
             key={batch.id} 
             className={styles.card}
-            onClick={() => router.push(`/dashboard/admin/batches/${batch.id}`)}
+            onClick={() => router.push(`/dashboard/admin/batches/${generateBatchSlug(batch.id, batch.name, batches)}`)}
             style={{ cursor: 'pointer' }}
           >
             <div className={styles.cardHeader}>
@@ -113,7 +186,7 @@ export default function BatchesPage() {
               </button>
             </div>
           </div>
-        ))}
+        )))}
       </div>
 
       <BatchModal 

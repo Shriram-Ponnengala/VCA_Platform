@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import GameCard from './GameCard';
 import AccessGamesPanel from './AccessGamesPanel';
+import { applyContextMenuPosition } from '@/lib/utils/contextMenuUtils';
 
 interface FolderData {
   id: string;
@@ -1298,7 +1299,8 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
       {contextMenu && (
         <div 
           className="custom-context-menu"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
+          ref={(el) => applyContextMenuPosition(el, contextMenu.x, contextMenu.y)}
+          style={{ top: contextMenu.y, left: contextMenu.x, visibility: 'hidden' }}
           onClick={(e) => e.stopPropagation()}
         >
           {contextMenu.entityType === 'game' && (

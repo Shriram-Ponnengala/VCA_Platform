@@ -28,6 +28,24 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${playfair.variable} ${dmSans.variable} ${montserrat.variable} ${poppins.variable} ${roboto.variable} ${openSans.variable} ${oleoScript.variable} ${lato.variable} ${merriweather.variable} ${nunito.variable}`}>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                if (typeof window !== 'undefined' && window.performance && window.performance.measure) {
+                  const originalMeasure = window.performance.measure;
+                  window.performance.measure = function (name, ...args) {
+                    try {
+                      return originalMeasure.call(window.performance, name, ...args);
+                    } catch (e) {
+                      // Silence negative timestamp/measure errors in Next.js/Turbopack dev mode
+                    }
+                  };
+                }
+              })();
+            `
+          }}
+        />
         <link
           id="branding-css-link"
           rel="stylesheet"

@@ -6,6 +6,7 @@ import { ArrowLeft, Mail, Phone, MapPin, Calendar, Clock, BookOpen, User } from 
 import { useStudents } from '@/lib/hooks/useStudents';
 import { useBatches } from '@/lib/hooks/useBatches';
 import { AddStudentModal } from '../AddStudentModal';
+import { generateBatchSlug } from '@/lib/utils/urlUtils';
 import styles from './studentDetail.module.css';
 
 export default function StudentProfilePage() {
@@ -25,9 +26,6 @@ export default function StudentProfilePage() {
   if (!student) {
     return (
       <div className={styles.container}>
-        <button className={styles.backLink} onClick={() => router.push('/dashboard/admin/students')}>
-          <ArrowLeft size={16} /> Back to Students
-        </button>
         <h2>Student not found</h2>
       </div>
     );
@@ -51,9 +49,6 @@ export default function StudentProfilePage() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <button className={styles.backLink} onClick={() => router.push('/dashboard/admin/students')}>
-          <ArrowLeft size={16} /> Students &gt; {student.name}
-        </button>
         <div className={styles.actions}>
           <button className={styles.editBtn} onClick={() => setIsEditModalOpen(true)}>Edit Student</button>
           <button className={styles.deleteBtn} onClick={handleDelete}>Delete</button>
@@ -114,7 +109,7 @@ export default function StudentProfilePage() {
           <h3 className={styles.sectionTitle}>Enrolled Batches ({studentBatches.length})</h3>
           <div className={styles.batchList}>
             {studentBatches.map(batch => (
-              <div key={batch.id} className={styles.batchCard} onClick={() => router.push(`/dashboard/admin/batches/${batch.id}`)}>
+              <div key={batch.id} className={styles.batchCard} onClick={() => router.push(`/dashboard/admin/batches/${generateBatchSlug(batch.id, batch.name, batches)}`)}>
                 <div className={styles.batchHeader}>
                   <h4 className={styles.batchName}>{batch.name}</h4>
                   <span className={styles.batchBadge}>{batch.program.split(' ')[0]}</span>

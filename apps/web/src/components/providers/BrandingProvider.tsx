@@ -101,9 +101,11 @@ export default function BrandingProvider() {
           );
         });
 
-        // Apply board frame color & padding
         if (branding.boardFrameColor) {
           document.documentElement.style.setProperty('--board-frame-color', branding.boardFrameColor);
+        }
+        if (branding.boardCoordinatesColor) {
+          document.documentElement.style.setProperty('--board-coords-color', branding.boardCoordinatesColor);
         }
         if (branding.boardFramePadding !== undefined && branding.boardFramePadding !== null) {
           document.documentElement.style.setProperty('--board-frame-padding', `${branding.boardFramePadding}px`);

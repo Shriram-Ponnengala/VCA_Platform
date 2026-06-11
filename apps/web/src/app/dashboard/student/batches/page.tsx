@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Users, Clock, Calendar, ChevronRight } from 'lucide-react';
 import { Badge } from '@vca/ui';
 import { useBatches } from '@/lib/hooks/useBatches';
+import { generateBatchSlug } from '@/lib/utils/urlUtils';
 import styles from './batches.module.css';
 
 export default function StudentBatchesPage() {
@@ -30,7 +31,7 @@ export default function StudentBatchesPage() {
             <div 
               key={batch.id} 
               className={styles.card}
-              onClick={() => router.push(`/dashboard/student/batches/${batch.id}`)}
+              onClick={() => router.push(`/dashboard/student/batches/${generateBatchSlug(batch.id, batch.name, batches)}`)}
               style={{ cursor: 'pointer' }}
             >
               <div className={styles.cardHeader}>

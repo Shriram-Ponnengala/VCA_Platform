@@ -2,8 +2,19 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ChessBoard from '@/components/chess/ChessBoard';
-import { parsePgnToMoveTree } from './pgnUtils';
+import { 
+  parsePgnToMoveTree, 
+  buildPgnFromMoveTree,
+  promoteToMainline,
+  promoteVariation,
+  deleteSubsequentMoves,
+  deletePreviousMoves,
+  deleteMove
+} from './pgnUtils';
 import { MoveNode } from '@vca/types';
+import { applyContextMenuPosition } from '@/lib/utils/contextMenuUtils';
+import UploadPgnModal from '@/components/chess/UploadPgnModal';
+import { AnnotationsPanel } from '@/components/chess/AnnotationsPanel';
 import {
   Folder,
   FolderPlus,
@@ -25,7 +36,9 @@ import {
   BookOpen,
   History as HistoryIcon,
   ArrowUp,
-  UserPlus
+  ArrowUpToLine,
+  UserPlus,
+  Save
 } from 'lucide-react';
 
 interface GameMetadata {
@@ -92,6 +105,7 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
     'virtual_shared': true
   });
   const [expandedCollections, setExpandedCollections] = useState<Record<string, boolean>>({});
+  const [collectionPages, setCollectionPages] = useState<Record<string, number>>({});
 
   // Selection state
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
@@ -102,6 +116,92 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
   const [nodes, setNodes] = useState<Record<string, MoveNode>>({});
   const [currentNodeId, setCurrentNodeId] = useState<string>('root');
   const [selectedVariationIndex, setSelectedVariationIndex] = useState(0);
+
+  // Editing state
+  const [isModified, setIsModified] = useState(false);
+  const [savingGame, setSavingGame] = useState(false);
+
+  const [moveContextMenu, setMoveContextMenu] = useState<{
+    x: number;
+    y: number;
+    nodeId: string;
+  } | null>(null);
+
+  const handleMoveContextMenu = (e: React.MouseEvent, nodeId: string) => {
+    e.preventDefault();
+    
+    // Apply position clamp similar to classroom
+    const menuWidth = 220; 
+    const menuHeight = 250; 
+    let x = e.clientX;
+    let y = e.clientY;
+    
+    if (typeof window !== 'undefined') {
+      if (x + menuWidth > window.innerWidth) {
+        x = x - menuWidth;
+      }
+      if (y + menuHeight > window.innerHeight) {
+        y = y - menuHeight;
+      }
+      x = Math.max(0, x);
+      y = Math.max(0, y);
+    }
+    
+    setMoveContextMenu({ x, y, nodeId });
+  };
+
+  const handleMakeMainline = (nodeId: string) => {
+    setNodes(prev => {
+      const next = { ...prev };
+      promoteToMainline(next, nodeId);
+      return next;
+    });
+    setIsModified(true);
+    setMoveContextMenu(null);
+  };
+
+  const handlePromoteVariation = (nodeId: string) => {
+    setNodes(prev => {
+      const next = { ...prev };
+      promoteVariation(next, nodeId);
+      return next;
+    });
+    setIsModified(true);
+    setMoveContextMenu(null);
+  };
+
+  const handleDeleteSubsequent = (nodeId: string) => {
+    setNodes(prev => {
+      const next = { ...prev };
+      deleteSubsequentMoves(next, nodeId);
+      return next;
+    });
+    setIsModified(true);
+    setMoveContextMenu(null);
+  };
+
+  const handleDeletePrevious = (nodeId: string) => {
+    setNodes(prev => {
+      const next = { ...prev };
+      deletePreviousMoves(next, nodeId);
+      return next;
+    });
+    setIsModified(true);
+    setMoveContextMenu(null);
+  };
+
+  const handleDeleteMove = (nodeId: string) => {
+    setNodes(prev => {
+      const next = { ...prev };
+      deleteMove(next, nodeId);
+      if (!next[currentNodeId]) {
+        setCurrentNodeId('root');
+      }
+      return next;
+    });
+    setIsModified(true);
+    setMoveContextMenu(null);
+  };
 
   // Scroll to top state & ref
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -174,10 +274,268 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
     fetchTree();
   }, []);
 
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+
+  // Drag & Drop State
+  const [draggedEntity, setDraggedEntity] = useState<{ id: string; type: 'folder' | 'collection'; parentId: string | null; visibility: 'public' | 'private' } | null>(null);
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null | 'virtual_public' | 'virtual_my'>(null);
+
+  // Undo Toast State
+  const [toast, setToast] = useState<{
+    message: string;
+    onUndo: () => void;
+    visible: boolean;
+  } | null>(null);
+
+  // Navigable Picker State
+  const [pickerFolderId, setPickerFolderId] = useState<string | null>(null);
+  const [pickerSearch, setPickerSearch] = useState('');
+  const [pickerNewFolderOpen, setPickerNewFolderOpen] = useState(false);
+  const [pickerNewFolderName, setPickerNewFolderName] = useState('');
+
+  // Helpers for Writable Check and Descendant Check
+  const isFolderWritable = (folder: FolderData) => {
+    if (folder.visibility === 'public') return role === 'ADMIN';
+    return folder.ownerId === currentUserId;
+  };
+
+  const isCollectionWritable = (col: Collection) => {
+    if (col.visibility === 'public') return role === 'ADMIN';
+    return col.ownerId === currentUserId;
+  };
+
+  const isDescendant = (childId: string, parentId: string): boolean => {
+    let curr = folders.find(f => f.id === childId);
+    while (curr && curr.parentFolderId) {
+      if (curr.parentFolderId === parentId) return true;
+      curr = folders.find(f => f.id === curr.parentFolderId);
+    }
+    return false;
+  };
+
+  const isValidDropTarget = (
+    dragged: { id: string; type: 'folder' | 'collection'; parentId: string | null; visibility: 'public' | 'private' },
+    targetId: string | null | 'virtual_public' | 'virtual_my'
+  ): boolean => {
+    let targetFolderId: string | null = null;
+    let targetVisibility: 'public' | 'private' = dragged.visibility;
+
+    if (targetId === 'virtual_public') {
+      targetFolderId = null;
+      targetVisibility = 'public';
+    } else if (targetId === 'virtual_my') {
+      targetFolderId = null;
+      targetVisibility = 'private';
+    } else if (targetId) {
+      const targetFolder = folders.find(f => f.id === targetId);
+      if (!targetFolder) return false;
+      targetFolderId = targetFolder.id;
+      targetVisibility = targetFolder.visibility;
+    } else {
+      return false;
+    }
+
+    if (dragged.visibility !== targetVisibility) return false;
+    if (targetVisibility === 'public' && role !== 'ADMIN') return false;
+    if (dragged.parentId === targetFolderId) return false;
+
+    if (dragged.type === 'folder') {
+      if (targetFolderId === dragged.id) return false;
+      if (targetFolderId && isDescendant(targetFolderId, dragged.id)) return false;
+    }
+
+    return true;
+  };
+
+  const executeMove = async (
+    type: 'folder' | 'collection',
+    entityId: string,
+    targetFolderId: string | null,
+    originalParentId: string | null
+  ) => {
+    // Optimistically update local state
+    if (type === 'folder') {
+      setFolders(prev => prev.map(f => f.id === entityId ? { ...f, parentFolderId: targetFolderId } : f));
+    } else {
+      setCollections(prev => prev.map(c => c.id === entityId ? { ...c, folderId: targetFolderId } : c));
+    }
+
+    const apiCall = async (targetId: string | null) => {
+      const url = type === 'folder' 
+        ? `/api/database/folders/${entityId}/move`
+        : `/api/database/collections/${entityId}/move`;
+      return fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetFolderId: targetId })
+      });
+    };
+
+    try {
+      const res = await apiCall(targetFolderId);
+      if (!res.ok) {
+        throw new Error('Move failed');
+      }
+    } catch (err) {
+      console.error(err);
+      if (type === 'folder') {
+        setFolders(prev => prev.map(f => f.id === entityId ? { ...f, parentFolderId: originalParentId } : f));
+      } else {
+        setCollections(prev => prev.map(c => c.id === entityId ? { ...c, folderId: originalParentId } : c));
+      }
+      alert('Failed to move item.');
+      return;
+    }
+
+    const handleUndo = async () => {
+      if (type === 'folder') {
+        setFolders(prev => prev.map(f => f.id === entityId ? { ...f, parentFolderId: originalParentId } : f));
+      } else {
+        setCollections(prev => prev.map(c => c.id === entityId ? { ...c, folderId: originalParentId } : c));
+      }
+      setToast(null);
+
+      try {
+        const res = await apiCall(originalParentId);
+        if (!res.ok) {
+          throw new Error('Revert failed');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Failed to undo move.');
+        fetchTree();
+      }
+    };
+
+    const entityName = type === 'folder' 
+      ? folders.find(f => f.id === entityId)?.name || 'Folder'
+      : collections.find(c => c.id === entityId)?.name || 'Collection';
+    const targetName = targetFolderId 
+      ? folders.find(f => f.id === targetFolderId)?.name || 'Folder'
+      : 'Root';
+
+    setToast({
+      message: `Moved "${entityName}" to "${targetName}"`,
+      onUndo: handleUndo,
+      visible: true
+    });
+
+    setTimeout(() => {
+      setToast(prev => prev && prev.onUndo === handleUndo ? null : prev);
+    }, 6000);
+  };
+
+  const entityVisibility = useMemo(() => {
+    if (!activeModalEntity) return 'private';
+    if (activeModalEntity.entityType === 'folder') {
+      const f = folders.find(folder => folder.id === activeModalEntity.entityId);
+      return f?.visibility || 'private';
+    } else if (activeModalEntity.entityType === 'collection') {
+      const c = collections.find(col => col.id === activeModalEntity.entityId);
+      return c?.visibility || 'private';
+    }
+    return 'private';
+  }, [activeModalEntity, folders, collections]);
+
+  const pickerBreadcrumbs = useMemo(() => {
+    const list: { id: string | null; name: string }[] = [];
+    let currId = pickerFolderId;
+    while (currId) {
+      const f = folders.find(folder => folder.id === currId);
+      if (!f) break;
+      list.unshift({ id: f.id, name: f.name });
+      currId = f.parentFolderId;
+    }
+    list.unshift({ id: null, name: entityVisibility === 'public' ? 'Public DB' : 'My DB' });
+    return list;
+  }, [pickerFolderId, folders, entityVisibility]);
+
+  const pickerFolders = useMemo(() => {
+    const visibility = entityVisibility;
+    const allowedFolders = folders.filter(f => {
+      if (f.visibility !== visibility) return false;
+      if (visibility === 'public') return role === 'ADMIN';
+      return f.ownerId === currentUserId;
+    });
+
+    if (pickerSearch.trim()) {
+      const q = pickerSearch.toLowerCase().trim();
+      return allowedFolders.filter(f => f.name.toLowerCase().includes(q));
+    } else {
+      return allowedFolders.filter(f => f.parentFolderId === pickerFolderId);
+    }
+  }, [folders, pickerFolderId, pickerSearch, entityVisibility, role, currentUserId]);
+
+  const currentParentId = useMemo(() => {
+    if (!activeModalEntity) return null;
+    if (activeModalEntity.entityType === 'folder') {
+      const f = folders.find(folder => folder.id === activeModalEntity.entityId);
+      return f ? f.parentFolderId : null;
+    } else if (activeModalEntity.entityType === 'collection') {
+      const c = collections.find(col => col.id === activeModalEntity.entityId);
+      return c ? c.folderId : null;
+    }
+    return null;
+  }, [activeModalEntity, folders, collections]);
+
+  const checkFolderTargetStatus = (folderId: string | null) => {
+    if (!activeModalEntity) return { valid: false, label: '' };
+    
+    if (activeModalEntity.entityType === 'folder') {
+      if (folderId === activeModalEntity.entityId) {
+        return { valid: false, label: 'Cannot move folder into itself' };
+      }
+      if (folderId && isDescendant(folderId, activeModalEntity.entityId)) {
+        return { valid: false, label: 'Cannot move folder into its descendant' };
+      }
+    }
+
+    if (folderId === currentParentId) {
+      return { valid: false, label: 'Already here' };
+    }
+
+    return { valid: true, label: '' };
+  };
+
+  const currentStatus = checkFolderTargetStatus(pickerFolderId);
+
+  const handleCreateFolderInline = async () => {
+    if (!pickerNewFolderName.trim()) return;
+    try {
+      const res = await fetch('/api/database/folders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: pickerNewFolderName.trim(),
+          parentFolderId: pickerFolderId,
+          visibility: entityVisibility
+        })
+      });
+      if (res.ok) {
+        await fetchTree();
+        setPickerNewFolderOpen(false);
+        setPickerNewFolderName('');
+      } else {
+        alert('Failed to create folder');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error creating folder');
+    }
+  };
+
+
+  // Reset suggestions when modals close
+  useEffect(() => {
+    if (!modalType && !activeModal) {
+      setSuggestions([]);
+    }
+  }, [modalType, activeModal]);
+
   // Fetch users for sharing dropdown
   useEffect(() => {
-    if (modalType === 'share') {
-      fetch('/api/users')
+    if (modalType === 'share' || activeModal === 'share') {
+      fetch('/api/users/share-search')
         .then(res => res.json())
         .then(data => {
           if (Array.isArray(data)) {
@@ -186,7 +544,7 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
         })
         .catch(err => console.error('Failed to fetch users list:', err));
     }
-  }, [modalType]);
+  }, [modalType, activeModal]);
 
   // Load a game
   const selectGame = async (gameId: string) => {
@@ -203,11 +561,87 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
         setNodes(parsedNodes);
         setCurrentNodeId(rootId);
         setSelectedVariationIndex(0);
+        setIsModified(false);
       }
     } catch (e) {
       console.error('Failed to fetch game details:', e);
     } finally {
       setLoadingGame(false);
+    }
+  };
+
+  const updateNodeAnnotations = React.useCallback((nodeId: string, comment?: string, glyphs?: string[]) => {
+    setNodes(prev => ({
+      ...prev,
+      [nodeId]: {
+        ...prev[nodeId],
+        comment: comment || undefined,
+        glyphs: glyphs || [],
+      }
+    }));
+    setIsModified(true);
+  }, []);
+
+  const handleMove = React.useCallback((move: any, index: number, afterFen: string) => {
+    const nodeId = `node_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    setNodes(prev => {
+      const parentNode = prev[currentNodeId] || prev['root'];
+      if (!parentNode) return prev;
+      
+      const newMoveNumber = parentNode.turn === 'w' ? parentNode.moveNumber : parentNode.moveNumber + 1;
+      
+      const newNode: MoveNode = {
+        id: nodeId,
+        fen: afterFen,
+        san: move.san || '--',
+        isNull: move.san === '--',
+        parentId: currentNodeId,
+        children: [],
+        moveNumber: newMoveNumber,
+        turn: parentNode.turn === 'w' ? 'b' : 'w',
+        from: move.from,
+        to: move.to,
+        arrows: [],
+        glyphs: []
+      };
+      
+      return {
+        ...prev,
+        [nodeId]: newNode,
+        [currentNodeId]: {
+          ...parentNode,
+          children: [...parentNode.children, nodeId]
+        }
+      };
+    });
+    
+    setCurrentNodeId(nodeId);
+    setSelectedVariationIndex(0);
+    setIsModified(true);
+  }, [currentNodeId]);
+
+  const handleSaveGame = async () => {
+    if (!selectedGameId || !activeGame) return;
+    setSavingGame(true);
+    try {
+      const newPgn = buildPgnFromMoveTree(nodes, 'root', activeGame.headers);
+      const res = await fetch(`/api/database/games/${selectedGameId}/pgn`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pgn: newPgn })
+      });
+      if (res.ok) {
+        setIsModified(false);
+        setActiveGame((prev: any) => ({ ...prev, pgn: newPgn }));
+      } else {
+        const error = await res.json();
+        alert('Failed to save game: ' + error.error);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error saving game.');
+    } finally {
+      setSavingGame(false);
     }
   };
 
@@ -225,6 +659,12 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
   };
 
   const gameHistory = useMemo(() => getPathToRoot(currentNodeId, nodes), [nodes, currentNodeId]);
+
+  const hasWriteAccess = useMemo(() => {
+    if (!activeGame || !activeGame.collection) return false;
+    if (activeGame.collection.visibility === 'public') return role === 'ADMIN';
+    return activeGame.collection.ownerId === currentUserId;
+  }, [activeGame, role, currentUserId]);
 
   const currentNode = nodes[currentNodeId];
 
@@ -820,6 +1260,72 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
     return Array.from(map.values());
   }, [filteredShared.shares]);
 
+  const renderPaginatedGames = (col: Collection, isShared: boolean) => {
+    const itemsPerPage = 20;
+    const currentPage = collectionPages[col.id] || 1;
+    const totalPages = Math.ceil(col.games.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const paginatedGames = col.games.slice(startIndex, startIndex + itemsPerPage);
+
+    return (
+      <div className="tree-children-container">
+        <div key={`${col.id}-page-${currentPage}`} className="tree-games-page-animate">
+          {paginatedGames.map((game, idx) => {
+            const globalIdx = startIndex + idx;
+            return (
+              <button
+                key={game.id}
+                className={`tree-game-btn ${selectedGameId === game.id ? 'active' : ''}`}
+                onClick={() => selectGame(game.id)}
+                data-context-entity-id={game.id}
+                data-context-entity-name={game.chapterName}
+                data-context-entity-type="game"
+                data-context-shared={isShared ? "true" : "false"}
+              >
+                <FileText size={14} />
+                <span style={{ marginRight: '4px', opacity: 0.6 }}>{globalIdx + 1}.</span>
+                <span className="game-chapter-name">{game.chapterName}</span>
+                {game.result && <span className="game-result-badge">{game.result}</span>}
+              </button>
+            );
+          })}
+        </div>
+
+        {totalPages > 1 && (
+          <div className="pagination-controls" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="pagination-btn"
+              disabled={currentPage === 1}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setCollectionPages(prev => ({ ...prev, [col.id]: currentPage - 1 }));
+              }}
+            >
+              Prev
+            </button>
+            <span className="pagination-info">
+              {currentPage} / {totalPages}
+            </span>
+            <button
+              type="button"
+              className="pagination-btn"
+              disabled={currentPage === totalPages}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setCollectionPages(prev => ({ ...prev, [col.id]: currentPage + 1 }));
+              }}
+            >
+              Next
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderSharedFolderContent = (folderId: string | null, sharerId: string) => {
     const childFolders = filteredShared.folders.filter(f => f.parentFolderId === folderId && f.ownerId === sharerId);
     const childCollections = filteredShared.collections.filter(c => c.folderId === folderId && c.ownerId === sharerId);
@@ -870,26 +1376,7 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
                   <span className="node-badge">{col.games.length} ch</span>
                 </button>
               </div>
-              {isExpanded && (
-                <div className="tree-children-container">
-                  {col.games.map((game, idx) => (
-                    <button
-                      key={game.id}
-                      className={`tree-game-btn ${selectedGameId === game.id ? 'active' : ''}`}
-                      onClick={() => selectGame(game.id)}
-                      data-context-entity-id={game.id}
-                      data-context-entity-name={game.chapterName}
-                      data-context-entity-type="game"
-                      data-context-shared="true"
-                    >
-                      <FileText size={14} />
-                      <span style={{ marginRight: '4px', opacity: 0.6 }}>{idx + 1}.</span>
-                      <span className="game-chapter-name">{game.chapterName}</span>
-                      {game.result && <span className="game-result-badge">{game.result}</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
+              {isExpanded && renderPaginatedGames(col, true)}
             </div>
           );
         })}
@@ -914,11 +1401,46 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
           return (
             <div key={folder.id} className="tree-folder-node">
               <div 
-                className="tree-node-row"
+                className={`tree-node-row ${dragOverFolderId === folder.id ? 'drag-over' : ''}`}
                 data-context-entity-id={folder.id}
                 data-context-entity-name={folder.name}
                 data-context-entity-type="folder"
                 data-context-shared="false"
+                draggable={isFolderWritable(folder)}
+                onDragStart={(e) => {
+                  setDraggedEntity({
+                    id: folder.id,
+                    type: 'folder',
+                    parentId: folder.parentFolderId,
+                    visibility: folder.visibility
+                  });
+                  e.dataTransfer.effectAllowed = 'move';
+                }}
+                onDragEnd={() => {
+                  setDraggedEntity(null);
+                  setDragOverFolderId(null);
+                }}
+                onDragOver={(e) => {
+                  if (!draggedEntity) return;
+                  if (isValidDropTarget(draggedEntity, folder.id)) {
+                    e.preventDefault();
+                    setDragOverFolderId(folder.id);
+                  }
+                }}
+                onDragLeave={() => {
+                  if (dragOverFolderId === folder.id) {
+                    setDragOverFolderId(null);
+                  }
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (!draggedEntity) return;
+                  if (isValidDropTarget(draggedEntity, folder.id)) {
+                    executeMove(draggedEntity.type, draggedEntity.id, folder.id, draggedEntity.parentId);
+                  }
+                  setDraggedEntity(null);
+                  setDragOverFolderId(null);
+                }}
               >
                 <button className="tree-node-toggle" onClick={() => toggleFolder(folder.id)}>
                   {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
@@ -992,6 +1514,20 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
                 data-context-entity-name={col.name}
                 data-context-entity-type="collection"
                 data-context-shared="false"
+                draggable={isCollectionWritable(col)}
+                onDragStart={(e) => {
+                  setDraggedEntity({
+                    id: col.id,
+                    type: 'collection',
+                    parentId: col.folderId,
+                    visibility: col.visibility
+                  });
+                  e.dataTransfer.effectAllowed = 'move';
+                }}
+                onDragEnd={() => {
+                  setDraggedEntity(null);
+                  setDragOverFolderId(null);
+                }}
               >
                 <button className="tree-node-toggle" onClick={() => toggleCollection(col.id)}>
                   {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
@@ -1015,26 +1551,7 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
                 </div>
               </div>
 
-              {isExpanded && (
-                <div className="tree-children-container">
-                  {col.games.map((game, idx) => (
-                    <button
-                      key={game.id}
-                      className={`tree-game-btn ${selectedGameId === game.id ? 'active' : ''}`}
-                      onClick={() => selectGame(game.id)}
-                      data-context-entity-id={game.id}
-                      data-context-entity-name={game.chapterName}
-                      data-context-entity-type="game"
-                      data-context-shared="false"
-                    >
-                      <FileText size={14} />
-                      <span style={{ marginRight: '4px', opacity: 0.6 }}>{idx + 1}.</span>
-                      <span className="game-chapter-name">{game.chapterName}</span>
-                      {game.result && <span className="game-result-badge">{game.result}</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
+              {isExpanded && renderPaginatedGames(col, false)}
             </div>
           );
         })}
@@ -1117,12 +1634,12 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
         elements.push(
           <div key={mainId} className="main-row">
             <span className="m-num">{mainNode.moveNumber}.</span>
-            <button className={`m-btn ${currentNodeId === mainId ? 'active' : ''}`} onClick={() => setCurrentNodeId(mainId)}>
+            <button className={`m-btn ${currentNodeId === mainId ? 'active' : ''}`} onClick={() => setCurrentNodeId(mainId)} onContextMenu={(e) => handleMoveContextMenu(e, mainId)}>
               {mainNode.san}
               {mainNode.glyphs?.map(g => <span key={g} className="nag-glyph">{g}</span>)}
             </button>
             {blackNode
-              ? <button className={`m-btn ${currentNodeId === blackId ? 'active' : ''}`} onClick={() => setCurrentNodeId(blackId!)}>
+              ? <button className={`m-btn ${currentNodeId === blackId ? 'active' : ''}`} onClick={() => setCurrentNodeId(blackId!)} onContextMenu={(e) => handleMoveContextMenu(e, blackId!)}>
                   {blackNode.san}
                   {blackNode.glyphs?.map(g => <span key={g} className="nag-glyph">{g}</span>)}
                 </button>
@@ -1138,7 +1655,7 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
             elements.push(
               <div key={vId} className="variation-block">
                 <span className="pgn-num">{vNode.moveNumber}...</span>
-                <button className={`m-btn inline-btn ${currentNodeId === vId ? 'active' : ''}`} onClick={() => setCurrentNodeId(vId)}>
+                <button className={`m-btn inline-btn ${currentNodeId === vId ? 'active' : ''}`} onClick={() => setCurrentNodeId(vId)} onContextMenu={(e) => handleMoveContextMenu(e, vId)}>
                   {vNode.san}
                   {vNode.glyphs?.map(g => <span key={g} className="nag-glyph">{g}</span>)}
                 </button>
@@ -1153,7 +1670,7 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
         elements.push(
           <div key={mainId} className="main-row">
             <span className="m-num">{mainNode.moveNumber}.</span>
-            <button className={`m-btn ${currentNodeId === mainId ? 'active' : ''}`} onClick={() => setCurrentNodeId(mainId)}>
+            <button className={`m-btn ${currentNodeId === mainId ? 'active' : ''}`} onClick={() => setCurrentNodeId(mainId)} onContextMenu={(e) => handleMoveContextMenu(e, mainId)}>
               {mainNode.san}
               {mainNode.glyphs?.map(g => <span key={g} className="nag-glyph">{g}</span>)}
             </button>
@@ -1169,7 +1686,7 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
           elements.push(
             <div key={vId} className="variation-block">
               <span className="pgn-num">{vNode.moveNumber}.</span>
-              <button className={`m-btn inline-btn ${currentNodeId === vId ? 'active' : ''}`} onClick={() => setCurrentNodeId(vId)}>
+              <button className={`m-btn inline-btn ${currentNodeId === vId ? 'active' : ''}`} onClick={() => setCurrentNodeId(vId)} onContextMenu={(e) => handleMoveContextMenu(e, vId)}>
                 {vNode.san}
                 {vNode.glyphs?.map(g => <span key={g} className="nag-glyph">{g}</span>)}
               </button>
@@ -1183,7 +1700,7 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
             <div key={blackId} className="main-row">
               <span className="m-num">{blackNode.moveNumber}...</span>
               <span className="m-placeholder">...</span>
-              <button className={`m-btn ${currentNodeId === blackId ? 'active' : ''}`} onClick={() => setCurrentNodeId(blackId!)}>
+              <button className={`m-btn ${currentNodeId === blackId ? 'active' : ''}`} onClick={() => setCurrentNodeId(blackId!)} onContextMenu={(e) => handleMoveContextMenu(e, blackId!)}>
                 {blackNode.san}
                 {blackNode.glyphs?.map(g => <span key={g} className="nag-glyph">{g}</span>)}
               </button>
@@ -1199,7 +1716,7 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
             elements.push(
               <div key={vId} className="variation-block">
                 <span className="pgn-num">{vNode.moveNumber}...</span>
-                <button className={`m-btn inline-btn ${currentNodeId === vId ? 'active' : ''}`} onClick={() => setCurrentNodeId(vId)}>
+                <button className={`m-btn inline-btn ${currentNodeId === vId ? 'active' : ''}`} onClick={() => setCurrentNodeId(vId)} onContextMenu={(e) => handleMoveContextMenu(e, vId)}>
                   {vNode.san}
                   {vNode.glyphs?.map(g => <span key={g} className="nag-glyph">{g}</span>)}
                 </button>
@@ -1216,7 +1733,7 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
         <div key={mainId} className="main-row">
           <span className="m-num">{mainNode.moveNumber}...</span>
           <span className="m-placeholder">...</span>
-          <button className={`m-btn ${currentNodeId === mainId ? 'active' : ''}`} onClick={() => setCurrentNodeId(mainId)}>
+          <button className={`m-btn ${currentNodeId === mainId ? 'active' : ''}`} onClick={() => setCurrentNodeId(mainId)} onContextMenu={(e) => handleMoveContextMenu(e, mainId)}>
             {mainNode.san}
             {mainNode.glyphs?.map(g => <span key={g} className="nag-glyph">{g}</span>)}
           </button>
@@ -1268,7 +1785,30 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
             <div className="tree-root">
               {/* PUBLIC DB */}
               <div className="tree-section">
-                <div className="tree-node-row section-header">
+                <div 
+                  className={`tree-node-row section-header ${dragOverFolderId === 'virtual_public' ? 'drag-over' : ''}`}
+                  onDragOver={(e) => {
+                    if (!draggedEntity) return;
+                    if (isValidDropTarget(draggedEntity, 'virtual_public')) {
+                      e.preventDefault();
+                      setDragOverFolderId('virtual_public');
+                    }
+                  }}
+                  onDragLeave={() => {
+                    if (dragOverFolderId === 'virtual_public') {
+                      setDragOverFolderId(null);
+                    }
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (!draggedEntity) return;
+                    if (isValidDropTarget(draggedEntity, 'virtual_public')) {
+                      executeMove(draggedEntity.type, draggedEntity.id, null, draggedEntity.parentId);
+                    }
+                    setDraggedEntity(null);
+                    setDragOverFolderId(null);
+                  }}
+                >
                   <button className="tree-node-toggle" onClick={() => toggleFolder('virtual_public')}>
                     {expandedFolders['virtual_public'] ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                     <Globe size={18} className="text-public-db" />
@@ -1304,7 +1844,30 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
 
               {/* MY DB */}
               <div className="tree-section mt-4">
-                <div className="tree-node-row section-header">
+                <div 
+                  className={`tree-node-row section-header ${dragOverFolderId === 'virtual_my' ? 'drag-over' : ''}`}
+                  onDragOver={(e) => {
+                    if (!draggedEntity) return;
+                    if (isValidDropTarget(draggedEntity, 'virtual_my')) {
+                      e.preventDefault();
+                      setDragOverFolderId('virtual_my');
+                    }
+                  }}
+                  onDragLeave={() => {
+                    if (dragOverFolderId === 'virtual_my') {
+                      setDragOverFolderId(null);
+                    }
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (!draggedEntity) return;
+                    if (isValidDropTarget(draggedEntity, 'virtual_my')) {
+                      executeMove(draggedEntity.type, draggedEntity.id, null, draggedEntity.parentId);
+                    }
+                    setDraggedEntity(null);
+                    setDragOverFolderId(null);
+                  }}
+                >
                   <button className="tree-node-toggle" onClick={() => toggleFolder('virtual_my')}>
                     {expandedFolders['virtual_my'] ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                     <Database size={18} className="text-my-db" />
@@ -1418,26 +1981,7 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
                                           <span className="node-badge">{col.games.length} ch</span>
                                         </button>
                                       </div>
-                                      {isColExp && (
-                                        <div className="tree-children-container">
-                                          {col.games.map((game, idx) => (
-                                            <button
-                                              key={game.id}
-                                              className={`tree-game-btn ${selectedGameId === game.id ? 'active' : ''}`}
-                                              onClick={() => selectGame(game.id)}
-                                              data-context-entity-id={game.id}
-                                              data-context-entity-name={game.chapterName}
-                                              data-context-entity-type="game"
-                                              data-context-shared="true"
-                                            >
-                                              <FileText size={14} />
-                                              <span style={{ marginRight: '4px', opacity: 0.6 }}>{idx + 1}.</span>
-                                              <span className="game-chapter-name">{game.chapterName}</span>
-                                              {game.result && <span className="game-result-badge">{game.result}</span>}
-                                            </button>
-                                          ))}
-                                        </div>
-                                      )}
+                                      {isColExp && renderPaginatedGames(col, true)}
                                     </div>
                                   );
                                 })}
@@ -1485,64 +2029,105 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
             <div className="viewer-grid">
               {/* Chessboard area */}
               <div className="viewer-board-col">
-                <div className="viewer-header">
-                  <h2 className="chapter-title">{activeGame?.chapterName}</h2>
-                  {collectionGames.length > 1 && (
-                    <div className="chapter-nav-buttons">
-                      <button
-                        className="chapter-btn"
-                        disabled={currentChapterIdx <= 0}
-                        onClick={() => stepChapter('prev')}
-                        title="Previous Chapter"
-                      >
-                        ‹
-                      </button>
-                      <span className="chapter-indicator">
-                        {currentChapterIdx + 1} / {collectionGames.length}
-                      </span>
-                      <button
-                        className="chapter-btn"
-                        disabled={currentChapterIdx >= collectionGames.length - 1}
-                        onClick={() => stepChapter('next')}
-                        title="Next Chapter"
-                      >
-                        ›
-                      </button>
+                <div className="board-sticky-wrapper">
+                  <div className="viewer-header">
+                    <h2 className="chapter-title">{activeGame?.chapterName}</h2>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      {isModified && (
+                        <button 
+                          className="btn btn-primary" 
+                          onClick={handleSaveGame} 
+                          disabled={savingGame}
+                          style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', fontSize: '12px' }}
+                        >
+                          {savingGame ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                          Save Game
+                        </button>
+                      )}
+                      {collectionGames.length > 1 && (
+                        <div className="chapter-nav-buttons">
+                          <button
+                            className="chapter-btn"
+                            disabled={currentChapterIdx <= 0}
+                            onClick={() => stepChapter('prev')}
+                            title="Previous Chapter"
+                          >
+                            ‹
+                          </button>
+                          <span className="chapter-indicator">
+                            {currentChapterIdx + 1} / {collectionGames.length}
+                          </span>
+                          <button
+                            className="chapter-btn"
+                            disabled={currentChapterIdx >= collectionGames.length - 1}
+                            onClick={() => stepChapter('next')}
+                            title="Next Chapter"
+                          >
+                            ›
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
+                  <div className="board-container">
+                    <ChessBoard
+                      fen={displayFen}
+                      history={gameHistory}
+                      currentIndex={gameHistory.length - 1}
+                      onMove={handleMove}
+                      canNext={canGoNext}
+                      canPrev={canGoPrev}
+                      onNext={handleNext}
+                      onPrev={handlePrev}
+                      onStart={handleStart}
+                      onEnd={handleEnd}
+                      isLocked={!hasWriteAccess}
+                      branches={branches}
+                      selectedBranchIndex={selectedVariationIndex}
+                      onSelectBranch={setSelectedVariationIndex}
+                      onChooseBranch={(id) => {
+                        setCurrentNodeId(id);
+                        setSelectedVariationIndex(0);
+                      }}
+                      currentNode={currentNode}
+                      chapterCount={collectionGames.length}
+                      activeChapterIndex={currentChapterIdx}
+                      onNextChapter={() => {
+                        if (currentChapterIdx < collectionGames.length - 1) {
+                          stepChapter('next');
+                        }
+                      }}
+                      onPrevChapter={() => {
+                        if (currentChapterIdx > 0) {
+                          stepChapter('prev');
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
-                <div className="board-container">
-                  <ChessBoard
-                    fen={displayFen}
-                    history={gameHistory}
-                    currentIndex={gameHistory.length - 1}
-                    onMove={() => {}}
-                    canNext={canGoNext}
-                    canPrev={canGoPrev}
-                    onNext={handleNext}
-                    onPrev={handlePrev}
-                    onStart={handleStart}
-                    onEnd={handleEnd}
-                    isLocked={true}
-                    branches={branches}
-                    selectedBranchIndex={selectedVariationIndex}
-                    onSelectBranch={setSelectedVariationIndex}
-                    onChooseBranch={(id) => {
-                      setCurrentNodeId(id);
-                      setSelectedVariationIndex(0);
-                    }}
+                
+                <div className="annotations-wrapper" style={{ width: '100%', maxWidth: '600px', paddingBottom: '2rem', margin: '0 auto' }}>
+                  <AnnotationsPanel 
                     currentNode={currentNode}
-                    chapterCount={collectionGames.length}
-                    activeChapterIndex={currentChapterIdx}
-                    onNextChapter={() => {
-                      if (currentChapterIdx < collectionGames.length - 1) {
-                        stepChapter('next');
-                      }
+                    studyTags={activeGame?.headers || {}}
+                    isCoach={hasWriteAccess}
+                    onUpdateAnnotations={updateNodeAnnotations}
+                    onSetStudyTag={(key, value) => {
+                      if (!activeGame) return;
+                      setActiveGame((prev: any) => ({
+                        ...prev,
+                        headers: { ...(prev.headers || {}), [key]: value }
+                      }));
+                      setIsModified(true);
                     }}
-                    onPrevChapter={() => {
-                      if (currentChapterIdx > 0) {
-                        stepChapter('prev');
-                      }
+                    onRemoveStudyTag={(key) => {
+                      if (!activeGame) return;
+                      setActiveGame((prev: any) => {
+                        const newHeaders = { ...(prev.headers || {}) };
+                        delete newHeaders[key];
+                        return { ...prev, headers: newHeaders };
+                      });
+                      setIsModified(true);
                     }}
                   />
                 </div>
@@ -1578,16 +2163,15 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
         )}
       </main>
 
-      {/* ── MODALS ── */}
-      {modalType && (
-        <div className="modal-backdrop" onClick={() => setModalType(null)}>
+      {/* Generic Modals */}
+      {modalType && modalType !== 'upload_pgn' && (
+        <div className="modal-overlay" onClick={() => setModalType(null)}>
           <div className="modal-content glass-panel" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>
                 {modalType === 'create_folder' && 'Create Folder'}
                 {modalType === 'rename_folder' && 'Rename Folder'}
                 {modalType === 'delete_folder' && 'Delete Folder'}
-                {modalType === 'upload_pgn' && 'Upload PGN Database'}
                 {modalType === 'share' && 'Share Study Collection'}
               </h3>
               <button className="close-btn" onClick={() => setModalType(null)}>
@@ -1599,7 +2183,6 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
               onSubmit={(e) => {
                 if (modalType === 'create_folder') handleCreateFolder(e);
                 if (modalType === 'rename_folder') handleRenameFolder(e);
-                if (modalType === 'upload_pgn') handleUploadPgn(e);
                 if (modalType === 'share') handleShareCollection(e);
               }}
             >
@@ -1609,75 +2192,48 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
                     Are you sure you want to delete the folder <strong>{activeFolder?.name}</strong>? All subfolders and collections within will be deleted. This action cannot be undone.
                   </p>
                 ) : modalType === 'share' ? (
-                  <div className="form-group">
+                  <div className="form-group" style={{ position: 'relative' }}>
                     <label>Enter Username to Share With:</label>
                     <input
                       type="text"
                       className="form-input"
                       placeholder="e.g. coach1, student1"
                       value={shareUsername}
-                      onChange={(e) => setShareUsername(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setShareUsername(val);
+                        if (val.trim().length > 0) {
+                          const prefix = val.toLowerCase();
+                          setSuggestions(usersList.filter(u => u.username.toLowerCase().startsWith(prefix)));
+                        } else {
+                          setSuggestions([]);
+                        }
+                      }}
+                      onBlur={() => {
+                        setTimeout(() => {
+                          setSuggestions([]);
+                        }, 150);
+                      }}
                       required
-                      list="users-datalist"
                     />
-                    <datalist id="users-datalist">
-                      {usersList.map((u: any) => (
-                        <option key={u.id} value={u.username}>
-                          {u.username} ({u.role})
-                        </option>
-                      ))}
-                    </datalist>
+                    {suggestions.length > 0 && (
+                      <div className="autocomplete-dropdown">
+                        {suggestions.map((u: any) => (
+                          <div 
+                            key={u.id} 
+                            className="autocomplete-item"
+                            onClick={() => {
+                              setShareUsername(u.username);
+                              setSuggestions([]);
+                            }}
+                          >
+                            <span className="item-username">{u.username}</span>
+                            <span className="item-role">{u.role.toLowerCase()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                ) : modalType === 'upload_pgn' ? (
-                  <>
-                    <div className="form-group">
-                      <label>Collection Name:</label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder="e.g. Grandmaster Games"
-                        value={modalInput}
-                        onChange={(e) => setModalInput(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Upload PGN File:</label>
-                      <input
-                        type="file"
-                        accept=".pgn"
-                        className="form-input"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                              if (event.target?.result) {
-                                setUploadPgnText(event.target.result as string);
-                                // Optional: auto-fill collection name from file name if empty
-                                if (!modalInput) {
-                                  setModalInput(file.name.replace(/\.pgn$/i, ''));
-                                }
-                              }
-                            };
-                            reader.readAsText(file);
-                          }
-                        }}
-                      />
-                    </div>
-                    <div className="text-center my-2 text-sm text-gray-500">OR</div>
-                    <div className="form-group">
-                      <label>Paste PGN Content (Supports Multi-Game):</label>
-                      <textarea
-                        className="form-textarea"
-                        placeholder="Paste PGN here..."
-                        value={uploadPgnText}
-                        onChange={(e) => setUploadPgnText(e.target.value)}
-                        required
-                        rows={10}
-                      />
-                    </div>
-                  </>
                 ) : (
                   <div className="form-group">
                     <label>Folder Name:</label>
@@ -1710,6 +2266,46 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Upload PGN Modal */}
+      {modalType === 'upload_pgn' && (
+        <UploadPgnModal
+          isOpen={true}
+          onClose={() => setModalType(null)}
+          requireCollectionName={true}
+          onUpload={async (pgnText, collectionName) => {
+            if (!collectionName || !pgnText) return;
+            try {
+              const res = await fetch('/api/database/collections/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  name: collectionName,
+                  folderId: modalFolderParentId,
+                  visibility: modalVisibility,
+                  pgnText: pgnText
+                })
+              });
+              if (res.ok) {
+                await fetchTree();
+                setModalType(null);
+              } else {
+                let errorMsg = 'Failed to upload PGN';
+                const contentType = res.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                  const err = await res.json();
+                  errorMsg = err.error || errorMsg;
+                } else {
+                  errorMsg = `Server error: ${res.status}`;
+                }
+                alert(errorMsg);
+              }
+            } catch (err) {
+              console.error(err);
+            }
+          }}
+        />
       )}
 
       {/* ── PREMIUM STYLING ── */}
@@ -1953,11 +2549,20 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
           overflow: hidden;
         }
         .viewer-board-col {
-          padding: 1.5rem;
+          display: flex;
+          flex-direction: column;
+          overflow-y: auto;
+          min-height: 0;
+          position: relative;
+        }
+        .board-sticky-wrapper {
+          z-index: 10;
+          background: #fdf0e4;
+          width: 100%;
           display: flex;
           flex-direction: column;
           align-items: center;
-          overflow-y: auto;
+          padding: 1.5rem 1.5rem 1rem 1.5rem;
         }
         .viewer-header {
           display: flex;
@@ -2012,6 +2617,7 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
           flex-direction: column;
           height: 100%;
           overflow: hidden;
+          min-height: 0;
         }
         .moves-header {
           display: flex;
@@ -2262,6 +2868,56 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
           to { opacity: 1; transform: translate(-50%, 0); }
         }
 
+        /* Page animation / pagination */
+        .tree-games-page-animate {
+          animation: pageSlideIn 0.25s ease-out;
+        }
+        @keyframes pageSlideIn {
+          from {
+            opacity: 0;
+            transform: translateX(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        .pagination-controls {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 6px 12px;
+          background: rgba(45, 74, 107, 0.03);
+          border-top: 1px solid #eedcd0;
+          border-bottom: 1px solid #eedcd0;
+          margin-top: 4px;
+          margin-bottom: 4px;
+        }
+        .pagination-btn {
+          background: #ffffff;
+          border: 1px solid #eedcd0;
+          padding: 2px 8px;
+          border-radius: 4px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: #4a2018;
+          transition: all 0.15s ease;
+        }
+        .pagination-btn:hover:not(:disabled) {
+          background: #fdf5ea;
+          border-color: #c8854a;
+          color: #c8854a;
+        }
+        .pagination-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+        .pagination-info {
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: #7a625d;
+        }
+
         /* Context Menu & Modals */
         .modal-overlay {
           position: fixed;
@@ -2318,6 +2974,42 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
           display: flex;
           justify-content: flex-end;
           gap: 8px;
+        }
+        .autocomplete-dropdown {
+          position: absolute;
+          left: 0;
+          right: 0;
+          background: #ffffff;
+          border: 1px solid #eedcd0;
+          border-radius: 6px;
+          max-height: 150px;
+          overflow-y: auto;
+          z-index: 10;
+          box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+        }
+        .autocomplete-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 8px 12px;
+          cursor: pointer;
+          font-size: 0.85rem;
+          color: #4a2018;
+          transition: background 0.1s;
+        }
+        .autocomplete-item:hover {
+          background: #fdf5ea;
+        }
+        .item-username {
+          font-weight: 500;
+        }
+        .item-role {
+          font-size: 0.75rem;
+          color: #c8854a;
+          background: #fdf0e4;
+          padding: 2px 6px;
+          border-radius: 4px;
+          text-transform: capitalize;
         }
         .btn {
           padding: 6px 12px;
@@ -2431,13 +3123,236 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
           from { opacity: 0; transform: translateY(-4px); }
           to { opacity: 1; transform: translateY(0); }
         }
+
+        /* Drag and Drop Drag-over Highlight */
+        .tree-node-row.drag-over {
+          background: rgba(200, 133, 74, 0.15) !important;
+          border: 1px dashed #c8854a;
+        }
+
+        /* Navigable Picker styling */
+        .picker-search {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: #ffffff;
+          border: 1px solid #eedcd0;
+          padding: 6px 10px;
+          border-radius: 6px;
+          margin-bottom: 12px;
+        }
+        .picker-search input {
+          border: none;
+          outline: none;
+          background: transparent;
+          font-size: 0.85rem;
+          width: 100%;
+          color: #4a2018;
+        }
+        .picker-search button {
+          border: none;
+          background: transparent;
+          color: rgba(74, 32, 24, 0.4);
+          cursor: pointer;
+          padding: 2px;
+        }
+        .picker-search button:hover {
+          color: #ef4444;
+        }
+
+        .picker-breadcrumbs {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 4px;
+          font-size: 0.8rem;
+          color: #7a625d;
+          margin-bottom: 12px;
+          background: #fff8f2;
+          padding: 6px 10px;
+          border-radius: 6px;
+          border: 1px solid #eedcd0;
+        }
+        .breadcrumb-item {
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          color: #c8854a;
+          font-weight: 600;
+          padding: 2px 4px;
+          border-radius: 4px;
+        }
+        .breadcrumb-item:hover {
+          background: rgba(200, 133, 74, 0.1);
+        }
+        .breadcrumb-separator {
+          color: #eedcd0;
+        }
+
+        .picker-list {
+          border: 1px solid #eedcd0;
+          border-radius: 8px;
+          max-height: 200px;
+          overflow-y: auto;
+          background: #ffffff;
+          display: flex;
+          flex-direction: column;
+          margin-bottom: 12px;
+        }
+        .picker-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 8px 12px;
+          background: transparent;
+          border: none;
+          border-bottom: 1px solid #fff8f2;
+          width: 100%;
+          cursor: pointer;
+          text-align: left;
+          color: #4a2018;
+          transition: background 0.1s;
+        }
+        .picker-row:hover:not(:disabled) {
+          background: #fdf5ea;
+        }
+        .picker-row:disabled {
+          opacity: 0.45;
+          cursor: not-allowed;
+          background: #fafafa;
+        }
+        .picker-row-content {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .picker-folder-name {
+          font-size: 0.85rem;
+          font-weight: 500;
+        }
+        .picker-row-chevron {
+          color: rgba(74, 32, 24, 0.4);
+        }
+        .picker-empty {
+          padding: 16px;
+          text-align: center;
+          color: rgba(74, 32, 24, 0.5);
+          font-size: 0.82rem;
+        }
+
+        .picker-add-folder-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: transparent;
+          border: none;
+          color: #c8854a;
+          font-size: 0.82rem;
+          font-weight: 600;
+          cursor: pointer;
+          padding: 4px 8px;
+          border-radius: 4px;
+          margin-bottom: 12px;
+          width: fit-content;
+        }
+        .picker-add-folder-btn:hover {
+          background: rgba(200, 133, 74, 0.08);
+        }
+
+        .picker-new-folder-inline {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 12px;
+          padding: 4px;
+          background: #fff8f2;
+          border-radius: 6px;
+          border: 1px dashed #eedcd0;
+        }
+        .picker-new-folder-inline .inline-input {
+          flex: 1;
+          border: 1px solid #eedcd0;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 0.8rem;
+          outline: none;
+          color: #4a2018;
+        }
+        .picker-new-folder-inline .inline-input:focus {
+          border-color: #c8854a;
+        }
+        .btn-sm {
+          padding: 4px 8px;
+          font-size: 0.75rem;
+        }
+
+        /* Toast Styling */
+        .custom-toast {
+          position: fixed;
+          bottom: 24px;
+          left: 50%;
+          transform: translateX(-50%) translateY(20px);
+          background: rgba(74, 32, 24, 0.95);
+          color: #ffffff;
+          padding: 12px 20px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+          z-index: 99999;
+          font-size: 0.9rem;
+          font-weight: 500;
+          opacity: 0;
+          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+          pointer-events: auto;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .custom-toast.show {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0);
+        }
+        .toast-actions {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .toast-undo-btn {
+          background: #c8854a;
+          color: #ffffff;
+          border: none;
+          padding: 4px 12px;
+          border-radius: 4px;
+          font-weight: 600;
+          font-size: 0.8rem;
+          cursor: pointer;
+          transition: background 0.1s;
+        }
+        .toast-undo-btn:hover {
+          background: #e3cca6;
+          color: #4a2018;
+        }
+        .toast-close-btn {
+          background: transparent;
+          border: none;
+          color: rgba(255, 255, 255, 0.6);
+          cursor: pointer;
+          padding: 2px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .toast-close-btn:hover {
+          color: #ffffff;
+        }
       `}</style>
 
       {/* Custom Context Menu */}
       {contextMenu && (
         <div 
           className="custom-context-menu"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
+          ref={(el) => applyContextMenuPosition(el, contextMenu.x, contextMenu.y)}
+          style={{ top: contextMenu.y, left: contextMenu.x, visibility: 'hidden' }}
           onClick={(e) => e.stopPropagation()}
         >
           {contextMenu.entityType === 'game' && (
@@ -2496,6 +3411,18 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
                 const opts = moveCollectionOptions;
                 setMoveTargetId(opts[0]?.id || '');
               } else {
+                let initialParentId: string | null = null;
+                if (contextMenu.entityType === 'folder') {
+                  const f = folders.find(folder => folder.id === contextMenu.entityId);
+                  initialParentId = f ? f.parentFolderId : null;
+                } else if (contextMenu.entityType === 'collection') {
+                  const c = collections.find(col => col.id === contextMenu.entityId);
+                  initialParentId = c ? c.folderId : null;
+                }
+                setPickerFolderId(initialParentId);
+                setPickerSearch('');
+                setPickerNewFolderOpen(false);
+                setPickerNewFolderName('');
                 setMoveTargetId('');
               }
               setContextMenu(null);
@@ -2575,15 +3502,48 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
 
             {activeModal === 'share' && (
               <form onSubmit={handleShareSubmit}>
-                <input 
-                  type="text" 
-                  className="modal-input" 
-                  value={modalInput}
-                  onChange={(e) => setModalInput(e.target.value)}
-                  placeholder="Enter username to share with"
-                  autoFocus
-                  required
-                />
+                <div style={{ position: 'relative' }}>
+                  <input 
+                    type="text" 
+                    className="modal-input" 
+                    value={modalInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setModalInput(val);
+                      if (val.trim().length > 0) {
+                        const prefix = val.toLowerCase();
+                        setSuggestions(usersList.filter(u => u.username.toLowerCase().startsWith(prefix)));
+                      } else {
+                        setSuggestions([]);
+                      }
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        setSuggestions([]);
+                      }, 150);
+                    }}
+                    placeholder="Enter username to share with"
+                    autoFocus
+                    required
+                  />
+                  {suggestions.length > 0 && (
+                    <div className="autocomplete-dropdown" style={{ top: 'calc(100% - 14px)' }}>
+                      {suggestions.map((u: any) => (
+                        <div 
+                          key={u.id} 
+                          className="autocomplete-item"
+                          onClick={() => {
+                            setModalInput(u.username);
+                            setSuggestions([]);
+                          }}
+                        >
+                          <span className="item-username">{u.username}</span>
+                          <span className="item-role">{u.role.toLowerCase()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <div className="modal-actions">
                   <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
                   <button type="submit" className="btn btn-primary" disabled={submittingModal}>
@@ -2608,49 +3568,297 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
             )}
 
             {activeModal === 'move' && (
-              <form onSubmit={handleMoveSubmit}>
-                <p className="modal-description">
-                  Select destination for "{activeModalEntity?.entityName}":
-                </p>
-                <select 
-                  className="modal-select"
-                  value={moveTargetId}
-                  onChange={(e) => setMoveTargetId(e.target.value)}
-                  required={activeModalEntity?.entityType === 'game'}
-                >
-                  {activeModalEntity?.entityType !== 'game' ? (
-                    <>
-                      <option value="">Root (No folder)</option>
-                      {moveFolderOptions.map(f => (
-                        <option key={f.id} value={f.id}>{f.name}</option>
-                      ))}
-                    </>
-                  ) : (
-                    <>
-                      {moveCollectionOptions.length === 0 && (
-                        <option value="">No collections available</option>
-                      )}
-                      {moveCollectionOptions.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </>
-                  )}
-                </select>
-                <div className="modal-actions">
-                  <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
-                  <button 
-                    type="submit" 
-                    className="btn btn-primary" 
-                    disabled={submittingModal || (activeModalEntity?.entityType === 'game' && !moveTargetId)}
+              activeModalEntity?.entityType === 'game' ? (
+                <form onSubmit={handleMoveSubmit}>
+                  <p className="modal-description">
+                    Select destination for "{activeModalEntity?.entityName}":
+                  </p>
+                  <select 
+                    className="modal-select"
+                    value={moveTargetId}
+                    onChange={(e) => setMoveTargetId(e.target.value)}
+                    required
                   >
-                    {submittingModal ? 'Moving...' : 'Move'}
-                  </button>
+                    {moveCollectionOptions.length === 0 && (
+                      <option value="">No collections available</option>
+                    )}
+                    {moveCollectionOptions.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  <div className="modal-actions">
+                    <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
+                    <button 
+                      type="submit" 
+                      className="btn btn-primary" 
+                      disabled={submittingModal || !moveTargetId}
+                    >
+                      {submittingModal ? 'Moving...' : 'Move'}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div>
+                  <p className="modal-description">
+                    Select destination for "{activeModalEntity?.entityName}":
+                  </p>
+                  
+                  {/* Picker Search */}
+                  <div className="picker-search">
+                    <Search size={14} />
+                    <input 
+                      type="text" 
+                      placeholder="Search folders..."
+                      value={pickerSearch}
+                      onChange={(e) => setPickerSearch(e.target.value)}
+                    />
+                    {pickerSearch && (
+                      <button type="button" onClick={() => setPickerSearch('')}>
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Picker Breadcrumbs */}
+                  <div className="picker-breadcrumbs">
+                    {pickerBreadcrumbs.map((bc, idx) => (
+                      <React.Fragment key={bc.id || 'root'}>
+                        {idx > 0 && <span className="breadcrumb-separator">/</span>}
+                        <button 
+                          type="button" 
+                          className="breadcrumb-item"
+                          onClick={() => {
+                            setPickerFolderId(bc.id);
+                            setPickerSearch('');
+                          }}
+                        >
+                          {bc.name}
+                        </button>
+                      </React.Fragment>
+                    ))}
+                  </div>
+
+                  {/* Inline folder creation */}
+                  {pickerNewFolderOpen ? (
+                    <div className="picker-new-folder-inline">
+                      <input 
+                        type="text" 
+                        className="inline-input"
+                        placeholder="New folder name"
+                        value={pickerNewFolderName}
+                        onChange={(e) => setPickerNewFolderName(e.target.value)}
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleCreateFolderInline();
+                          }
+                        }}
+                      />
+                      <button 
+                        type="button" 
+                        className="btn btn-primary btn-sm"
+                        onClick={handleCreateFolderInline}
+                        disabled={!pickerNewFolderName.trim()}
+                      >
+                        Create
+                      </button>
+                      <button 
+                        type="button" 
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => {
+                          setPickerNewFolderOpen(false);
+                          setPickerNewFolderName('');
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button 
+                      type="button" 
+                      className="picker-add-folder-btn"
+                      onClick={() => setPickerNewFolderOpen(true)}
+                    >
+                      <Plus size={14} />
+                      <span>New folder</span>
+                    </button>
+                  )}
+
+                  {/* Picker Folders List */}
+                  <div className="picker-list">
+                    {pickerFolders.length === 0 ? (
+                      <div className="picker-empty">No folders found</div>
+                    ) : (
+                      pickerFolders.map(f => {
+                        const status = checkFolderTargetStatus(f.id);
+                        return (
+                          <button
+                            key={f.id}
+                            type="button"
+                            className={`picker-row ${!status.valid ? 'disabled' : ''}`}
+                            disabled={!status.valid}
+                            onClick={() => {
+                              if (status.valid) {
+                                setPickerFolderId(f.id);
+                              }
+                            }}
+                            title={status.label}
+                          >
+                            <div className="picker-row-content">
+                              <Folder size={16} className="text-folder" />
+                              <span className="picker-folder-name">{f.name}</span>
+                            </div>
+                            <ChevronRight size={14} className="picker-row-chevron" />
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  <div className="modal-actions">
+                    <button type="button" className="btn btn-secondary" onClick={() => setActiveModal(null)}>Cancel</button>
+                    <button 
+                      type="button" 
+                      className="btn btn-primary" 
+                      disabled={!currentStatus.valid}
+                      onClick={() => {
+                        if (activeModalEntity && currentStatus.valid) {
+                          executeMove(
+                            activeModalEntity.type as 'folder' | 'collection',
+                            activeModalEntity.entityId,
+                            pickerFolderId,
+                            currentParentId
+                          );
+                          setActiveModal(null);
+                        }
+                      }}
+                    >
+                      {currentStatus.valid ? 'Move here' : currentStatus.label || 'Cannot move here'}
+                    </button>
+                  </div>
                 </div>
-              </form>
+              )
             )}
           </div>
         </div>
       )}
+
+      {toast && (
+        <div className={`custom-toast ${toast.visible ? 'show' : ''}`}>
+          <span>{toast.message}</span>
+          <div className="toast-actions">
+            <button className="toast-undo-btn" onClick={toast.onUndo}>
+              Undo
+            </button>
+            <button className="toast-close-btn" onClick={() => setToast(null)}>
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+      {moveContextMenu && (
+        <>
+          <div className="context-menu-backdrop" onContextMenu={e => e.preventDefault()} onClick={() => setMoveContextMenu(null)} />
+          <div
+            className="context-menu"
+            style={{ 
+              top: moveContextMenu.y, 
+              left: moveContextMenu.x 
+            }}
+            onContextMenu={e => e.preventDefault()}
+          >
+            <div className="context-menu-header">
+              Move Options
+            </div>
+            <div className="context-menu-list">
+              <button className="context-menu-item" onClick={() => handleMakeMainline(moveContextMenu.nodeId)}>
+                <ArrowUpToLine size={14} /> Promote to Mainline
+              </button>
+              <button className="context-menu-item" onClick={() => handlePromoteVariation(moveContextMenu.nodeId)}>
+                <ArrowUp size={14} /> Move Variation Up
+              </button>
+              <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '4px 0' }} />
+              <button className="context-menu-item danger" onClick={() => handleDeleteSubsequent(moveContextMenu.nodeId)}>
+                <Trash2 size={14} /> Delete from Here
+              </button>
+              <button className="context-menu-item danger" onClick={() => handleDeletePrevious(moveContextMenu.nodeId)}>
+                <Trash2 size={14} /> Delete Before Here
+              </button>
+              <button className="context-menu-item danger" onClick={() => handleDeleteMove(moveContextMenu.nodeId)}>
+                <Trash2 size={14} /> Delete Move
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Styles for Move Context Menu */}
+      <style>{`
+        .context-menu-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 9999;
+          background: transparent;
+        }
+        .context-menu {
+          position: fixed;
+          z-index: 10000;
+          background: rgba(21, 21, 21, 0.96);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 8px;
+          min-width: 200px;
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+          overflow: hidden;
+          font-family: inherit;
+          backdrop-filter: blur(12px);
+          animation: menuFadeIn 0.15s ease-out;
+        }
+        @keyframes menuFadeIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .context-menu-header {
+          padding: 8px 14px;
+          background: rgba(255, 255, 255, 0.04);
+          font-size: 0.8rem;
+          font-weight: 700;
+          color: rgba(255, 255, 255, 0.5);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+          text-align: left;
+        }
+        .context-menu-list {
+          padding: 4px 0;
+          display: flex;
+          flex-direction: column;
+        }
+        .context-menu-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 8px 14px;
+          background: transparent;
+          border: none;
+          color: #e2e8f0;
+          font-size: 0.85rem;
+          cursor: pointer;
+          transition: all 0.15s;
+          text-align: left;
+          width: 100%;
+        }
+        .context-menu-item:hover:not(:disabled) {
+          background: rgba(200, 133, 74, 0.15);
+          color: #c8854a;
+        }
+        .context-menu-item.danger:hover:not(:disabled) {
+          background: rgba(239, 68, 68, 0.15);
+          color: #ef4444;
+        }
+        .context-menu-item:disabled {
+          color: rgba(255, 255, 255, 0.25);
+          cursor: not-allowed;
+        }
+      `}</style>
     </div>
   );
 }

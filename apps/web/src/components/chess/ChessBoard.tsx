@@ -344,7 +344,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
       const config: Config = {
         fen: fen,
         orientation: orientation,
-        coordinates: showCoordinates,
+        coordinates: false, // Disabled native coords, rendering our own in the frame
         turnColor: turnColor,
         lastMove: lastMove,
         movable: {
@@ -370,6 +370,32 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
 
       cgRef.current = Chessground(containerRef.current, config);
     }
+
+    // Set up ResizeObserver to recalculate board bounds on container size changes
+    let observer: ResizeObserver | null = null;
+    if (containerRef.current) {
+      observer = new ResizeObserver(() => {
+        if (cgRef.current) {
+          cgRef.current.redrawAll();
+        }
+      });
+      observer.observe(containerRef.current);
+    }
+
+    // Set up window resize listener
+    const handleResize = () => {
+      if (cgRef.current) {
+        cgRef.current.redrawAll();
+      }
+    };
+    window.addEventListener('resize', handleResize);
+
+    // Initial delay recalculation to handle any mounting shifts/transitions
+    const mountTimer = setTimeout(() => {
+      if (cgRef.current) {
+        cgRef.current.redrawAll();
+      }
+    }, 150);
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft') {
@@ -405,6 +431,11 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
         cgRef.current = null;
       }
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', handleResize);
+      if (observer) {
+        observer.disconnect();
+      }
+      clearTimeout(mountTimer);
     };
   }, [orientation, showCoordinates, isHighlightMode, isArrowMode]);
 
@@ -427,7 +458,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
       cgRef.current.set({
         fen: fen,
         orientation: orientation,
-        coordinates: showCoordinates,
+        coordinates: false, // Disabled native coords, rendering our own in the frame
         turnColor: turnColor,
         lastMove: lastMove,
         movable: {
@@ -693,6 +724,10 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
     history, currentIndex
   ]);
 
+  const fenParts = (fen || '').trim().split(/\s+/);
+  const activeColor = fenParts.length > 1 ? fenParts[1] : 'w';
+  const toPlay = activeColor === 'b' ? 'black' : 'white';
+
   return (
     <div className="chess-container" style={boardWidth ? { maxWidth: `${boardWidth}px` } : undefined}>
       <div 
@@ -706,10 +741,39 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           width: boardWidth ? `${boardWidth}px` : undefined
         }}
       >
-        {/* board-clip: clips the chessground to the rounded border, keeps overflow:hidden */}
-        <div className="board-clip">
-          <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative' }} />
-          {promotionPending && (
+        {/* Outer frame: handles all theme styling, padding, and borders */}
+        <div className="board-outer-frame board-clip" style={{ display: 'flex', width: '100%', height: '100%', boxSizing: 'border-box', position: 'relative' }}>
+          {/* Custom Frame Coordinates */}
+          {showCoordinates && (
+            <>
+              {/* Ranks (1-8) - Left side */}
+              <div 
+                className="custom-frame-coords ranks" 
+                style={{ flexDirection: orientation === 'white' ? 'column-reverse' : 'column' }}
+              >
+                {[1, 2, 3, 4, 5, 6, 7, 8].map(rank => (
+                  <div key={rank} className="coord-label">{rank}</div>
+                ))}
+              </div>
+              {/* Files (a-h) - Bottom side */}
+              <div 
+                className="custom-frame-coords files" 
+                style={{ flexDirection: orientation === 'white' ? 'row' : 'row-reverse' }}
+              >
+                {['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map(file => (
+                  <div key={file} className="coord-label">{file}</div>
+                ))}
+              </div>
+            </>
+          )}
+          {/* Inner element: STRICTLY the 8x8 playing area. No padding, no border, no margin. */}
+          <div 
+            ref={containerRef} 
+            className="board-inner-playing-area" 
+            style={{ width: '100%', height: '100%', padding: 0, margin: 0, border: 'none', position: 'relative' }} 
+          />
+        </div>
+        {promotionPending && (
             <div className="promotion-overlay">
               <div className="promotion-card">
                 <h3 className="promotion-title">Select Promotion</h3>
@@ -735,7 +799,6 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
               </div>
             </div>
           )}
-        </div>
 
         {/* EmojiReactions is OUTSIDE board-clip so the floating panel isn't clipped */}
         <EmojiReactions
@@ -743,6 +806,16 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           isEmojiMode={isEmojiMode}
           onShake={setShakeClass}
           onClose={() => setIsEmojiMode(false)}
+        />
+
+        {/* Active side indicator circle dot */}
+        <div 
+          className="turn-indicator"
+          style={{
+            backgroundColor: toPlay === 'white' ? '#ffffff' : '#000000',
+            border: `1.5px solid ${toPlay === 'white' ? '#000000' : '#ffffff'}`
+          }}
+          title={`${toPlay === 'white' ? 'White' : 'Black'} to play`}
         />
 
         {/* nag-overlay is OUTSIDE board-clip so badges are never clipped */}
@@ -1079,6 +1152,18 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
           box-sizing: border-box;
           /* frame color & padding come from --board-frame-color / --board-frame-padding via globals.css */
+        }
+        .turn-indicator {
+          position: absolute;
+          bottom: 8px;
+          left: 8px;
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          z-index: 600;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+          pointer-events: none;
+          transition: background-color 0.2s ease, border-color 0.2s ease;
         }
         /* board-clip: inner div that clips the chessground squares */
         .board-clip {
@@ -1535,6 +1620,37 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           20%, 80% { transform: translate3d(3px, 2px, 0) rotate(0.5deg); }
           30%, 50%, 70% { transform: translate3d(-4px, -3px, 0) rotate(-1deg); }
           40%, 60% { transform: translate3d(4px, 3px, 0) rotate(1deg); }
+        }
+
+        /* Custom Frame Coordinates */
+        .custom-frame-coords {
+          position: absolute;
+          display: flex;
+          pointer-events: none;
+          color: var(--board-coords-color, var(--primary));
+          font-family: var(--font-sans, sans-serif);
+          font-weight: 600;
+          font-size: clamp(10px, calc(var(--board-frame-padding) * 0.65), 14px);
+          z-index: 10;
+        }
+        .custom-frame-coords.ranks {
+          top: var(--board-frame-padding);
+          bottom: var(--board-frame-padding);
+          left: 0;
+          width: var(--board-frame-padding);
+        }
+        .custom-frame-coords.files {
+          left: var(--board-frame-padding);
+          right: var(--board-frame-padding);
+          bottom: 0;
+          height: var(--board-frame-padding);
+          text-transform: lowercase;
+        }
+        .custom-frame-coords .coord-label {
+          flex: 1 1 auto;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
       `}</style>
     </div>

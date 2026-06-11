@@ -51,6 +51,7 @@ export default function SettingsPage() {
     boardTheme: 'brown',
     pieceTheme: 'cburnett',
     boardFrameColor: '#FDF0E4',
+    boardCoordinatesColor: '#c8854a',
     boardFramePadding: 10,
     panelStyle: 'solid',
     panelOpacity: 95,
@@ -85,6 +86,7 @@ export default function SettingsPage() {
               boardTheme: data.boardTheme || 'brown',
               pieceTheme: data.pieceTheme || 'cburnett',
               boardFrameColor: data.boardFrameColor || '#FDF0E4',
+              boardCoordinatesColor: data.boardCoordinatesColor || '#c8854a',
               boardFramePadding: data.boardFramePadding ?? 10,
               panelStyle: data.panelStyle || 'solid',
               panelOpacity: data.panelOpacity ?? 95,
@@ -112,6 +114,7 @@ export default function SettingsPage() {
               boardTheme: data.boardTheme || 'brown',
               pieceTheme: data.pieceTheme || 'cburnett',
               boardFrameColor: data.boardFrameColor || '#FDF0E4',
+              boardCoordinatesColor: data.boardCoordinatesColor || '#c8854a',
               boardFramePadding: data.boardFramePadding ?? 10,
               panelStyle: data.panelStyle || 'solid',
               panelOpacity: data.panelOpacity ?? 95,
@@ -490,6 +493,35 @@ export default function SettingsPage() {
                                 }} />
                               ))}
                             </div>
+                          </div>
+                        </div>
+
+                        {/* Coordinates Color */}
+                        <div className={styles.frameColorGroup} style={{ marginTop: '20px' }}>
+                          <label className={styles.frameSubLabel}>Coordinates Color</label>
+                          <div className={styles.frameColorGrid}>
+                            {[
+                              { id: '#5C4033', name: 'Walnut Brown' },
+                              { id: '#3B2A22', name: 'Espresso' },
+                              { id: '#A67C52', name: 'Oak' },
+                              { id: '#4B5563', name: 'Slate' },
+                              { id: '#1F2937', name: 'Charcoal' },
+                              { id: '#FDF0E4', name: 'Cream' },
+                              { id: '#2D4A6B', name: 'Navy' },
+                              { id: '#C8854A', name: 'Caramel' },
+                              { id: '#355E3B', name: 'Forest Green' },
+                              { id: '#6B2C3A', name: 'Burgundy' },
+                            ].map(fc => (
+                              <div
+                                key={fc.id}
+                                className={`${styles.frameColorItem} ${branding.boardCoordinatesColor === fc.id ? styles.activeFrameColor : ''}`}
+                                onClick={() => setBranding({ ...branding, boardCoordinatesColor: fc.id })}
+                                title={fc.name}
+                              >
+                                <div className={styles.frameColorSwatch} style={{ backgroundColor: fc.id }} />
+                                <span className={styles.frameColorName}>{fc.name}</span>
+                              </div>
+                            ))}
                           </div>
                         </div>
 

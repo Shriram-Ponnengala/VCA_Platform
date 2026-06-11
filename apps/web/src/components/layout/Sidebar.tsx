@@ -55,7 +55,7 @@ export function Sidebar({ role, username, userId, isCollapsed, onToggle }: Sideb
   }, [userId]);
 
   const adminLinks = [
-    { name: 'Dashboard', href: '/dashboard/admin', icon: Home },
+    { name: 'Dashboard', href: '/dashboard/coach', icon: Home },
     { name: 'Programs', href: '/dashboard/admin/programs', icon: BookOpen },
     { name: 'Batches', href: '/dashboard/admin/batches', icon: Calendar },
     { name: 'Classroom', href: '/classroom', icon: Zap },
@@ -118,7 +118,7 @@ export function Sidebar({ role, username, userId, isCollapsed, onToggle }: Sideb
       <nav className={styles.nav}>
         {links.map((link) => {
           const Icon = link.icon;
-          const isDashboardRoot = link.href === '/dashboard/admin' || link.href === '/dashboard/coach' || link.href === '/dashboard/student';
+          const isDashboardRoot = link.href === '/dashboard/coach' || link.href === '/dashboard/student';
           const isActive = isDashboardRoot ? pathname === link.href : (pathname === link.href || pathname.startsWith(link.href + '/'));
           return (
             <Link 
@@ -189,18 +189,18 @@ export function Sidebar({ role, username, userId, isCollapsed, onToggle }: Sideb
                 <h3>Emoji Reactions (Shift + Key)</h3>
                 <div className={styles.emojiGrid}>
                   <div className={styles.emojiItem}><kbd>Shift+P</kbd><span>👊 Punch</span></div>
-                  <div className={styles.emojiItem}><kbd>Shift+A</kbd><span>😠 Angry</span></div>
+                  <div className={styles.emojiItem}><kbd>Shift+O</kbd><span>👌 OK</span></div>
+                  <div className={styles.emojiItem}><kbd>Shift+Y</kbd><span>🥱 Yawning</span></div>
+                  <div className={styles.emojiItem}><kbd>Shift+U</kbd><span>👍 Thumbsup</span></div>
+                  <div className={styles.emojiItem}><kbd>Shift+I</kbd><span>👎 Thumbsdown</span></div>
+                  <div className={styles.emojiItem}><kbd>Shift+R</kbd><span>😠 Angry</span></div>
+                  <div className={styles.emojiItem}><kbd>Shift+E</kbd><span>😄 Happy</span></div>
+                  <div className={styles.emojiItem}><kbd>Shift+T</kbd><span>😂 Laughing</span></div>
+                  <div className={styles.emojiItem}><kbd>Shift+W</kbd><span>👏 Clap</span></div>
+                  <div className={styles.emojiItem}><kbd>Shift+Q</kbd><span>😢 Sad</span></div>
                   <div className={styles.emojiItem}><kbd>Shift+C</kbd><span>😭 Crying</span></div>
-                  <div className={styles.emojiItem}><kbd>Shift+W</kbd><span>😉 Winking</span></div>
-                  <div className={styles.emojiItem}><kbd>Shift+L</kbd><span>😂 Laughing</span></div>
-                  <div className={styles.emojiItem}><kbd>Shift+H</kbd><span>😄 Happy</span></div>
-                  <div className={styles.emojiItem}><kbd>Shift+S</kbd><span>😢 Sad</span></div>
-                  <div className={styles.emojiItem}><kbd>Shift+T</kbd><span>😜 Teasing</span></div>
-                  <div className={styles.emojiItem}><kbd>Shift+Y</kbd><span>😋 Yummy</span></div>
-                  <div className={styles.emojiItem}><kbd>Shift+I</kbd><span>👋 Hello (Wave)</span></div>
                   <div className={styles.emojiItem}><kbd>Shift+K</kbd><span>🤝 Handshake</span></div>
                   <div className={styles.emojiItem}><kbd>Shift+Z</kbd><span>😴 Sleeping</span></div>
-                  <div className={styles.emojiItem}><kbd>Shift+N</kbd><span>🥱 Yawning</span></div>
                 </div>
               </section>
             </div>

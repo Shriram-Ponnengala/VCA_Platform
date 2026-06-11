@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Mail, Phone, MapPin, Calendar, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import { useCoaches } from '@/lib/hooks/useCoaches';
 import { useBatches } from '@/lib/hooks/useBatches';
+import { generateBatchSlug } from '@/lib/utils/urlUtils';
 import { AddCoachModal } from '../AddCoachModal';
 import styles from './coachDetail.module.css';
 
@@ -25,9 +26,6 @@ export default function CoachProfilePage() {
   if (!coach) {
     return (
       <div className={styles.container}>
-        <button className={styles.backLink} onClick={() => router.push('/dashboard/admin/coaches')}>
-          <ArrowLeft size={16} /> Back to Coaches
-        </button>
         <h2>Coach not found</h2>
       </div>
     );
@@ -56,9 +54,6 @@ export default function CoachProfilePage() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <button className={styles.backLink} onClick={() => router.push('/dashboard/admin/coaches')}>
-          <ArrowLeft size={16} /> Coaches &gt; {coach.name}
-        </button>
         <div className={styles.actions}>
           <button className={styles.editBtn} onClick={() => setIsEditModalOpen(true)}>Edit Coach</button>
           <button className={styles.deleteBtn} onClick={handleDelete}>Delete</button>
@@ -117,7 +112,7 @@ export default function CoachProfilePage() {
           <h3 className={styles.sectionTitle}>Active Batches ({coachBatches.length})</h3>
           <div className={styles.batchList}>
             {coachBatches.map(batch => (
-              <div key={batch.id} className={styles.batchCard} onClick={() => router.push(`/dashboard/admin/batches/${batch.id}`)}>
+              <div key={batch.id} className={styles.batchCard} onClick={() => router.push(`/dashboard/admin/batches/${generateBatchSlug(batch.id, batch.name, batches)}`)}>
                 <div className={styles.batchHeader}>
                   <h4 className={styles.batchName}>{batch.name}</h4>
                   <span className={styles.batchBadge}>{batch.program.split(' ')[0]}</span>

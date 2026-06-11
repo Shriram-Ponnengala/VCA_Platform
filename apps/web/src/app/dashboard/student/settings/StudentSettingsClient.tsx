@@ -99,11 +99,19 @@ export function StudentSettingsClient({ userId, username }: Props) {
       if (res.ok) {
         setToastMessage('Profile updated successfully!');
       } else {
-        const data = await res.json();
-        setToastMessage(data.error || 'Failed to update profile.');
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await res.json();
+          setToastMessage(data.error || 'Failed to update profile.');
+        } else {
+          const text = await res.text();
+          console.error('Non-JSON error response:', text);
+          setToastMessage(`Server error: ${res.status} ${res.statusText}`);
+        }
       }
-    } catch (err) {
-      setToastMessage('An error occurred.');
+    } catch (err: any) {
+      console.error('Profile save exception:', err);
+      setToastMessage(`Error: ${err.message || 'An error occurred.'}`);
     }
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { Award, Calendar, BookOpen, BarChart3, Clock, ArrowRight, Target, Video, CalendarDays } from 'lucide-react';
 import { useBatches } from '@/lib/hooks/useBatches';
 import { StudentBatchSessions } from './StudentBatchSessions';
+import { generateBatchSlug } from '@/lib/utils/urlUtils';
 import styles from './student.module.css';
 
 export default function StudentDashboard() {
@@ -106,7 +107,7 @@ export default function StudentDashboard() {
                 </div>
               </div>
               
-              <StudentBatchSessions batchId={batch.id} />
+              <StudentBatchSessions batchId={batch.id} batchSlug={generateBatchSlug(batch.id, batch.name, batches)} />
             </div>
           );
         })}

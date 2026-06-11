@@ -199,6 +199,21 @@ export class DatabaseController {
     }
   }
 
+  async updateGamePgn(req: Request, res: Response) {
+    try {
+      const user = await getUser(req);
+      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+      const { pgn } = req.body;
+      if (!pgn) return res.status(400).json({ error: 'PGN is required.' });
+
+      const result = await service.updateGamePgn(user.id, user.role, req.params.id as string, pgn);
+      res.json(result);
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  }
+
   async deleteGame(req: Request, res: Response) {
     try {
       const user = await getUser(req);
@@ -276,6 +291,36 @@ export class DatabaseController {
       res.json(result);
     } catch (e: any) {
       res.status(400).json({ error: e.message });
+    }
+  }
+
+  async fetchLichessStudy(req: Request, res: Response) {
+    try {
+      const { url } = req.query;
+      if (!url) {
+        return res.status(400).json({ error: 'URL is required.' });
+      }
+
+      // Extract study ID from URL
+      const match = (url as string).match(/lichess\.org\/study\/([a-zA-Z0-9]+)/);
+      if (!match) {
+        return res.status(400).json({ error: 'Invalid Lichess study URL.' });
+      }
+      const studyId = match[1];
+
+      // Fetch PGN from Lichess study export
+      const response = await fetch(`https://lichess.org/study/${studyId}.pgn`);
+      if (response.status === 401 || response.status === 404) {
+        return res.status(400).json({ error: 'Private study or study not found. Only public or unlisted studies are supported.' });
+      }
+      if (!response.ok) {
+        return res.status(response.status).json({ error: 'Failed to fetch study from Lichess.' });
+      }
+
+      const pgnText = await response.text();
+      res.json({ pgnText });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
     }
   }
 }

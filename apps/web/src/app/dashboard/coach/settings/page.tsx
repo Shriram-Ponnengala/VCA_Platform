@@ -1,5 +1,6 @@
 import React from 'react';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { verifyToken } from '@/lib/auth';
 import { CoachSettingsClient } from './CoachSettingsClient';
 
@@ -16,6 +17,9 @@ export default async function CoachSettingsPage() {
       userId = payload.id;
       username = payload.username;
     }
+  }
+  if (!userId) {
+    redirect('/');
   }
 
   return <CoachSettingsClient userId={userId} username={username} />;

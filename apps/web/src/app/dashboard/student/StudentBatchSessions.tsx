@@ -6,7 +6,7 @@ import { useSessions } from '@/lib/hooks/useSessions';
 import styles from './student.module.css';
 import { useRouter } from 'next/navigation';
 
-export function StudentBatchSessions({ batchId }: { batchId: string }) {
+export function StudentBatchSessions({ batchId, batchSlug }: { batchId: string, batchSlug: string }) {
   const router = useRouter();
   const { sessions, isLoaded } = useSessions(batchId);
 
@@ -21,7 +21,7 @@ export function StudentBatchSessions({ batchId }: { batchId: string }) {
         <div className={styles.cardActions}>
           <button 
             className={styles.btnView}
-            onClick={() => router.push(`/dashboard/student/batches/${batchId}`)}
+            onClick={() => router.push(`/dashboard/student/batches/${batchSlug}`)}
           >
             <CalendarIcon size={16} /> View Details
           </button>
@@ -51,7 +51,7 @@ export function StudentBatchSessions({ batchId }: { batchId: string }) {
       <div className={styles.cardActions}>
         <button 
           className={styles.btnDetails}
-          onClick={() => router.push(`/dashboard/student/batches/${batchId}`)}
+          onClick={() => router.push(`/dashboard/student/batches/${batchSlug}`)}
         >
           Class Details
         </button>

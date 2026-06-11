@@ -59,6 +59,7 @@ const NAG_BOARD: Record<string, {
   '∓':  { label: '∓',  gradient: ['#0891b2', '#0e7490'] },
   '+-': { label: '+-', gradient: ['#1d4ed8', '#1e3a8a'] },
   '-+': { label: '-+', gradient: ['#6d28d9', '#4c1d95'] },
+  '□':  { label: '□',  gradient: ['#4b5563', '#1f2937'] },
 };
 
 // ── Square → board position ──────────────────────────────────────────────────

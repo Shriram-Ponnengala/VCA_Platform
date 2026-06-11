@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, User, BookOpen, Play, Calendar as CalendarIcon, Clock, Users, Video } from 'lucide-react';
 import { Badge } from '@vca/ui';
 import { useBatches } from '@/lib/hooks/useBatches';
+import { extractBatchId } from '@/lib/utils/urlUtils';
 import { useSessions } from '@/lib/hooks/useSessions';
 import styles from '../batches.module.css';
 
@@ -13,7 +14,8 @@ export default function StudentBatchDetailPage() {
   const router = useRouter();
   const { batches, isLoaded } = useBatches();
   
-  const batchId = params.id as string;
+  const rawId = decodeURIComponent(params.id as string);
+  const batchId = extractBatchId(rawId, batches);
   const batch = batches.find(b => b.id === batchId);
   
   const { sessions, isLoaded: sessionsLoaded } = useSessions(batchId);
@@ -24,9 +26,6 @@ export default function StudentBatchDetailPage() {
   if (!batch) {
     return (
       <div className={styles.container}>
-        <button className={styles.backLink} onClick={() => router.push('/dashboard/student/batches')}>
-          <ArrowLeft size={16} /> Back to My Classes
-        </button>
         <h2>Class not found</h2>
       </div>
     );
@@ -36,9 +35,7 @@ export default function StudentBatchDetailPage() {
 
   return (
     <div className={styles.container}>
-      <button className={styles.backLink} onClick={() => router.push('/dashboard/student/batches')}>
-        <ArrowLeft size={16} /> My Classes &gt; {batch.name}
-      </button>
+
 
       <header className={styles.header}>
         <div className={styles.titleArea}>

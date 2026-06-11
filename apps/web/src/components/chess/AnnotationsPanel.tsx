@@ -365,7 +365,6 @@ export const AnnotationsPanel: React.FC<AnnotationsPanelProps> = ({
           border: 1px solid var(--panel-border-color, #eedcd0);
           border-radius: 12px;
           overflow: hidden;
-          height: 100%;
           color: var(--panel-text-color, #4a2018);
         }
 
@@ -404,7 +403,6 @@ export const AnnotationsPanel: React.FC<AnnotationsPanelProps> = ({
         .ap-content {
           padding: 12px;
           flex: 1;
-          overflow-y: auto;
         }
 
         /* TAGS TAB */

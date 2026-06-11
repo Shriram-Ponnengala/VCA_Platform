@@ -6,6 +6,59 @@ const repo = new UsersRepository();
 
 export class UsersService {
   async getAll(role?: string) { return repo.findAll(role); }
+
+  async getShareSearch(userId: string, role: string) {
+    const roleUpper = role.toUpperCase();
+    
+    if (roleUpper === 'COACH') {
+      // Find the coach record first
+      const coach = await prisma.coach.findUnique({
+        where: { userId }
+      });
+      if (!coach) return [];
+
+      // Find all students enrolled in any class taught by this coach
+      const students = await prisma.student.findMany({
+        where: {
+          enrollments: {
+            some: {
+              class: {
+                coachId: coach.id
+              }
+            }
+          },
+          user: {
+            id: { not: userId } // Exclude the coach themselves
+          }
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              role: true
+            }
+          }
+        }
+      });
+
+      // Map to return only the associated user object
+      return students.map(s => s.user).filter(Boolean);
+    } else {
+      // If ADMIN or any other role, return all users except the logged-in user
+      return prisma.user.findMany({
+        where: {
+          id: { not: userId }
+        },
+        select: {
+          id: true,
+          username: true,
+          role: true
+        },
+        orderBy: { username: 'asc' }
+      });
+    }
+  }
   
   private async resolveUserId(id: string): Promise<string> {
     // 1. Try finding as User ID
@@ -108,7 +161,11 @@ export class UsersService {
     // Map allowed user fields
     allowedUserFields.forEach(field => {
       if (data[field] !== undefined) {
-        updateData[field] = data[field];
+        if (field === 'email' && data[field] === '') {
+          updateData[field] = null;
+        } else {
+          updateData[field] = data[field];
+        }
       }
     });
 
@@ -151,7 +208,12 @@ export class UsersService {
       }
     }
 
-    return repo.update(resolvedId, updateData); 
+    try {
+      return await repo.update(resolvedId, updateData); 
+    } catch (e) {
+      console.error('Update User Error:', e);
+      throw e;
+    }
   }
 
   async delete(id: string) { 
