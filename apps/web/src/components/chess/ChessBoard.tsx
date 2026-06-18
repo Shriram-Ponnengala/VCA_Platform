@@ -4,13 +4,14 @@ import { Chess, Move } from 'chess.js';
 import type { Api } from 'chessground/api';
 import type { Config } from 'chessground/config';
 import type { Key } from 'chessground/types';
-import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, RefreshCw, Eraser, RotateCcw, MoreHorizontal, Lock, LayoutGrid, Copy, FileText, Eye, ArrowUpRight, Square, Pen, Wrench, ChevronDown, Upload, ArrowUpDown, Database, SkipBack, SkipForward, Smile } from 'lucide-react';
+import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, RefreshCw, Eraser, RotateCcw, MoreHorizontal, Lock, Clock, LayoutGrid, Copy, FileText, Eye, ArrowUpRight, Square, Pen, Wrench, ChevronDown, Upload, ArrowUpDown, Database, SkipBack, SkipForward, Smile } from 'lucide-react';
 import type { ArrowData, MoveNode } from '@vca/types';
 import { VariationData } from './VariationChooser';
 import { NagBadge } from './NagBadge';
 import SetupPositionModal from './SetupPositionModal';
 import UploadPgnModal from './UploadPgnModal';
 import { EmojiReactions } from './EmojiReactions';
+import { NagReactionOverlay } from './NagReactionOverlay';
 
 import 'chessground/assets/chessground.base.css';
 import 'chessground/assets/chessground.brown.css';
@@ -37,6 +38,7 @@ interface ChessBoardProps {
   onSelectBranch?: (index: number) => void;
   onChooseBranch?: (id: string) => void;
   currentNode?: MoveNode;
+  nodes?: Record<string, MoveNode>;
   onReset?: () => void;
   onClearArrows?: () => void;
   onMoreTools?: () => void;
@@ -51,6 +53,7 @@ interface ChessBoardProps {
   onNextChapter?: () => void;
   onPrevChapter?: () => void;
   onToggleLock?: (locked: boolean) => void;
+  hideSocialFeatures?: boolean;
 }
 
 const ChessBoard: React.FC<ChessBoardProps> = ({
@@ -59,7 +62,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
   onVariationUp, onVariationDown,
   arrows = [], onUpdateArrows, isLocked = false,
   branches = [], selectedBranchIndex = 0, onSelectBranch, onChooseBranch,
-  currentNode,
+  currentNode, nodes,
   onReset, onClearArrows, onMoreTools,
   isFreehand = false, onToggleFreehand,
   onSetupPosition,
@@ -71,6 +74,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
   onNextChapter,
   onPrevChapter,
   onToggleLock,
+  hideSocialFeatures = false,
 }) => {
   const [orientation, setOrientation] = useState<'white' | 'black'>('white');
   const [showToolsMenu, setShowToolsMenu] = useState(false);
@@ -83,6 +87,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
   const [promotionPending, setPromotionPending] = useState<{ from: string; to: string; color: 'w' | 'b' } | null>(null);
   const [isEmojiMode, setIsEmojiMode] = useState(false);
   const [shakeClass, setShakeClass] = useState<'heavy' | 'medium' | 'light' | 'none'>('none');
+  const [userShowClocks, setUserShowClocks] = useState(true);
 
   useEffect(() => {
     if (isFreehand) {
@@ -476,6 +481,93 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
     }
   }, [fen, currentIndex, isLocked, arrows, orientation, showCoordinates, isFreehand, isHighlightMode, isArrowMode, isEmojiMode, currentNode]);
 
+  // ── Clock logic ─────────────────────────────────────────────────────────
+  const [whiteClock, setWhiteClock] = useState<string | null>(null);
+  const [blackClock, setBlackClock] = useState<string | null>(null);
+  const [whiteDelta, setWhiteDelta] = useState<string | null>(null);
+  const [blackDelta, setBlackDelta] = useState<string | null>(null);
+  const [activeClockColor, setActiveClockColor] = useState<'white' | 'black'>('white');
+  const [showClocks, setShowClocks] = useState(false);
+
+  useEffect(() => {
+    if (!currentNode || !nodes) {
+      setWhiteClock(null);
+      setBlackClock(null);
+      setWhiteDelta(null);
+      setBlackDelta(null);
+      setShowClocks(false);
+      return;
+    }
+
+    let wClock: string | null = null;
+    let bClock: string | null = null;
+    let wPrevClock: string | null = null;
+    let bPrevClock: string | null = null;
+    
+    // 1. Trace backward to find the last recorded clock for each player up to the current position
+    let curr: MoveNode | undefined = currentNode;
+    while (curr && curr.id !== 'root') {
+      if (curr.turn === 'w') {
+        if (!wClock && curr.clk) wClock = curr.clk;
+        else if (wClock && !wPrevClock && curr.clk) wPrevClock = curr.clk;
+      } else if (curr.turn === 'b') {
+        if (!bClock && curr.clk) bClock = curr.clk;
+        else if (bClock && !bPrevClock && curr.clk) bPrevClock = curr.clk;
+      }
+      curr = curr.parentId ? nodes[curr.parentId] : undefined;
+    }
+
+    // 2. If we still don't have a clock for a player (e.g. at starting position), scan forward along the mainline
+    if (!wClock || !bClock) {
+      let forwardNode = currentNode;
+      while (forwardNode && forwardNode.children && forwardNode.children.length > 0) {
+        const nextId = forwardNode.children[0];
+        const nextNode = nodes[nextId];
+        if (!nextNode) break;
+        if (nextNode.turn === 'w' && !wClock && nextNode.clk) {
+          wClock = nextNode.clk;
+        } else if (nextNode.turn === 'b' && !bClock && nextNode.clk) {
+          bClock = nextNode.clk;
+        }
+        if (wClock && bClock) break;
+        forwardNode = nextNode;
+      }
+    }
+
+    setWhiteClock(wClock);
+    setBlackClock(bClock);
+
+    const calcDelta = (currTime: string | null, prevTime: string | null) => {
+      if (!currTime || !prevTime) return null;
+      const parseTime = (t: string) => {
+        const parts = t.split(':').map(Number);
+        if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+        if (parts.length === 2) return parts[0] * 60 + parts[1];
+        return 0;
+      };
+      const diff = parseTime(prevTime) - parseTime(currTime);
+      if (diff <= 0) return null;
+      const m = Math.floor(diff / 60);
+      const s = diff % 60;
+      return `+${m > 0 ? `${m}:` : '0:'}${s.toString().padStart(2, '0')}`;
+    };
+
+    setWhiteDelta(currentNode.turn === 'w' ? calcDelta(wClock, wPrevClock) : null);
+    setBlackDelta(currentNode.turn === 'b' ? calcDelta(bClock, bPrevClock) : null);
+
+    let turnColor: 'white' | 'black' = 'white';
+    try {
+      const chess = new Chess(currentNode.fen);
+      turnColor = chess.turn() === 'w' ? 'white' : 'black';
+    } catch {
+      turnColor = currentNode.fen.split(' ')[1] === 'w' ? 'white' : 'black';
+    }
+    setActiveClockColor(turnColor);
+
+    const hasAnyClock = nodes ? Object.values(nodes).some(n => !!n.clk) : false;
+    setShowClocks(hasAnyClock && userShowClocks);
+  }, [currentNode, nodes, userShowClocks]);
+
   const getEventCoords = (e: MouseEvent | TouchEvent) => {
     if ('touches' in e && e.touches.length > 0) {
       return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
@@ -768,10 +860,47 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           )}
           {/* Inner element: STRICTLY the 8x8 playing area. No padding, no border, no margin. */}
           <div 
-            ref={containerRef} 
             className="board-inner-playing-area" 
             style={{ width: '100%', height: '100%', padding: 0, margin: 0, border: 'none', position: 'relative' }} 
-          />
+          >
+            {/* Custom Background Grid for custom board themes */}
+            <div 
+              className="custom-board-grid-background" 
+              style={{ 
+                position: 'absolute', 
+                top: 0, 
+                left: 0, 
+                width: '100%', 
+                height: '100%', 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(8, 1fr)', 
+                gridTemplateRows: 'repeat(8, 1fr)', 
+                pointerEvents: 'none', 
+                zIndex: 0 
+              }}
+            >
+              {Array.from({ length: 64 }).map((_, idx) => {
+                const fileIdx = idx % 8;
+                const rankIdx = Math.floor(idx / 8);
+                const isWhite = (fileIdx + rankIdx) % 2 === 0;
+                return (
+                  <div 
+                    key={idx} 
+                    className={isWhite ? 'custom-square-white' : 'custom-square-black'}
+                    style={{
+                      background: isWhite ? 'var(--board-square-light)' : 'var(--board-square-dark)'
+                    }}
+                  />
+                );
+              })}
+            </div>
+
+            {/* Chessground Mount Container */}
+            <div 
+              ref={containerRef} 
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1 }} 
+            />
+          </div>
         </div>
         {promotionPending && (
             <div className="promotion-overlay">
@@ -808,6 +937,11 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           onClose={() => setIsEmojiMode(false)}
         />
 
+        <NagReactionOverlay
+          boardWidth={boardWidth}
+          onShake={setShakeClass}
+        />
+
         {/* Active side indicator circle dot */}
         <div 
           className="turn-indicator"
@@ -817,6 +951,27 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           }}
           title={`${toPlay === 'white' ? 'White' : 'Black'} to play`}
         />
+
+        {showClocks && (
+          <div className="chess-clocks-container">
+            {/* Black Clock */}
+            <div className={`chess-clock chess-clock-black ${orientation === 'white' ? 'clock-top' : 'clock-bottom'} ${activeClockColor === 'black' ? 'clock-active' : ''}`}>
+              <div className="clock-label">
+                <span className="clock-color-dot" style={{ background: '#333' }}></span>
+                Black {activeClockColor === 'black' && blackDelta && <span className="clock-delta">{blackDelta}</span>}
+              </div>
+              <div className="clock-time">{blackClock || '-:--'}</div>
+            </div>
+            {/* White Clock */}
+            <div className={`chess-clock chess-clock-white ${orientation === 'white' ? 'clock-bottom' : 'clock-top'} ${activeClockColor === 'white' ? 'clock-active' : ''}`}>
+              <div className="clock-label">
+                <span className="clock-color-dot" style={{ background: '#eee' }}></span>
+                White {activeClockColor === 'white' && whiteDelta && <span className="clock-delta">{whiteDelta}</span>}
+              </div>
+              <div className="clock-time">{whiteClock || '-:--'}</div>
+            </div>
+          </div>
+        )}
 
         {/* nag-overlay is OUTSIDE board-clip so badges are never clipped */}
         <div className="nag-overlay" style={{
@@ -853,6 +1008,19 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
                     className={`tools-toggle ${isLocked ? 'tools-toggle-on' : ''}`}
                     onClick={(e) => { e.stopPropagation(); onMoreTools(); }}
                     aria-label="Toggle Board Lock"
+                  >
+                    <span className="tools-toggle-knob" />
+                  </button>
+                </div>
+              )}
+              {nodes && Object.values(nodes).some(n => !!n.clk) && (
+                <div className="tools-menu-row tools-menu-row-clickable" onClick={() => setUserShowClocks(prev => !prev)}>
+                  <span className="tools-row-icon"><Clock size={15} /></span>
+                  <span className="tools-row-label">Show Clocks</span>
+                  <button
+                    className={`tools-toggle ${userShowClocks ? 'tools-toggle-on' : ''}`}
+                    onClick={(e) => { e.stopPropagation(); setUserShowClocks(prev => !prev); }}
+                    aria-label="Toggle Clocks"
                   >
                     <span className="tools-toggle-knob" />
                   </button>
@@ -983,7 +1151,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
                   <span className="tools-toggle-knob" />
                 </button>
               </div>
-              {onToggleFreehand && (
+              {!hideSocialFeatures && onToggleFreehand && (
                 <div className="tools-menu-row tools-menu-row-clickable" onClick={() => { onToggleFreehand(!isFreehand); }}>
                   <span className="tools-row-icon"><Pen size={15} /></span>
                   <span className="tools-row-label">Freehand</span>
@@ -996,29 +1164,31 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
                   </button>
                 </div>
               )}
-              <div className="tools-menu-row tools-menu-row-clickable" onClick={() => {
-                  setIsEmojiMode(prev => {
-                    const next = !prev;
-                    if (next) {
-                      setIsArrowMode(false);
-                      setIsHighlightMode(false);
-                      if (onToggleFreehand && isFreehand) {
-                        onToggleFreehand(false);
+              {!hideSocialFeatures && (
+                <div className="tools-menu-row tools-menu-row-clickable" onClick={() => {
+                    setIsEmojiMode(prev => {
+                      const next = !prev;
+                      if (next) {
+                        setIsArrowMode(false);
+                        setIsHighlightMode(false);
+                        if (onToggleFreehand && isFreehand) {
+                          onToggleFreehand(false);
+                        }
                       }
-                    }
-                    return next;
-                  });
-                }}>
-                <span className="tools-row-icon"><Smile size={15} /></span>
-                <span className="tools-row-label">Emoji Reactions</span>
-                <button
-                  className={`tools-toggle ${isEmojiMode ? 'tools-toggle-on' : ''}`}
-                  onClick={(e) => { e.stopPropagation(); setIsEmojiMode(prev => { const next = !prev; if (next) { setIsArrowMode(false); setIsHighlightMode(false); if (onToggleFreehand && isFreehand) onToggleFreehand(false); } return next; }); }}
-                  aria-label="Toggle Emoji Mode"
-                >
-                  <span className="tools-toggle-knob" />
-                </button>
-              </div>
+                      return next;
+                    });
+                  }}>
+                  <span className="tools-row-icon"><Smile size={15} /></span>
+                  <span className="tools-row-label">Emoji Reactions</span>
+                  <button
+                    className={`tools-toggle ${isEmojiMode ? 'tools-toggle-on' : ''}`}
+                    onClick={(e) => { e.stopPropagation(); setIsEmojiMode(prev => { const next = !prev; if (next) { setIsArrowMode(false); setIsHighlightMode(false); if (onToggleFreehand && isFreehand) onToggleFreehand(false); } return next; }); }}
+                    aria-label="Toggle Emoji Mode"
+                  >
+                    <span className="tools-toggle-knob" />
+                  </button>
+                </div>
+              )}
               {onClearArrows && (
                 <button
                   className="tools-menu-row tools-row-btn"
@@ -1164,6 +1334,86 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
           pointer-events: none;
           transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+        .chess-clocks-container {
+          position: absolute;
+          top: 0;
+          right: -130px;
+          bottom: 0;
+          width: 120px;
+          pointer-events: none;
+          z-index: 50;
+        }
+        .chess-clock {
+          position: absolute;
+          width: 100%;
+          background: #2a3547;
+          border: 2px solid rgba(255, 255, 255, 0.1);
+          border-radius: 8px;
+          padding: 8px 12px;
+          box-sizing: border-box;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          color: #fff;
+          transition: top 0.3s, bottom 0.3s, border-color 0.2s, background 0.2s;
+        }
+        .chess-clock.clock-active {
+          border-color: #c8854a;
+          background: #344156;
+        }
+        .clock-top {
+          top: 0;
+        }
+        .clock-bottom {
+          bottom: 0;
+        }
+        .clock-label {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: #94a3b8;
+          white-space: nowrap;
+        }
+        .clock-color-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          border: 1px solid #000;
+          flex-shrink: 0;
+        }
+        .clock-time {
+          font-size: 1.5rem;
+          font-weight: 700;
+          font-variant-numeric: tabular-nums;
+          line-height: 1;
+        }
+        .clock-delta {
+          margin-left: auto;
+          font-size: 0.7rem;
+          color: #fbbf24;
+        }
+        @media (max-width: 850px) {
+          .chess-clocks-container {
+            right: 0;
+            width: auto;
+            left: 0;
+          }
+          .chess-clock {
+            right: 0;
+            width: auto;
+            min-width: 100px;
+            padding: 4px 8px;
+          }
+          .clock-top {
+            top: -55px;
+          }
+          .clock-bottom {
+            bottom: -55px;
+          }
         }
         /* board-clip: inner div that clips the chessground squares */
         .board-clip {
@@ -1627,6 +1877,9 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           position: absolute;
           display: flex;
           pointer-events: none;
+          background: var(--board-coords-color, var(--primary));
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
           color: var(--board-coords-color, var(--primary));
           font-family: var(--font-sans, sans-serif);
           font-weight: 600;

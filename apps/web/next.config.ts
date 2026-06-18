@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   transpilePackages: ['@vca/ui'],
+  experimental: {
+    // Prevents Turbopack from persisting stale route resolution cache across restarts
+    turbopackFileSystemCacheForDev: false,
+  },
   logging: {
     fetches: {
       fullUrl: true,

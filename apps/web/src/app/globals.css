@@ -115,15 +115,22 @@ button {
   background-color: transparent;
 }
 .board-clip {
-  background-color: var(--board-frame-color) !important;
+  background: var(--board-frame-color) !important;
   padding: var(--board-frame-padding) !important;
 }
 
-.board-wrapper cg-board {
+cg-board {
   background-color: var(--board-light) !important;
   background-image: var(--board-image) !important;
   background-size: var(--board-size) !important;
 }
+cg-board square.white {
+  background: var(--board-square-light, transparent) !important;
+}
+cg-board square.black {
+  background: var(--board-square-dark, transparent) !important;
+}
+
 
 
 .board-wrapper piece.pawn.white { background-image: var(--piece-wp, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wP.svg')) !important; }

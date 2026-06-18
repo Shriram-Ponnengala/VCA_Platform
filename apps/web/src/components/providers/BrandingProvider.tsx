@@ -71,33 +71,80 @@ export default function BrandingProvider() {
           blue_cb: { light: '#dce8f8', dark: '#4878c8', image: 'https://lichess1.org/assets/images/board/blue2.jpg' },
           purple_diag: { light: '#d8c0e8', dark: '#8050a8', image: 'https://lichess1.org/assets/images/board/purple-diag.png' },
         };
-        const theme = themes[boardKey] || themes.brown;
-        document.documentElement.style.setProperty('--board-light', theme.light);
-        document.documentElement.style.setProperty('--board-dark', theme.dark);
-        if (theme.image) {
-          if (theme.hasOverlay) {
+        console.log('[BrandingProvider] boardKey:', boardKey);
+        if (boardKey.startsWith('custom_')) {
+          console.log('[BrandingProvider] branding.customThemes:', branding.customThemes);
+          let customTheme: any = null;
+          if (branding.customThemes) {
+            customTheme = branding.customThemes.find((t: any) => t.id.toLowerCase() === boardKey);
+          }
+          if (!customTheme) {
+            try {
+              const localCustoms = localStorage.getItem('vca_custom_board_themes');
+              console.log('[BrandingProvider] localCustoms:', localCustoms);
+              if (localCustoms) {
+                const parsed = JSON.parse(localCustoms);
+                customTheme = parsed.find((t: any) => t.id.toLowerCase() === boardKey);
+              }
+            } catch (e) {
+              console.error('[BrandingProvider] Error loading local customs:', e);
+            }
+          }
+          console.log('[BrandingProvider] customTheme resolved:', customTheme);
+          
+          if (customTheme) {
+            document.documentElement.style.setProperty('--board-light', 'transparent');
+            document.documentElement.style.setProperty('--board-image', 'none');
+            document.documentElement.style.setProperty('--board-square-light', customTheme.light);
+            document.documentElement.style.setProperty('--board-square-dark', customTheme.dark);
+          } else {
+            const theme = themes.brown;
+            document.documentElement.style.setProperty('--board-light', theme.light);
+            document.documentElement.style.setProperty('--board-dark', theme.dark);
             document.documentElement.style.setProperty(
               '--board-image',
-              `conic-gradient(rgba(0, 0, 0, 0.22) 25%, transparent 0 50%, rgba(0, 0, 0, 0.22) 0 75%, transparent 0), url('${theme.image}')`
+              `conic-gradient(var(--board-dark) 25%, transparent 0 50%, var(--board-dark) 0 75%, transparent 0)`
             );
-          } else {
-            document.documentElement.style.setProperty('--board-image', `url('${theme.image}')`);
+            document.documentElement.style.setProperty('--board-size', '25% 25%');
+            document.documentElement.style.setProperty('--board-square-light', 'transparent');
+            document.documentElement.style.setProperty('--board-square-dark', 'transparent');
           }
-          document.documentElement.style.setProperty('--board-size', '100% 100%');
         } else {
-          document.documentElement.style.setProperty(
-            '--board-image',
-            `conic-gradient(var(--board-dark) 25%, transparent 0 50%, var(--board-dark) 0 75%, transparent 0)`
-          );
-          document.documentElement.style.setProperty('--board-size', '25% 25%');
+          document.documentElement.style.setProperty('--board-square-light', 'transparent');
+          document.documentElement.style.setProperty('--board-square-dark', 'transparent');
+          
+          const theme = themes[boardKey] || themes.brown;
+          document.documentElement.style.setProperty('--board-light', theme.light);
+          document.documentElement.style.setProperty('--board-dark', theme.dark);
+          if (theme.image) {
+            if (theme.hasOverlay) {
+              document.documentElement.style.setProperty(
+                '--board-image',
+                `conic-gradient(rgba(0, 0, 0, 0.22) 25%, transparent 0 50%, rgba(0, 0, 0, 0.22) 0 75%, transparent 0), url('${theme.image}')`
+              );
+            } else {
+              document.documentElement.style.setProperty('--board-image', `url('${theme.image}')`);
+            }
+            document.documentElement.style.setProperty('--board-size', '100% 100%');
+          } else {
+            document.documentElement.style.setProperty(
+              '--board-image',
+              `conic-gradient(var(--board-dark) 25%, transparent 0 50%, var(--board-dark) 0 75%, transparent 0)`
+            );
+            document.documentElement.style.setProperty('--board-size', '25% 25%');
+          }
         }
 
         const pTheme = (branding.pieceTheme || 'cburnett').toLowerCase();
         const pieces = ['wP', 'wB', 'wN', 'wR', 'wQ', 'wK', 'bP', 'bB', 'bN', 'bR', 'bQ', 'bK'];
+        const isLocalTheme = pTheme === 'chibi';
         pieces.forEach(p => {
+          const url = isLocalTheme 
+            ? `/pieces/${pTheme}/${p.toLowerCase()}.png`
+            : `https://lichess1.org/assets/_L5MIdy/piece/${pTheme}/${p}.svg`;
           document.documentElement.style.setProperty(
             `--piece-${p.toLowerCase()}`,
-            `url(https://lichess1.org/assets/_L5MIdy/piece/${pTheme}/${p}.svg)`
+            `url(${url})`
           );
         });
 
@@ -173,6 +220,83 @@ export default function BrandingProvider() {
         document.documentElement.style.setProperty('--panel-bg-position', panelBgPosition);
         document.documentElement.style.setProperty('--panel-avatar-bg', panelAvatarBg);
 
+        // Classroom Background Custom CSS Properties
+        const bg = branding.classroomBackground || { type: 'solid', solidColor: '#fdf0e4' };
+        let bgValue = '#fdf0e4';
+        let bgSize = 'auto';
+        let bgRepeat = 'repeat';
+        let bgPosition = '0 0';
+        let bgOverlay = 'transparent';
+
+        if (bg.type === 'solid') {
+          bgValue = bg.solidColor || '#fdf0e4';
+        } else if (bg.type === 'gradient') {
+          const stops = bg.gradient?.stops || [
+            { color: '#fdf0e4', position: 0 },
+            { color: '#eedcd0', position: 100 }
+          ];
+          const direction = bg.gradient?.direction || '135deg';
+          const stopsStr = stops.map((s: any) => `${s.color} ${s.position}%`).join(', ');
+          bgValue = `linear-gradient(${direction}, ${stopsStr})`;
+        } else if (bg.type === 'texture') {
+          const texture = bg.texture || 'dots';
+          if (texture === 'dots') {
+            bgValue = 'radial-gradient(#eedcd0 15%, transparent 16%)';
+            bgSize = '16px 16px';
+            bgRepeat = 'repeat';
+          } else if (texture === 'grid') {
+            bgValue = 'linear-gradient(rgba(238, 220, 208, 0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(238, 220, 208, 0.4) 1px, transparent 1px)';
+            bgSize = '20px 20px';
+            bgRepeat = 'repeat';
+          } else if (texture === 'stripes') {
+            bgValue = 'repeating-linear-gradient(45deg, #fdf0e4, #fdf0e4 10px, #f5e4d7 10px, #f5e4d7 20px)';
+          } else if (texture === 'wood') {
+            bgValue = `url('https://lichess1.org/assets/images/board/maple.jpg')`;
+            bgSize = '200px 200px';
+            bgRepeat = 'repeat';
+          } else if (texture === 'stars') {
+            bgValue = '#0d1b2a';
+            bgValue = `radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 40px), radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 30px), radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 40px)`;
+            bgSize = '550px 550px, 350px 350px, 250px 250px';
+            bgPosition = '0 0, 40px 60px, 130px 270px';
+            bgRepeat = 'repeat';
+          }
+        } else if (bg.type === 'image') {
+          // For uploaded images, use the dedicated API endpoint instead of the base64 data URI.
+          // Embedding 5MB+ base64 strings as CSS custom property values exceeds browser limits.
+          let imgUrl: string;
+          if (bg.imageSource === 'upload' && bg.imageUpload) {
+            imgUrl = '/api/settings/branding/background-image';
+          } else {
+            imgUrl = bg.imageUrl || '';
+          }
+          if (imgUrl) {
+            bgValue = `url('${imgUrl}')`;
+            bgSize = 'cover';
+            bgPosition = 'center';
+            bgRepeat = 'no-repeat';
+            if (bg.imageOverlay) {
+              bgOverlay = 'rgba(0, 0, 0, 0.45)';
+            }
+          } else {
+            bgValue = '';
+          }
+        }
+
+        if (bgValue) {
+          document.documentElement.style.setProperty('--classroom-bg', bgValue);
+          document.documentElement.style.setProperty('--classroom-bg-size', bgSize);
+          document.documentElement.style.setProperty('--classroom-bg-repeat', bgRepeat);
+          document.documentElement.style.setProperty('--classroom-bg-position', bgPosition);
+          document.documentElement.style.setProperty('--classroom-bg-overlay', bgOverlay);
+        } else {
+          document.documentElement.style.removeProperty('--classroom-bg');
+          document.documentElement.style.removeProperty('--classroom-bg-size');
+          document.documentElement.style.removeProperty('--classroom-bg-repeat');
+          document.documentElement.style.removeProperty('--classroom-bg-position');
+          document.documentElement.style.removeProperty('--classroom-bg-overlay');
+        }
+
       } catch (e) {
         console.error('Failed to apply branding settings', e);
       }
@@ -204,7 +328,18 @@ export default function BrandingProvider() {
             const globalBranding = await res.json();
             if (globalBranding) {
               try { applyVariables(globalBranding); } catch (e) {}
-              localStorage.setItem('vca_settings_branding', JSON.stringify(globalBranding));
+              try {
+                const sanitized = { ...globalBranding };
+                if (sanitized.classroomBackground) {
+                  sanitized.classroomBackground = {
+                    ...sanitized.classroomBackground,
+                    imageUpload: ''
+                  };
+                }
+                localStorage.setItem('vca_settings_branding', JSON.stringify(sanitized));
+              } catch (e) {
+                console.warn('Failed to save branding to localStorage (quota exceeded or storage disabled)', e);
+              }
               reloadStylesheet();
             }
           }

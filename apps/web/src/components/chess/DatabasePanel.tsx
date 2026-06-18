@@ -1615,7 +1615,7 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
           font-size: 11px;
           font-weight: 600;
           text-transform: uppercase;
-          color: #a0aec0;
+          color: #8B6355;
           letter-spacing: 0.05em;
           margin-top: 8px;
           margin-bottom: 8px;
@@ -1717,7 +1717,7 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
         }
         .folder-node > .node-row .node-text {
           font-weight: 600;
-          color: #2d3748;
+          color: #4a2018;
         }
         .node-row.collection-expanded {
           background: rgba(45, 74, 107, 0.08) !important;
@@ -1741,7 +1741,7 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #a0aec0;
+          color: #b08070;
           min-width: 16px;
         }
         .folder-icon {
@@ -1753,7 +1753,7 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
         .node-text {
           font-size: 0.9rem;
           font-weight: 500;
-          color: #2d3748;
+          color: #4a2018;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -1787,7 +1787,7 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
         }
         .game-node-row .node-text {
           font-weight: 400;
-          color: #4a5568;
+          color: #7a4a3a;
         }
         .game-index {
           font-size: 11px;

@@ -123,6 +123,10 @@ export default function EngineAnalysisPanel({ fen }: EngineAnalysisPanelProps) {
   const fenRef = useRef<string>(fen);
   const numLinesRef = useRef<number>(3);
   const isEngineOnRef = useRef<boolean>(true);
+  
+  // Track search state to avoid sending `position` while searching
+  const isSearchingRef = useRef<boolean>(false);
+  const pendingFenRef = useRef<string | null>(null);
 
   // Keep refs updated to prevent closure issues in the web worker callback
   useEffect(() => {
@@ -166,6 +170,18 @@ export default function EngineAnalysisPanel({ fen }: EngineAnalysisPanelProps) {
 
         if (line === 'readyok') {
           setStatus('ready');
+        } else if (line.startsWith('bestmove')) {
+          isSearchingRef.current = false;
+          if (pendingFenRef.current !== null) {
+            const newFen = pendingFenRef.current;
+            pendingFenRef.current = null;
+            isSearchingRef.current = true;
+            if (workerRef.current) {
+              workerRef.current.postMessage(`setoption name MultiPV value ${numLinesRef.current}`);
+              workerRef.current.postMessage(`position fen ${newFen}`);
+              workerRef.current.postMessage('go depth 18');
+            }
+          }
         } else if (line.startsWith('info ')) {
           if (!isEngineOnRef.current) return;
           const chess = new Chess(fenRef.current);
@@ -298,10 +314,16 @@ export default function EngineAnalysisPanel({ fen }: EngineAnalysisPanelProps) {
       setStatus('analyzing');
       setDepth(0);
       setNps(0);
-      workerRef.current.postMessage('stop');
-      workerRef.current.postMessage(`setoption name MultiPV value ${numLines}`);
-      workerRef.current.postMessage(`position fen ${fen}`);
-      workerRef.current.postMessage('go depth 18');
+      
+      if (isSearchingRef.current) {
+        pendingFenRef.current = fen;
+        workerRef.current.postMessage('stop');
+      } else {
+        isSearchingRef.current = true;
+        workerRef.current.postMessage(`setoption name MultiPV value ${numLines}`);
+        workerRef.current.postMessage(`position fen ${fen}`);
+        workerRef.current.postMessage('go depth 18');
+      }
     }
   }, [fen, status, isEngineOn, numLines]);
 

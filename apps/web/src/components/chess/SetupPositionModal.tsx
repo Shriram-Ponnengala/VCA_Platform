@@ -321,10 +321,47 @@ export default function SetupPositionModal({ isOpen, onClose, onSave, initialFen
                 <div className="board-outer-frame board-clip" style={{ display: 'flex', width: '100%', height: '100%', boxSizing: 'border-box' }}>
                   {/* Inner element: STRICTLY the 8x8 playing area. No padding, no border, no margin. */}
                   <div 
-                    ref={boardRef} 
                     className="board-inner-playing-area" 
                     style={{ width: '100%', height: '100%', padding: 0, margin: 0, border: 'none', position: 'relative' }} 
-                  />
+                  >
+                    {/* Custom Background Grid for custom board themes */}
+                    <div 
+                      className="custom-board-grid-background" 
+                      style={{ 
+                        position: 'absolute', 
+                        top: 0, 
+                        left: 0, 
+                        width: '100%', 
+                        height: '100%', 
+                        display: 'grid', 
+                        gridTemplateColumns: 'repeat(8, 1fr)', 
+                        gridTemplateRows: 'repeat(8, 1fr)', 
+                        pointerEvents: 'none', 
+                        zIndex: 0 
+                      }}
+                    >
+                      {Array.from({ length: 64 }).map((_, idx) => {
+                        const fileIdx = idx % 8;
+                        const rankIdx = Math.floor(idx / 8);
+                        const isWhite = (fileIdx + rankIdx) % 2 === 0;
+                        return (
+                          <div 
+                            key={idx} 
+                            className={isWhite ? 'custom-square-white' : 'custom-square-black'}
+                            style={{
+                              background: isWhite ? 'var(--board-square-light)' : 'var(--board-square-dark)'
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+
+                    {/* Chessground Mount Container */}
+                    <div 
+                      ref={boardRef} 
+                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1 }} 
+                    />
+                  </div>
                 </div>
               </div>
             </div>

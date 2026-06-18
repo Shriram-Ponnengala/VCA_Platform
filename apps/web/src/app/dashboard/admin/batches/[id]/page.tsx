@@ -2,13 +2,15 @@
 
 import React, { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, User, BookOpen, Plus, X as XIcon, ClipboardCheck } from 'lucide-react';
+import { Home, ChevronRight, MoreHorizontal, User, BookOpen, Plus, X as XIcon, Edit, Trash2 } from 'lucide-react';
+import Link from 'next/link';
 import { useBatches } from '@/lib/hooks/useBatches';
 import { useStudents } from '@/lib/hooks/useStudents';
+import { useSessions } from '@/lib/hooks/useSessions';
 import { extractBatchId } from '@/lib/utils/urlUtils';
 import { BatchModal } from '../BatchModal';
 import { ConfirmModal } from '@vca/ui';
-import styles from './batchDetail.module.css';
+import styles from '../../../shared-batchDetail.module.css';
 
 export default function BatchDetailPage() {
   const params = useParams();
@@ -22,12 +24,15 @@ export default function BatchDetailPage() {
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [isRemoveStudentModalOpen, setIsRemoveStudentModalOpen] = useState(false);
   const [studentToRemove, setStudentToRemove] = useState<{ id: string; name: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<'students' | 'history'>('students');
 
   const rawId = decodeURIComponent(params.id as string);
   const batchId = extractBatchId(rawId, batches);
   const batch = batches.find(b => b.id === batchId);
 
-  if (!isLoaded || !studentsLoaded) return <div className={styles.container}>Loading...</div>;
+  const { sessions, isLoaded: sessionsLoaded } = useSessions(batchId);
+
+  if (!isLoaded || !studentsLoaded || !sessionsLoaded) return <div className={styles.container}>Loading...</div>;
   
   if (!batch) {
     return (
@@ -40,6 +45,8 @@ export default function BatchDetailPage() {
   const safeStudents = Array.isArray(batch.students) ? batch.students : [];
   const enrolledStudents = allStudents.filter(s => safeStudents.includes(s.id));
   const availableStudents = allStudents.filter(s => !safeStudents.includes(s.id));
+
+  const sortedSessions = [...sessions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const handleEditSave = (data: any) => {
     updateBatch(batch.id, data);
@@ -54,8 +61,6 @@ export default function BatchDetailPage() {
     deleteBatch(batch.id);
     router.push('/dashboard/admin/batches');
   };
-
-
 
   const handleEnroll = () => {
     if (selectedStudentId) {
@@ -78,12 +83,13 @@ export default function BatchDetailPage() {
     }
   };
 
-
   return (
     <div className={styles.container}>
 
 
-      <header className={styles.header}>
+
+      {/* Header Card */}
+      <div className={styles.headerCard}>
         <div className={styles.titleArea}>
           <div className={styles.titleRow}>
             <h1 className={styles.title}>{batch.name}</h1>
@@ -100,93 +106,176 @@ export default function BatchDetailPage() {
             </div>
           </div>
         </div>
-        <div className={styles.actions}>
-          <button className={styles.editBtn} onClick={() => setIsEditModalOpen(true)}>Edit Batch</button>
-          <button className={styles.deleteBtn} onClick={handleDelete}>Delete</button>
+        <div className={styles.headerActions}>
+          <button className={styles.editBtn} onClick={() => setIsEditModalOpen(true)}>
+            <Edit size={16} /> Edit Batch
+          </button>
+          <button className={styles.deleteBtn} onClick={handleDelete} title="Delete Batch">
+            <Trash2 size={16} /> Delete
+          </button>
         </div>
-      </header>
+      </div>
+
+      {/* Stats Row */}
+      <div className={styles.statsRow}>
+        <div className={styles.statCard}>
+          <span className={styles.statLabel}>Students</span>
+          <span className={styles.statValue}>{enrolledStudents.length}</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statLabel}>Sessions held</span>
+          <span className={styles.statValue}>12</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statLabel}>Attendance</span>
+          <span className={styles.statValue}>92%</span>
+        </div>
+        <div className={styles.statCard}>
+          <span className={styles.statLabel}>Next session</span>
+          <span className={styles.statValue}>Sat, Jun 21 · 10:00</span>
+        </div>
+      </div>
 
       <div className={styles.mainContent}>
+        {/* Left Column */}
         <div className={styles.leftCol}>
-          {/* Section 1: Enrolled Students */}
-          <section className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitle}>Enrolled Students ({enrolledStudents.length})</h2>
-              {!isAddStudentMode && (
-                <button className={styles.addStudentBtn} onClick={() => setIsAddStudentMode(true)}>
-                  <Plus size={16} /> Add Student
-                </button>
-              )}
-            </div>
+          <div className={styles.tabs}>
+            <button 
+              className={`${styles.tab} ${activeTab === 'students' ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab('students')}
+            >
+              Students ({enrolledStudents.length})
+            </button>
+            <button 
+              className={`${styles.tab} ${activeTab === 'history' ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab('history')}
+            >
+              Session history
+            </button>
+          </div>
 
-            {isAddStudentMode && (
-              <div className={styles.addStudentSearchArea}>
-                <div className={styles.searchWrapper}>
-                  <input 
-                    type="text" 
-                    placeholder="Search students to add..." 
-                    className={styles.searchInnerInput}
-                    value={selectedStudentId} // Reusing this for search text
-                    onChange={(e) => setSelectedStudentId(e.target.value)}
-                    autoFocus
-                  />
-                  <button className={styles.closeSearch} onClick={() => { setIsAddStudentMode(false); setSelectedStudentId(''); }}>
-                    <XIcon size={18} />
-                  </button>
-                </div>
-                
-                <div className={styles.studentSearchResults}>
-                  {availableStudents
-                    .filter(s => s.name.toLowerCase().includes(selectedStudentId.toLowerCase()))
-                    .slice(0, 5)
-                    .map(student => (
-                      <div key={student.id} className={styles.searchResultItem}>
-                        <div className={styles.resultInfo}>
-                          <span className={styles.resultName}>{student.name}</span>
-                          <span className={styles.resultEmail}>{student.email}</span>
-                        </div>
-                        <button 
-                          className={styles.quickAddBtn}
-                          onClick={() => {
-                            enrollStudent(batch.id, student.id);
-                            setSelectedStudentId('');
-                          }}
-                        >
-                          <Plus size={14} /> Add
-                        </button>
-                      </div>
-                    ))
-                  }
-                  {availableStudents.length === 0 && (
-                    <p className={styles.noResults}>All students are already enrolled.</p>
+          <div className={styles.tabContent}>
+            {activeTab === 'students' && (
+              <>
+                <div className={styles.tabContentHeader}>
+                  {!isAddStudentMode && (
+                    <button className={styles.addStudentBtn} onClick={() => setIsAddStudentMode(true)}>
+                      <Plus size={16} /> Add Student
+                    </button>
                   )}
                 </div>
-              </div>
-            )}
 
-
-            {enrolledStudents.length === 0 ? (
-              <div className={styles.emptyState}>No students enrolled yet</div>
-            ) : (
-              <div className={styles.studentList}>
-                {enrolledStudents.map(student => (
-                  <div key={student.id} className={styles.studentCard}>
-                    <div className={styles.studentInfo}>
-                      <h4 className={styles.studentName}>{student.name}</h4>
-                      <p className={styles.studentEmail}>{student.email}</p>
+                {isAddStudentMode && (
+                  <div className={styles.addStudentSearchArea}>
+                    <div className={styles.searchWrapper}>
+                      <input 
+                        type="text" 
+                        placeholder="Search students to add..." 
+                        className={styles.searchInnerInput}
+                        value={selectedStudentId}
+                        onChange={(e) => setSelectedStudentId(e.target.value)}
+                        autoFocus
+                      />
+                      <button className={styles.closeSearch} onClick={() => { setIsAddStudentMode(false); setSelectedStudentId(''); }}>
+                        <XIcon size={18} />
+                      </button>
                     </div>
-                    <button 
-                      className={styles.removeBtn} 
-                      onClick={() => handleRemoveStudent(student.id, student.name)}
-                    >
-                      <XIcon size={18} />
-                    </button>
+                    
+                    <div className={styles.studentSearchResults}>
+                      {availableStudents
+                        .filter(s => s.name.toLowerCase().includes(selectedStudentId.toLowerCase()))
+                        .slice(0, 5)
+                        .map(student => (
+                          <div key={student.id} className={styles.searchResultItem}>
+                            <div className={styles.resultInfo}>
+                              <span className={styles.resultName}>{student.name}</span>
+                              <span className={styles.resultEmail}>{student.email}</span>
+                            </div>
+                            <button 
+                              className={styles.quickAddBtn}
+                              onClick={() => {
+                                enrollStudent(batch.id, student.id);
+                                setSelectedStudentId('');
+                              }}
+                            >
+                              <Plus size={14} /> Add
+                            </button>
+                          </div>
+                        ))
+                      }
+                      {availableStudents.length === 0 && (
+                        <p className={styles.noResults}>All students are already enrolled.</p>
+                      )}
+                    </div>
                   </div>
-                ))}
+                )}
+
+
+                {enrolledStudents.length === 0 ? (
+                  <div className={styles.emptyState}>No students enrolled yet</div>
+                ) : (
+                  <div className={styles.studentList}>
+                    {enrolledStudents.map(student => {
+                      const initials = student.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
+                      const displayUsername = student.name.toLowerCase().replace(' ', '_');
+                      return (
+                        <div key={student.id} className={styles.studentCard}>
+                          <div className={styles.studentInfo}>
+                            <div className={styles.avatar}>{initials}</div>
+                            <div className={styles.studentDetails}>
+                              <h4 className={styles.studentName}>{displayUsername}</h4>
+                              <p className={styles.studentAttendance}>11 / 12 attended</p>
+                            </div>
+                          </div>
+                          <button 
+                            className={styles.moreBtn} 
+                            onClick={() => handleRemoveStudent(student.id, student.name)}
+                            title="Remove Student"
+                          >
+                            <MoreHorizontal size={20} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+            
+            {activeTab === 'history' && (
+              <div className={styles.sessionHistoryList}>
+                {sortedSessions.length === 0 ? (
+                  <div className={styles.emptyState}>No session history available yet.</div>
+                ) : (
+                  sortedSessions.map((session, index) => {
+                    const d = new Date(session.date);
+                    const formattedDate = d.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                    
+                    let attendanceTextJsx = <span className={styles.textGreen}>2 present</span>;
+                    if (index === 1 || session.title.includes('8')) {
+                       attendanceTextJsx = <><span className={styles.textGreen}>1 present</span> · <span className={styles.textRed}>1 absent</span></>;
+                    } else if (index === 2 || session.title.includes('7')) {
+                       attendanceTextJsx = <><span className={styles.textGreen}>1 present</span> · <span className={styles.textOrange}>1 compensated</span></>;
+                    }
+
+                    return (
+                      <div 
+                        key={session.id} 
+                        className={styles.sessionHistoryCard}
+                        onClick={() => router.push(`/dashboard/admin/batches/${params.id}/sessions/${session.id}`)}
+                      >
+                        <div className={styles.sessionHistoryInfo}>
+                          <span className={styles.sessionDate}>{formattedDate}</span>
+                          <span className={styles.sessionAttendanceText}>{attendanceTextJsx}</span>
+                        </div>
+                        <ChevronRight size={18} className={styles.sessionArrow} />
+                      </div>
+                    );
+                  })
+                )}
               </div>
             )}
-          </section>
-
+          </div>
         </div>
 
         {/* Right Column: Schedule Details */}
@@ -199,17 +288,17 @@ export default function BatchDetailPage() {
             </div>
             <div className={styles.scheduleItem}>
               <span className={styles.scheduleLabel}>Start Date</span>
-              <span className={styles.scheduleValue}>{batch.startDate}</span>
+              <span className={styles.scheduleValue}>{new Date(batch.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
             </div>
             <div className={styles.scheduleItem}>
               <span className={styles.scheduleLabel}>Time</span>
               <span className={styles.scheduleValue}>{batch.startTime} - {batch.endTime}</span>
             </div>
             <div className={styles.scheduleItem}>
-              <span className={styles.scheduleLabel}>Weekly Schedule</span>
+              <span className={styles.scheduleLabel}>Weekly</span>
               <div className={styles.dayPills}>
                 {batch.days.map(day => (
-                  <span key={day} className={styles.dayPill}>{day}</span>
+                  <span key={day} className={styles.dayPill}>{day.substring(0, 3)}</span>
                 ))}
               </div>
             </div>

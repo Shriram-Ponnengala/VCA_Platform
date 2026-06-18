@@ -91,6 +91,52 @@ interface DatabaseModuleProps {
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
 export default function DatabaseModule({ role }: DatabaseModuleProps) {
+  // Sidebar Resize State
+  const [sidebarWidth, setSidebarWidth] = useState(280);
+  const [isResizing, setIsResizing] = useState(false);
+  const sidebarRef = useRef<HTMLElement>(null);
+  
+  useEffect(() => {
+    const saved = localStorage.getItem('vca-db-sidebar-width');
+    if (saved && !isNaN(parseInt(saved, 10))) {
+      setSidebarWidth(parseInt(saved, 10));
+    }
+  }, []);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  };
+
+  useEffect(() => {
+    if (!isResizing) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      if (sidebarRef.current) {
+        const rect = sidebarRef.current.getBoundingClientRect();
+        let newWidth = e.clientX - rect.left;
+        if (newWidth < 200) newWidth = 200;
+        if (newWidth > 480) newWidth = 480;
+        setSidebarWidth(newWidth);
+      }
+    };
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
+  // Save to localstorage when done resizing
+  useEffect(() => {
+    if (!isResizing) {
+      localStorage.setItem('vca-db-sidebar-width', sidebarWidth.toString());
+    }
+  }, [isResizing, sidebarWidth]);
+
   // Tree state
   const [folders, setFolders] = useState<FolderData[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -305,10 +351,11 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
   };
 
   const isDescendant = (childId: string, parentId: string): boolean => {
-    let curr = folders.find(f => f.id === childId);
+    let curr: FolderData | undefined = folders.find(f => f.id === childId);
     while (curr && curr.parentFolderId) {
       if (curr.parentFolderId === parentId) return true;
-      curr = folders.find(f => f.id === curr.parentFolderId);
+      const parentIdToFind = curr.parentFolderId;
+      curr = folders.find(f => f.id === parentIdToFind);
     }
     return false;
   };
@@ -1752,7 +1799,11 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
   return (
     <div className="db-layout">
       {/* ── LEFT SIDEBAR: BROWSING TREE ── */}
-      <aside className="db-sidebar">
+      <aside 
+        className="db-sidebar" 
+        ref={sidebarRef}
+        style={{ width: sidebarWidth, minWidth: 200, maxWidth: 480 }}
+      >
         <div className="sidebar-header">
           <div className="search-box">
             <Search size={16} />
@@ -2017,6 +2068,13 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
         </div>
       </aside>
 
+      <div
+        className="db-resize-handle"
+        data-resize-handle-state={isResizing ? 'drag' : ''}
+        onMouseDown={handleMouseDown}
+        onDoubleClick={() => setSidebarWidth(280)}
+      />
+
       {/* ── RIGHT MAIN AREA: GAME VIEWER ── */}
       <main className="db-viewer">
         {selectedGameId ? (
@@ -2074,6 +2132,7 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
                       fen={displayFen}
                       history={gameHistory}
                       currentIndex={gameHistory.length - 1}
+                      nodes={nodes}
                       onMove={handleMove}
                       canNext={canGoNext}
                       canPrev={canGoPrev}
@@ -2322,8 +2381,6 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
 
         /* Sidebar Styling */
         .db-sidebar {
-          width: 340px;
-          border-right: 1px solid #eedcd0;
           display: flex;
           flex-direction: column;
           background: #fff8f2;
@@ -2508,8 +2565,20 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
         .text-shared-db { color: #7c3aed; }
 
         /* Viewer Layout */
+        .db-resize-handle {
+          width: 6px;
+          background-color: #eedcd0;
+          cursor: col-resize;
+          transition: background-color 0.2s;
+          position: relative;
+        }
+        .db-resize-handle:hover, .db-resize-handle[data-resize-handle-state="drag"] {
+          background-color: #c8854a;
+        }
+        
         .db-viewer {
           flex: 1;
+          height: 100%;
           background: #fdf0e4;
           display: flex;
           flex-direction: column;
@@ -3725,7 +3794,7 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
                       onClick={() => {
                         if (activeModalEntity && currentStatus.valid) {
                           executeMove(
-                            activeModalEntity.type as 'folder' | 'collection',
+                            activeModalEntity.entityType as 'folder' | 'collection',
                             activeModalEntity.entityId,
                             pickerFolderId,
                             currentParentId

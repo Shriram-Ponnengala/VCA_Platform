@@ -5,12 +5,13 @@ import { useParams, useRouter } from 'next/navigation';
 import ChessBoard from '@/components/chess/ChessBoard';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { Toast } from '@vca/ui';
-import { History, Zap, RotateCcw, Wifi, WifiOff, Users, User, Lock, Unlock, MessageSquare, Send, Eraser, ArrowLeft, Star, ArrowUp, Scissors, Database, Trash2, BookOpen } from 'lucide-react';
+import { Lock, Unlock, ArrowLeft, RotateCcw, MessageSquare, Users, Send, Star, ArrowUp, Eraser, Scissors, Trash2, Database, BookOpen, User, Zap, Wifi, WifiOff, History as HistoryIcon } from 'lucide-react';
 import { useChessRoom } from '@/lib/hooks/useChessRoom';
 import { MoveNode, ChatMessage } from '@vca/types';
 import EngineAnalysisPanel from '@/components/chess/EngineAnalysisPanel';
 import DatabasePanel from '@/components/chess/DatabasePanel';
 import ChapterCard from '@/components/chess/ChapterCard';
+import SaveToDbModal from '@/components/chess/SaveToDbModal';
 import { applyContextMenuPosition } from '@/lib/utils/contextMenuUtils';
 
 const featureFlags = {
@@ -118,33 +119,31 @@ export default function ClassroomPage() {
   const chatMessagesEndRef = useRef<HTMLDivElement>(null);
 
   const [showSaveModal, setShowSaveModal] = useState(false);
-  const [saveGameName, setSaveGameName] = useState('');
   const [savingGame, setSavingGame] = useState(false);
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
   const handleSaveToDb = () => {
-    setSaveGameName(`Classroom Game - ${new Date().toLocaleDateString()}`);
     setShowSaveModal(true);
   };
 
-  const confirmSaveToDb = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!saveGameName.trim()) return;
+  const confirmSaveToDb = async (gameName: string, folderId: string | null) => {
+    if (!gameName.trim()) return;
     setSavingGame(true);
     try {
       const { buildPgnFromMoveTree } = await import('@/features/database/pgnUtils');
       const pgn = buildPgnFromMoveTree(nodes, 'root');
       
-      const res = await fetch('/api/database/collections/save-classroom', {
+      const res = await fetch('/api/database/collections/save-analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: saveGameName.trim(),
-          pgnText: pgn
+          name: gameName.trim(),
+          pgnText: pgn,
+          folderId: folderId
         })
       });
       if (res.ok) {
-        setToast({ message: 'Classroom game successfully saved to My DB!', type: 'success' });
+        setToast({ message: 'Game successfully saved to My DB!', type: 'success' });
         setShowSaveModal(false);
       } else {
         let errorMsg = 'Failed to save game';
@@ -529,6 +528,7 @@ export default function ClassroomPage() {
               arrows={currentNode?.arrows || []}
               onUpdateArrows={updateArrows}
               isLocked={isLocked}
+              nodes={nodes}
               onSetupPosition={setupPosition}
               onNullMove={isCoachOrAdmin ? () => makeNullMove() : undefined}
               onUploadPgn={isCoachOrAdmin ? (pgn) => { setDbNav(null); loadPgn(pgn); } : undefined}
@@ -583,7 +583,7 @@ export default function ClassroomPage() {
                 className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
                 onClick={() => setActiveTab('history')}
               >
-                <History size={16} /> History
+                <HistoryIcon size={16} /> History
               </button>
               {chapters && chapters.length > 0 && (
                 <button 
@@ -744,78 +744,13 @@ export default function ClassroomPage() {
         onCancel={() => setShowResetConfirm(false)}
       />
 
-      {showSaveModal && (
-        <div className="modal-backdrop" style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.4)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999
-        }} onClick={() => setShowSaveModal(false)}>
-          <div style={{
-            background: '#fff',
-            padding: '20px',
-            borderRadius: '8px',
-            width: '100%',
-            maxWidth: '400px',
-            border: '1px solid #eedcd0',
-            color: '#4a2018'
-          }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', fontWeight: '600' }}>Save to My DB</h3>
-            <form onSubmit={confirmSaveToDb}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: '500' }}>Game Name:</label>
-                <input
-                  type="text"
-                  required
-                  value={saveGameName}
-                  onChange={e => setSaveGameName(e.target.value)}
-                  style={{
-                    border: '1px solid #eedcd0',
-                    padding: '8px 12px',
-                    borderRadius: '6px',
-                    outline: 'none',
-                    color: '#4a2018'
-                  }}
-                />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowSaveModal(false)}
-                  style={{
-                    border: 'none',
-                    background: '#eedcd0',
-                    color: '#4a2018',
-                    padding: '6px 12px',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingGame}
-                  style={{
-                    border: 'none',
-                    background: '#c8854a',
-                    color: '#fff',
-                    padding: '6px 12px',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {savingGame ? 'Saving...' : 'Save'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <SaveToDbModal
+        isOpen={showSaveModal}
+        onClose={() => setShowSaveModal(false)}
+        defaultGameName={`Classroom Game - ${new Date().toLocaleDateString()}`}
+        onSave={confirmSaveToDb}
+        savingGame={savingGame}
+      />
 
       {contextMenu && (
         <>
@@ -906,13 +841,27 @@ export default function ClassroomPage() {
 
         .page-wrapper {
           min-height: 100vh;
-          background: #fdf0e4;
+          background: var(--classroom-bg, #fdf0e4) !important;
+          background-size: var(--classroom-bg-size, auto) !important;
+          background-repeat: var(--classroom-bg-repeat, repeat) !important;
+          background-position: var(--classroom-bg-position, 0 0) !important;
           display: flex;
           justify-content: center;
           align-items: flex-start;
           padding: 2rem;
           color: #4a2018;
           font-family: 'Outfit', sans-serif;
+          position: relative;
+          z-index: 0;
+        }
+
+        .page-wrapper::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: var(--classroom-bg-overlay, transparent);
+          pointer-events: none;
+          z-index: -1;
         }
 
         .app-container {
@@ -921,6 +870,8 @@ export default function ClassroomPage() {
           gap: 1.5rem;
           width: 100%;
           max-width: 1200px;
+          position: relative;
+          z-index: 1;
         }
 
         /* ── Header ── */

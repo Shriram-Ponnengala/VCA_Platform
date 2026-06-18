@@ -66,12 +66,19 @@ export function Breadcrumbs() {
       </Link>
       
       {displayPaths.map((path, index) => {
-        const href = `/${paths.slice(0, index + 3).join('/')}`;
+        const encodedPaths = paths.map(p => encodeURIComponent(p));
+        const href = `/${encodedPaths.slice(0, index + 3).join('/')}`;
         const isLast = index === displayPaths.length - 1;
         const prevPath = index > 0 ? displayPaths[index - 1] : undefined;
         
         // Format label: capitalize and replace dashes with spaces
         const defaultLabel = path.charAt(0).toUpperCase() + path.slice(1).replace(/-/g, ' ');
+        
+        let finalHref = href;
+        if (path === 'sessions' || path === 'students') {
+          // Point these intermediate plural folders back to their parent context
+          finalHref = `/${encodedPaths.slice(0, index + 2).join('/')}`;
+        }
         
         return (
           <React.Fragment key={path}>
@@ -81,7 +88,7 @@ export function Breadcrumbs() {
                 <DynamicLabel path={path} defaultLabel={defaultLabel} prevPath={prevPath} />
               </span>
             ) : (
-              <Link href={href} className={styles.link}>
+              <Link href={finalHref} className={styles.link}>
                 <DynamicLabel path={path} defaultLabel={defaultLabel} prevPath={prevPath} />
               </Link>
             )}

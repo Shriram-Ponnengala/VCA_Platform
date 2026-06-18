@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getApiUrl } from '../utils/urlUtils';
 
 export function useBatchAttendance(batchId: string) {
   const [sessions, setSessions] = useState<any[]>([]);
@@ -8,7 +7,7 @@ export function useBatchAttendance(batchId: string) {
 
   const fetchSessions = useCallback(async () => {
     try {
-      const res = await fetch(`${getApiUrl()}/api/attendance/batch-sessions/${batchId}`);
+      const res = await fetch(`/api/attendance/batch-sessions/${batchId}`);
       if (!res.ok) throw new Error('Failed to fetch batch sessions');
       const data = await res.json();
       setSessions(data);
@@ -27,7 +26,7 @@ export function useBatchAttendance(batchId: string) {
 
   const createSession = async (sessionData: any) => {
     try {
-      const res = await fetch(`${getApiUrl()}/api/attendance/batch-sessions`, {
+      const res = await fetch(`/api/attendance/batch-sessions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...sessionData, batchId })
@@ -44,7 +43,7 @@ export function useBatchAttendance(batchId: string) {
 
   const getAttendanceRecords = async (sessionId: string) => {
     try {
-      const res = await fetch(`${getApiUrl()}/api/attendance/records/${sessionId}`);
+      const res = await fetch(`/api/attendance/records/${sessionId}`);
       if (!res.ok) throw new Error('Failed to fetch records');
       return await res.json();
     } catch (err: any) {
@@ -55,7 +54,7 @@ export function useBatchAttendance(batchId: string) {
 
   const upsertAttendanceRecords = async (sessionId: string, records: any[]) => {
     try {
-      const res = await fetch(`${getApiUrl()}/api/attendance/records/${sessionId}`, {
+      const res = await fetch(`/api/attendance/records/${sessionId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ records })

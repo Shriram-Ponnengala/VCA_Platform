@@ -33,6 +33,7 @@ export interface MoveNode {
   comment?: string;
   glyphs?: string[];
   isNull?: boolean;
+  clk?: string;
 }
 
 export interface Participant {

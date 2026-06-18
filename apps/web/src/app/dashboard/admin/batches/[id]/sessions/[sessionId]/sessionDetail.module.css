@@ -1,0 +1,463 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+  background-color: #f8fafc;
+  min-height: 100vh;
+}
+
+.backLink {
+  background: transparent;
+  border: none;
+  color: #3b82f6; /* blue-500 */
+  font-weight: 600;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s;
+  text-decoration: none;
+}
+
+.backLink:hover {
+  color: #2563eb; /* blue-600 */
+}
+
+/* Header actions right side */
+.headerTopRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.headerActions {
+  display: flex;
+  gap: 12px;
+}
+
+.btnPrimary {
+  background-color: transparent;
+  color: #3b82f6;
+  border: 1px solid #3b82f6;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnPrimary:hover {
+  background-color: #eff6ff;
+}
+
+.btnSecondary {
+  background-color: white;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnSecondary:hover {
+  background-color: #f1f5f9;
+}
+
+.btnIcon {
+  background-color: white;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnIcon:hover {
+  background-color: #f1f5f9;
+}
+
+/* Main Header Card */
+.headerCard {
+  background-color: white;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.sessionTitleBlock {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.calendarIconBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #eff6ff; /* blue-50 */
+  border-radius: 12px;
+  padding: 10px 16px;
+  min-width: 70px;
+}
+
+.calMonth {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #3b82f6;
+  text-transform: uppercase;
+}
+
+.calDay {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1e293b;
+  line-height: 1.1;
+}
+
+.calWeekday {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.titleArea {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.badgeUpcoming {
+  background-color: #dcfce7; /* green-100 */
+  color: #16a34a; /* green-600 */
+  padding: 4px 12px;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.badgeLive {
+  background-color: #fee2e2;
+  color: #dc2626;
+  padding: 4px 12px;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 32px;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0 12px;
+}
+
+.tab {
+  background: transparent;
+  border: none;
+  padding: 12px 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tab:hover {
+  color: #0f172a;
+}
+
+.tabActive {
+  color: #3b82f6; /* blue-500 */
+}
+
+.tabActive::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #3b82f6;
+}
+
+.tabBadge {
+  background-color: #eff6ff;
+  color: #3b82f6;
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+/* Attendance Tab Content */
+.attendanceContent {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.attendanceHeaderRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sectionTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+/* Summary Cards Area */
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.summaryCard {
+  background-color: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.summaryValue {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.summaryValue.green { color: #16a34a; }
+.summaryValue.orange { color: #ea580c; }
+.summaryValue.red { color: #dc2626; }
+.summaryValue.blue { color: #3b82f6; }
+
+.summaryLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.summarySubtext {
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.summarySubtext.green { color: #16a34a; background: #dcfce7; padding: 2px 8px; border-radius: 4px; }
+.summarySubtext.orange { color: #ea580c; background: #ffedd5; padding: 2px 8px; border-radius: 4px; }
+.summarySubtext.red { color: #dc2626; background: #fee2e2; padding: 2px 8px; border-radius: 4px; }
+.summarySubtext.blue { color: #3b82f6; background: #eff6ff; padding: 2px 8px; border-radius: 4px; }
+
+/* Progress Bar */
+.progressContainer {
+  width: 100%;
+  height: 12px;
+  background-color: #f1f5f9;
+  border-radius: 99px;
+  display: flex;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progressPresent { background-color: #16a34a; }
+.progressLate { background-color: #ea580c; }
+.progressAbsent { background-color: #dc2626; }
+
+.progressFooter {
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* Info Box */
+.infoBox {
+  background-color: #eff6ff;
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #1e3a8a;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* Two Column Layout */
+.twoColGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.panelCard {
+  background-color: white;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Table styles */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  text-align: left;
+  padding: 12px 8px;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.table td {
+  padding: 16px 8px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.studentCell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.studentAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #eff6ff;
+  color: #3b82f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.studentAvatar.pink { background-color: #fdf2f8; color: #db2777; }
+.studentAvatar.orange { background-color: #fff7ed; color: #ea580c; }
+.studentAvatar.teal { background-color: #f0fdfa; color: #0d9488; }
+
+.studentName {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.studentEmail {
+  color: #64748b;
+  font-size: 0.75rem;
+  margin: 0;
+}
+
+.statusPill {
+  display: inline-flex;
+  padding: 4px 10px;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.statusPill.present { background-color: #dcfce7; color: #16a34a; }
+.statusPill.late { background-color: #ffedd5; color: #ea580c; }
+.statusPill.absent { background-color: #fee2e2; color: #dc2626; }
+
+.valText {
+  font-size: 0.85rem;
+  color: #0f172a;
+  font-weight: 500;
+}
+
+.participationHigh { color: #16a34a; font-weight: 600; font-size: 0.85rem; }
+.participationMed { color: #ea580c; font-weight: 600; font-size: 0.85rem; }
+.participationLow { color: #dc2626; font-weight: 600; font-size: 0.85rem; }
+
+.actionBtnSmall {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.actionBtnSmall:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}

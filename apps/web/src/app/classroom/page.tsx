@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import ChessBoard from '@/components/chess/ChessBoard';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { VariationChooser } from '@/components/chess/VariationChooser';
+import SaveToDbModal from '@/components/chess/SaveToDbModal';
 import { Toast } from '@vca/ui';
 import { AnnotationsPanel } from '@/components/chess/AnnotationsPanel';
 import { History, Zap, Wifi, WifiOff, Users, User, MessageSquare, Send, Star, ArrowUp, Scissors, Eraser, Database, Trash2, Compass, BookOpen } from 'lucide-react';
@@ -202,9 +203,8 @@ export default function ClassroomPage() {
     setShowSaveModal(true);
   };
 
-  const confirmSaveToDb = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!saveGameName.trim()) return;
+  const confirmSaveToDb = async (gameName: string, folderId: string | null) => {
+    if (!gameName.trim()) return;
     setSavingGame(true);
     try {
       const { buildPgnFromMoveTree } = await import('@/features/database/pgnUtils');
@@ -214,8 +214,9 @@ export default function ClassroomPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: saveGameName.trim(),
-          pgnText: pgn
+          name: gameName.trim(),
+          pgnText: pgn,
+          folderId: folderId
         })
       });
       if (res.ok) {
@@ -603,7 +604,9 @@ export default function ClassroomPage() {
               onUpdateArrows={updateArrows}
               isLocked={isLocked}
               isFreehand={isFreehand}
+              nodes={nodes}
               branches={branches}
+              hideSocialFeatures={true}
               selectedBranchIndex={selectedVariationIndex}
               onSelectBranch={setSelectedVariationIndex}
               onChooseBranch={(id) => {
@@ -888,78 +891,13 @@ export default function ClassroomPage() {
         onCancel={() => setShowResetConfirm(false)}
       />
 
-      {showSaveModal && (
-        <div className="modal-backdrop" style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.4)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999
-        }} onClick={() => setShowSaveModal(false)}>
-          <div style={{
-            background: '#fff',
-            padding: '20px',
-            borderRadius: '8px',
-            width: '100%',
-            maxWidth: '400px',
-            border: '1px solid #eedcd0',
-            color: '#4a2018'
-          }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', fontWeight: '600' }}>Save to My DB</h3>
-            <form onSubmit={confirmSaveToDb}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: '500' }}>Game Name:</label>
-                <input
-                  type="text"
-                  required
-                  value={saveGameName}
-                  onChange={e => setSaveGameName(e.target.value)}
-                  style={{
-                    border: '1px solid #eedcd0',
-                    padding: '8px 12px',
-                    borderRadius: '6px',
-                    outline: 'none',
-                    color: '#4a2018'
-                  }}
-                />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowSaveModal(false)}
-                  style={{
-                    border: 'none',
-                    background: '#eedcd0',
-                    color: '#4a2018',
-                    padding: '6px 12px',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingGame}
-                  style={{
-                    border: 'none',
-                    background: '#c8854a',
-                    color: '#fff',
-                    padding: '6px 12px',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {savingGame ? 'Saving...' : 'Save'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <SaveToDbModal
+        isOpen={showSaveModal}
+        onClose={() => setShowSaveModal(false)}
+        defaultGameName={saveGameName}
+        onSave={confirmSaveToDb}
+        savingGame={savingGame}
+      />
 
       {contextMenu && (
         <>
@@ -1051,7 +989,10 @@ export default function ClassroomPage() {
         .page-wrapper {
           height: 100vh;
           overflow: hidden;
-          background: #fdf0e4;
+          background: var(--classroom-bg, #fdf0e4) !important;
+          background-size: var(--classroom-bg-size, auto) !important;
+          background-repeat: var(--classroom-bg-repeat, repeat) !important;
+          background-position: var(--classroom-bg-position, 0 0) !important;
           display: flex;
           justify-content: center;
           align-items: flex-start;
@@ -1060,6 +1001,17 @@ export default function ClassroomPage() {
           color: #4a2018;
           font-family: 'Outfit', sans-serif;
           box-sizing: border-box;
+          position: relative;
+          z-index: 0;
+        }
+
+        .page-wrapper::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: var(--classroom-bg-overlay, transparent);
+          pointer-events: none;
+          z-index: -1;
         }
 
         .app-container {
@@ -1070,6 +1022,8 @@ export default function ClassroomPage() {
           max-width: 100%;
           height: 100%;
           min-height: 0;
+          position: relative;
+          z-index: 1;
         }
 
         /* ── Header ── */

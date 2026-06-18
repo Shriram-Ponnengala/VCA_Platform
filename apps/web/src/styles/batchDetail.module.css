@@ -1,0 +1,596 @@
+﻿.container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  font-family: var(--font-sans);
+  color: #111827;
+}
+
+/* Breadcrumb */
+.breadcrumbRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.breadcrumb a {
+  color: #6b7280;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+}
+
+.breadcrumb a:hover {
+  color: #111827;
+}
+
+.breadcrumbIcon {
+  margin-right: 4px;
+}
+
+.moreBtn {
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+.moreBtn:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+/* Header Card */
+.headerCard {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.titleArea {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.activeBadge {
+  background-color: #ffedd5;
+  color: #c2410c;
+  padding: 4px 10px;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.metaInfo {
+  display: flex;
+  gap: 24px;
+  color: #4b5563;
+  font-size: 0.875rem;
+}
+
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.metaItem strong {
+  color: #111827;
+  font-weight: 600;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.editBtn {
+  background-color: white;
+  color: #111827;
+  border: 1px solid #d1d5db;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.editBtn:hover {
+  background-color: #f9fafb;
+}
+
+.deleteBtn {
+  background-color: white;
+  color: #ef4444;
+  border: 1px solid #fca5a5;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.deleteBtn:hover {
+  background-color: #fef2f2;
+}
+
+.iconBtn {
+  background-color: white;
+  color: #4b5563;
+  border: 1px solid #d1d5db;
+  padding: 8px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.iconBtn:hover {
+  background-color: #f9fafb;
+}
+
+/* Stats Row */
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.statCard {
+  background-color: #faf9f6;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.statLabel {
+  color: #4b5563;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.statValue {
+  color: #111827;
+  font-size: 1.5rem;
+  font-weight: 500;
+}
+
+/* Main Content Layout */
+.mainContent {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .mainContent {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Left Column */
+.leftCol {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0 24px;
+}
+
+.tab {
+  background: transparent;
+  border: none;
+  padding: 16px 24px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  position: relative;
+}
+
+.tabActive {
+  color: #111827;
+}
+
+.tabActive::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #111827;
+}
+
+/* Tab Content */
+.tabContent {
+  padding: 24px;
+}
+
+.tabContentHeader {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.addStudentBtn {
+  background-color: white;
+  color: #111827;
+  border: 1px solid #d1d5db;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.addStudentBtn:hover {
+  background-color: #f9fafb;
+}
+
+.studentList {
+  display: flex;
+  flex-direction: column;
+}
+
+.studentCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.studentCard:last-child {
+  border-bottom: none;
+}
+
+.studentInfo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #faebd7; /* fallback cream */
+  color: #9a3412;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+}
+
+.studentDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.studentName {
+  font-weight: 600;
+  color: #111827;
+  font-size: 0.9375rem;
+  margin: 0;
+}
+
+.studentAttendance {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 40px 0;
+  color: #6b7280;
+  font-size: 0.9375rem;
+}
+
+/* Add Student Search Area */
+.addStudentSearchArea {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.searchWrapper {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.searchInnerInput {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-size: 0.9rem;
+}
+
+.searchInnerInput:focus {
+  outline: none;
+  border-color: #111827;
+}
+
+.closeSearch {
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.studentSearchResults {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.searchResultItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #f3f4f6;
+}
+
+.resultInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.resultName {
+  font-weight: 600;
+  color: #111827;
+  font-size: 0.875rem;
+}
+
+.resultEmail {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.quickAddBtn {
+  background-color: #111827;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.noResults {
+  text-align: center;
+  font-size: 0.875rem;
+  color: #6b7280;
+  padding: 8px 0;
+}
+
+
+/* Right Column - Schedule Details */
+.schedulePanel {
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.schedulePanelTitle {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #4b5563;
+  margin: 0 0 16px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.scheduleList {
+  display: flex;
+  flex-direction: column;
+}
+
+.scheduleItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.scheduleItem:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.scheduleLabel {
+  font-size: 0.9375rem;
+  color: #4b5563;
+}
+
+.scheduleValue {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #111827;
+  text-align: right;
+}
+
+.dayPills {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.dayPill {
+  background-color: #fcd34d; /* yellow-300 / orange-ish */
+  color: #92400e; /* amber-800 */
+  padding: 4px 10px;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Coach specific additions */
+.primaryBtn {
+  background-color: #92400e; /* amber-800 */
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.primaryBtn:hover {
+  background-color: #78350f; /* amber-900 */
+}
+
+.sessionHistoryCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 0;
+  border-bottom: 1px solid #f3f4f6;
+  cursor: pointer;
+}
+
+.sessionHistoryCard:last-child {
+  border-bottom: none;
+}
+
+.sessionHistoryInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sessionDate {
+  font-weight: 600;
+  color: #111827;
+  font-size: 0.9375rem;
+}
+
+.sessionAttendanceText {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.textGreen {
+  color: #059669; /* emerald-600 */
+}
+
+.textRed {
+  color: #dc2626; /* red-600 */
+}
+
+.textOrange {
+  color: #b45309; /* amber-700 */
+}
+
+.sessionArrow {
+  color: #9ca3af;
+}
+
+/* Student specific additions */
+.statSubtext {
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin-top: 4px;
+}
+
+.badgePresent {
+  background-color: #d1fae5; /* emerald-100 */
+  color: #059669; /* emerald-600 */
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.badgeAbsent {
+  background-color: #fee2e2; /* red-100 */
+  color: #dc2626; /* red-600 */
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}

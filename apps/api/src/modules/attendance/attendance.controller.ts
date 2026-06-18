@@ -25,7 +25,7 @@ export class AttendanceController {
 
   async getBatchSessions(req: Request, res: Response) {
     try {
-      res.json(await service.getBatchSessions(req.params.batchId));
+      res.json(await service.getBatchSessions(req.params.batchId as string));
     } catch (e:any) {
       res.status(500).json({ error: e.message });
     }
@@ -45,7 +45,7 @@ export class AttendanceController {
 
   async getAttendanceRecords(req: Request, res: Response) {
     try {
-      res.json(await service.getAttendanceRecords(req.params.sessionId));
+      res.json(await service.getAttendanceRecords(req.params.sessionId as string));
     } catch (e:any) {
       res.status(500).json({ error: e.message });
     }
@@ -57,7 +57,7 @@ export class AttendanceController {
       if (!user) return res.status(401).json({ error: 'Unauthorized' });
       
       const records = req.body.records;
-      res.json(await service.upsertAttendanceRecords(req.params.sessionId, records, user.id as string));
+      res.json(await service.upsertAttendanceRecords(req.params.sessionId as string, records, user.id as string));
     } catch (e:any) {
       res.status(500).json({ error: e.message });
     }

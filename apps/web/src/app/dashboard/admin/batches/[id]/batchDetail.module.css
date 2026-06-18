@@ -1,39 +1,75 @@
 .container {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
+  font-family: var(--font-sans);
+  color: #111827;
 }
 
-.backLink {
+/* Breadcrumb */
+.breadcrumbRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+}
+
+.breadcrumb {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #64748b;
-  font-weight: 600;
+  color: #6b7280;
   font-size: 0.875rem;
-  width: fit-content;
-  transition: color 0.2s;
+  font-weight: 500;
 }
 
-.backLink:hover {
-  color: #3D1A0E;
+.breadcrumb a {
+  color: #6b7280;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
 }
 
-.header {
+.breadcrumb a:hover {
+  color: #111827;
+}
+
+.breadcrumbIcon {
+  margin-right: 4px;
+}
+
+.moreBtn {
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+.moreBtn:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+/* Header Card */
+.headerCard {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  padding: 24px;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  background: white;
-  padding: 32px;
-  border-radius: 24px;
-  border: 1px solid #f1f5f9;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .titleArea {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .titleRow {
@@ -43,98 +79,135 @@
 }
 
 .title {
-  font-family: var(--font-serif);
-  font-size: 2.5rem;
-  color: #3D1A0E;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
   margin: 0;
 }
 
 .activeBadge {
-  background-color: #EADBC8;
-  color: #3D1A0E;
-  padding: 4px 12px;
+  background-color: #ffedd5;
+  color: #c2410c;
+  padding: 4px 10px;
   border-radius: 99px;
   font-size: 0.75rem;
   font-weight: 700;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
 .metaInfo {
   display: flex;
   gap: 24px;
-  color: #475569;
+  color: #4b5563;
+  font-size: 0.875rem;
 }
 
 .metaItem {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.9375rem;
+  gap: 6px;
 }
 
 .metaItem strong {
-  color: #3D1A0E;
+  color: #111827;
+  font-weight: 600;
 }
 
-.actions {
+.headerActions {
   display: flex;
-  gap: 16px;
   align-items: center;
-}
-
-.markAttBtn {
-  background-color: #3D1A0E;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 12px;
-  font-weight: 700;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.markAttBtn:hover {
-  opacity: 0.9;
+  gap: 12px;
 }
 
 .editBtn {
-  background-color: transparent;
-  color: #3D1A0E;
-  border: 1.5px solid #3D1A0E;
-  padding: 10px 20px;
-  border-radius: 12px;
-  font-weight: 700;
+  background-color: white;
+  color: #111827;
+  border: 1px solid #d1d5db;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 500;
   font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .editBtn:hover {
-  background-color: #fafaf9;
+  background-color: #f9fafb;
 }
 
 .deleteBtn {
-  background-color: transparent;
+  background-color: white;
   color: #ef4444;
-  border: none;
-  padding: 10px 16px;
-  font-weight: 600;
+  border: 1px solid #fca5a5;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 500;
   font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
-  transition: color 0.2s;
+  transition: all 0.2s;
 }
 
 .deleteBtn:hover {
-  color: #dc2626;
-  text-decoration: underline;
+  background-color: #fef2f2;
+}
+
+.iconBtn {
+  background-color: white;
+  color: #4b5563;
+  border: 1px solid #d1d5db;
+  padding: 8px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.iconBtn:hover {
+  background-color: #f9fafb;
+}
+
+/* Stats Row */
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.statCard {
+  background-color: #faf9f6;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.statLabel {
+  color: #4b5563;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.statValue {
+  color: #111827;
+  font-size: 1.5rem;
+  font-weight: 500;
 }
 
 /* Main Content Layout */
 .mainContent {
   display: grid;
-  grid-template-columns: 3fr 2fr;
-  gap: 32px;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
   align-items: start;
 }
 
@@ -146,41 +219,63 @@
 
 /* Left Column */
 .leftCol {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-}
-
-.section {
   background: white;
-  border-radius: 24px;
-  border: 1px solid #f1f5f9;
-  padding: 32px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  padding: 0;
+  overflow: hidden;
 }
 
-.sectionHeader {
+/* Tabs */
+.tabs {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0 24px;
 }
 
-.sectionTitle {
-  font-family: var(--font-sans);
-  font-size: 1.25rem;
-  color: #3D1A0E;
-  margin: 0;
-  font-weight: 700;
+.tab {
+  background: transparent;
+  border: none;
+  padding: 16px 24px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  position: relative;
+}
+
+.tabActive {
+  color: #111827;
+}
+
+.tabActive::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #111827;
+}
+
+/* Tab Content */
+.tabContent {
+  padding: 24px;
+}
+
+.tabContentHeader {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
 }
 
 .addStudentBtn {
-  background-color: transparent;
-  color: #3D1A0E;
-  border: 1px solid #e2e8f0;
-  padding: 6px 16px;
+  background-color: white;
+  color: #111827;
+  border: 1px solid #d1d5db;
+  padding: 8px 16px;
   border-radius: 8px;
-  font-weight: 600;
+  font-weight: 500;
   font-size: 0.875rem;
   display: flex;
   align-items: center;
@@ -190,78 +285,77 @@
 }
 
 .addStudentBtn:hover {
-  border-color: #3D1A0E;
-  background-color: #fafaf9;
+  background-color: #f9fafb;
 }
 
 .studentList {
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
 .studentCard {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
-  border: 1px solid #f1f5f9;
-  border-radius: 16px;
-  transition: all 0.2s;
+  padding: 16px 0;
+  border-bottom: 1px solid #f3f4f6;
 }
 
-.studentCard:hover {
-  border-color: #e2e8f0;
-  background-color: #fafaf9;
+.studentCard:last-child {
+  border-bottom: none;
 }
 
 .studentInfo {
   display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #faebd7; /* fallback cream */
+  color: #9a3412;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+}
+
+.studentDetails {
+  display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .studentName {
-  font-weight: 700;
-  color: #3D1A0E;
+  font-weight: 600;
+  color: #111827;
+  font-size: 0.9375rem;
   margin: 0;
 }
 
-.studentEmail {
+.studentAttendance {
   font-size: 0.875rem;
-  color: #64748b;
+  color: #6b7280;
   margin: 0;
-}
-
-.removeBtn {
-  background: transparent;
-  border: none;
-  color: #94a3b8;
-  cursor: pointer;
-  padding: 8px;
-  opacity: 0;
-  transition: all 0.2s;
-}
-
-.studentCard:hover .removeBtn {
-  opacity: 1;
-}
-
-.removeBtn:hover {
-  color: #ef4444;
 }
 
 .emptyState {
   text-align: center;
   padding: 40px 0;
-  color: #94a3b8;
+  color: #6b7280;
   font-size: 0.9375rem;
 }
 
+/* Add Student Search Area */
 .addStudentSearchArea {
-  background: #fafaf9;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
   padding: 16px;
   margin-bottom: 24px;
 }
@@ -275,20 +369,20 @@
 .searchInnerInput {
   flex: 1;
   padding: 10px 16px;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
   font-size: 0.9rem;
 }
 
 .searchInnerInput:focus {
   outline: none;
-  border-color: #3D1A0E;
+  border-color: #111827;
 }
 
 .closeSearch {
   background: transparent;
   border: none;
-  color: #94a3b8;
+  color: #6b7280;
   cursor: pointer;
   padding: 4px;
 }
@@ -305,8 +399,8 @@
   align-items: center;
   padding: 10px 12px;
   background: white;
-  border-radius: 10px;
-  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+  border: 1px solid #f3f4f6;
 }
 
 .resultInfo {
@@ -315,24 +409,24 @@
 }
 
 .resultName {
-  font-weight: 700;
-  color: #3D1A0E;
+  font-weight: 600;
+  color: #111827;
   font-size: 0.875rem;
 }
 
 .resultEmail {
   font-size: 0.75rem;
-  color: #64748b;
+  color: #6b7280;
 }
 
 .quickAddBtn {
-  background-color: #3D1A0E;
+  background-color: #111827;
   color: white;
   border: none;
   padding: 6px 12px;
-  border-radius: 8px;
+  border-radius: 6px;
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 500;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -342,60 +436,24 @@
 .noResults {
   text-align: center;
   font-size: 0.875rem;
-  color: #94a3b8;
+  color: #6b7280;
   padding: 8px 0;
 }
 
 
-/* History Table */
-.historyTable {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.historyTable th {
-  text-align: left;
-  padding: 12px 16px;
-  font-size: 0.75rem;
-  font-weight: 800;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.historyTable td {
-  padding: 16px;
-  border-bottom: 1px solid #f1f5f9;
-  font-size: 0.9375rem;
-  color: #4a2018;
-}
-
-.historyRow {
-  transition: background-color 0.2s;
-}
-
-.historyRow:hover {
-  background-color: #fafaf9;
-  cursor: pointer;
-}
-
 /* Right Column - Schedule Details */
 .schedulePanel {
-  background-color: #fafaf9;
-  border: 2px solid #EADBC8;
-  border-radius: 24px;
-  padding: 32px;
-  position: sticky;
-  top: 32px;
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 24px;
 }
 
 .schedulePanelTitle {
-  font-family: var(--font-sans);
-  font-size: 1.125rem;
-  font-weight: 800;
-  color: #3D1A0E;
-  margin: 0 0 24px 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #4b5563;
+  margin: 0 0 16px 0;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -410,7 +468,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px 0;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #f3f4f6;
 }
 
 .scheduleItem:last-child {
@@ -419,14 +477,14 @@
 }
 
 .scheduleLabel {
-  font-size: 0.875rem;
-  color: #64748b;
+  font-size: 0.9375rem;
+  color: #4b5563;
 }
 
 .scheduleValue {
   font-size: 0.9375rem;
   font-weight: 600;
-  color: #3D1A0E;
+  color: #111827;
   text-align: right;
 }
 
@@ -437,46 +495,102 @@
 }
 
 .dayPill {
-  background-color: #EADBC8;
-  color: #3D1A0E;
+  background-color: #fcd34d; /* yellow-300 / orange-ish */
+  color: #92400e; /* amber-800 */
   padding: 4px 10px;
-  border-radius: 8px;
+  border-radius: 99px;
   font-size: 0.75rem;
-  font-weight: 800;
-}
-
-/* Tabs Navigation */
-.tabsContainer {
-  display: flex;
-  gap: 8px;
-  background-color: #fafaf9;
-  padding: 6px;
-  border-radius: 12px;
-  width: fit-content;
-  border: 1px solid #e2e8f0;
-  margin-bottom: 24px;
-}
-
-.tab {
-  background: transparent;
-  border: none;
-  padding: 8px 16px;
-  font-size: 0.9375rem;
   font-weight: 600;
-  color: #64748b;
+  text-transform: uppercase;
+}
+
+/* Coach specific additions */
+.primaryBtn {
+  background-color: #92400e; /* amber-800 */
+  color: white;
+  border: none;
+  padding: 10px 16px;
   border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s;
 }
 
-.tab:hover {
-  color: #3D1A0E;
-  background-color: rgba(61, 26, 14, 0.05);
+.primaryBtn:hover {
+  background-color: #78350f; /* amber-900 */
 }
 
-.activeTab {
-  background-color: white;
-  color: #3D1A0E;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+.sessionHistoryCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 0;
+  border-bottom: 1px solid #f3f4f6;
+  cursor: pointer;
 }
 
+.sessionHistoryCard:last-child {
+  border-bottom: none;
+}
+
+.sessionHistoryInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sessionDate {
+  font-weight: 600;
+  color: #111827;
+  font-size: 0.9375rem;
+}
+
+.sessionAttendanceText {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.textGreen {
+  color: #059669; /* emerald-600 */
+}
+
+.textRed {
+  color: #dc2626; /* red-600 */
+}
+
+.textOrange {
+  color: #b45309; /* amber-700 */
+}
+
+.sessionArrow {
+  color: #9ca3af;
+}
+
+/* Student specific additions */
+.statSubtext {
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin-top: 4px;
+}
+
+.badgePresent {
+  background-color: #d1fae5; /* emerald-100 */
+  color: #059669; /* emerald-600 */
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.badgeAbsent {
+  background-color: #fee2e2; /* red-100 */
+  color: #dc2626; /* red-600 */
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}

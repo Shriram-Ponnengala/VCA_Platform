@@ -16,10 +16,16 @@
 
 .logoSection {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 6px;
   margin-bottom: 56px;
   padding-left: 8px;
+}
+
+.logoRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .logoImage {
@@ -32,26 +38,30 @@
 
 .logoText {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+}
+
+.logoBottomText {
+  display: block;
+  padding-left: 4px; /* Align with hamburger */
 }
 
 .venture {
-  font-family: var(--font-serif);
-  font-size: 2.2rem;
-  font-weight: 400;
+  font-family: var(--font-oleo-script), var(--font-sans), sans-serif;
+  font-size: 1.82rem;
+  font-weight: 700;
   color: var(--sidebar-foreground);
-  line-height: 0.9;
-  letter-spacing: -0.02em;
+  line-height: 1;
+  letter-spacing: 0.02em;
 }
 
 .chess {
-  font-size: 0.5rem;
-  letter-spacing: 0.08em;
-  font-weight: 700;
+  font-family: var(--font-sans), sans-serif;
+  font-size: 0.85rem;
+  font-weight: 500;
   color: var(--sidebar-foreground);
-  opacity: 0.9;
-  text-transform: uppercase;
-  margin-top: 4px;
+  opacity: 0.85;
+  margin-top: 0;
 }
 
 .menuButton {
@@ -192,6 +202,7 @@
 
 .sidebar.collapsed .logoImage,
 .sidebar.collapsed .logoText,
+.sidebar.collapsed .logoBottomText,
 .sidebar.collapsed .navItem span,
 .sidebar.collapsed .usernameText,
 .sidebar.collapsed .signOut span {
@@ -200,8 +211,13 @@
 
 .sidebar.collapsed .logoSection {
   padding-left: 0;
-  justify-content: center;
+  align-items: center;
   gap: 0;
+}
+
+.sidebar.collapsed .logoRow {
+  justify-content: center;
+  width: 100%;
 }
 
 .sidebar.collapsed .menuButton {

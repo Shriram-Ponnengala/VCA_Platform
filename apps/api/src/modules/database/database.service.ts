@@ -7,6 +7,17 @@ export function splitPgn(pgnText: string): string[] {
   return parts.map(p => p.trim()).filter(p => p.length > 0);
 }
 
+export function cleanPgn(pgn: string): string {
+  const regex = /(\[[^\]]*\]|\{[^}]*\}|;[^\r\n]*|"[^"]*")/g;
+  const parts = pgn.split(regex);
+  for (let i = 0; i < parts.length; i++) {
+    if (i % 2 === 0) {
+      parts[i] = parts[i].replace(/(?<![\d.])\./g, '');
+    }
+  }
+  return parts.join('');
+}
+
 export class DatabaseService {
   async getTree(userId: string) {
     // Self-healing: Update cached chapterCount for any collections where it might be 0 but has games
@@ -437,7 +448,8 @@ export class DatabaseService {
       throw new Error('Only administrators can upload to the Public database.');
     }
 
-    const chunks = splitPgn(pgnText);
+    const cleanedPgn = cleanPgn(pgnText);
+    const chunks = splitPgn(cleanedPgn);
     if (chunks.length === 0) {
       throw new Error('No valid PGN games found in input.');
     }
@@ -517,8 +529,9 @@ export class DatabaseService {
     });
 
     let parsed: any;
+    const cleanedPgn = cleanPgn(pgnText);
     try {
-      parsed = parse(pgnText, { startRule: 'game' });
+      parsed = parse(cleanedPgn, { startRule: 'game' });
     } catch (e) {
       parsed = { tags: { Event: name }, moves: [] };
     }
@@ -555,8 +568,9 @@ export class DatabaseService {
     });
 
     let parsed: any;
+    const cleanedPgn = cleanPgn(pgnText);
     try {
-      parsed = parse(pgnText, { startRule: 'game' });
+      parsed = parse(cleanedPgn, { startRule: 'game' });
     } catch (e) {
       parsed = { tags: { Event: name }, moves: [] };
     }

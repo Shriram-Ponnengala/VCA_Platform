@@ -189,8 +189,21 @@ export function parsePgnToMoveTree(pgnText: string): {
 
       const nodeId = generateId();
 
-      // Comments can be in commentAfter or commentDiag or commentBefore
-      const comment = pm.commentAfter || pm.commentDiag?.commentAfter || pm.commentDiag?.commentBefore || undefined;
+      // Extract clock time and clean up evaluation/clock tags from comment
+      let clk: string | undefined = pm.commentDiag?.clk || undefined;
+      let comment = pm.commentAfter || pm.commentDiag?.comment || pm.commentDiag?.commentAfter || pm.commentDiag?.commentBefore || undefined;
+
+      if (comment) {
+        // Fallback clock extraction if not parsed into commentDiag.clk
+        const clkMatch = comment.match(/\[%clk\s+([^\]]+)\]/);
+        if (clkMatch) {
+          if (!clk) clk = clkMatch[1];
+          comment = comment.replace(/\[%clk\s+[^\]]+\]/g, '').trim() || undefined;
+        }
+        
+        // Strip evaluation tags as well to avoid raw tags in text comments
+        comment = comment.replace(/\[%eval\s+[^\]]+\]/g, '').trim() || undefined;
+      }
 
       const node: MoveNode = {
         id: nodeId,
@@ -205,6 +218,7 @@ export function parsePgnToMoveTree(pgnText: string): {
         to: moveObj?.to,
         arrows: [],
         comment,
+        clk,
         glyphs: (pm.nag || []).map((nag: string) => NAG_TO_SYMBOL[nag] || nag),
       };
 
@@ -285,8 +299,16 @@ export function buildPgnFromMoveTree(
       }
     }
 
+    let commentStr = '';
     if (mainChild.comment) {
-      res += ` {${mainChild.comment}}`;
+      commentStr += mainChild.comment;
+    }
+    if (mainChild.clk) {
+      if (commentStr) commentStr += ' ';
+      commentStr += `[%clk ${mainChild.clk}]`;
+    }
+    if (commentStr) {
+      res += ` {${commentStr}}`;
     }
 
     if (node.children.length > 1) {
@@ -306,8 +328,16 @@ export function buildPgnFromMoveTree(
             varPgn += ` ${SYMBOL_TO_NAG[g] || g}`;
           }
         }
+        let varCommentStr = '';
         if (varChild.comment) {
-          varPgn += ` {${varChild.comment}}`;
+          varCommentStr += varChild.comment;
+        }
+        if (varChild.clk) {
+          if (varCommentStr) varCommentStr += ' ';
+          varCommentStr += `[%clk ${varChild.clk}]`;
+        }
+        if (varCommentStr) {
+          varPgn += ` {${varCommentStr}}`;
         }
 
         const restOfVar = traverse(varChildId);

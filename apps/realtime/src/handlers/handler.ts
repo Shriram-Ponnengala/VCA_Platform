@@ -76,6 +76,11 @@ export function handleSocketConnection(io: IO) {
         if (!isMember) {
           if (role === 'ADMIN') {
             isMember = true;
+          } else if (batchIdStr.startsWith('analysis-')) {
+            // Allow any user to join their personal analysis room
+            if (batchIdStr === `analysis-${user.id}`) {
+              isMember = true;
+            }
           } else if (role === 'COACH') {
             const coach = await prisma.coach.findUnique({ where: { userId: user.id } });
             if (coach) {
@@ -162,7 +167,7 @@ export function handleSocketConnection(io: IO) {
 
     socket.on("chess:make_move", ({ roomId, from, to, promotion, parentId }) => {
       const role = (socket as any).user?.role?.toUpperCase();
-      if (role === 'STUDENT') {
+      if (role === 'STUDENT' && !roomId.startsWith('batch_analysis-')) {
         socket.emit("chess:move_rejected", { reason: `Only coaches can make moves` });
         return;
       }
@@ -182,7 +187,7 @@ export function handleSocketConnection(io: IO) {
 
     socket.on("chess:make_null_move", ({ roomId, parentId }) => {
       const role = (socket as any).user?.role?.toUpperCase();
-      if (role === 'STUDENT') {
+      if (role === 'STUDENT' && !roomId.startsWith('batch_analysis-')) {
         socket.emit("chess:move_rejected", { reason: `Only coaches can make null moves` });
         return;
       }
@@ -212,7 +217,7 @@ export function handleSocketConnection(io: IO) {
 
     socket.on("chess:reset", (roomId: string) => {
       const role = (socket as any).user?.role?.toUpperCase();
-      if (role === 'STUDENT') return;
+      if (role === 'STUDENT' && !roomId.startsWith('batch_analysis-')) return;
       
       resetRoom(roomId);
       console.log(`[Chess] Room ${roomId} reset by ${socket.id}`);
@@ -221,7 +226,7 @@ export function handleSocketConnection(io: IO) {
 
     socket.on("chess:setup_position", ({ roomId, fen }) => {
       const role = (socket as any).user?.role?.toUpperCase();
-      if (role === 'STUDENT') return;
+      if (role === 'STUDENT' && !roomId.startsWith('batch_analysis-')) return;
 
       setupPosition(roomId, fen);
       console.log(`[Chess] Room ${roomId} position setup by ${socket.id} with FEN: ${fen}`);
@@ -232,7 +237,7 @@ export function handleSocketConnection(io: IO) {
 
     socket.on("chess:update_arrows", ({ roomId, nodeId, arrows }) => {
       const role = (socket as any).user?.role?.toUpperCase();
-      if (role === 'STUDENT') return;
+      if (role === 'STUDENT' && !roomId.startsWith('batch_analysis-')) return;
 
       if (updateArrows(roomId, nodeId, arrows)) {
         io.to(roomId).emit("chess:arrows_updated", { nodeId, arrows });
@@ -241,7 +246,7 @@ export function handleSocketConnection(io: IO) {
 
     socket.on("chess:toggle_lock", ({ roomId, isLocked }) => {
       const role = (socket as any).user?.role?.toUpperCase();
-      if (role === 'STUDENT') return;
+      if (role === 'STUDENT' && !roomId.startsWith('batch_analysis-')) return;
 
       toggleLock(roomId, isLocked);
       io.to(roomId).emit("chess:lock_toggled", { isLocked });
@@ -249,7 +254,7 @@ export function handleSocketConnection(io: IO) {
 
     socket.on("chess:toggle_freehand", ({ roomId, isFreehand }) => {
       const role = (socket as any).user?.role?.toUpperCase();
-      if (role === 'STUDENT') return;
+      if (role === 'STUDENT' && !roomId.startsWith('batch_analysis-')) return;
 
       toggleFreehand(roomId, isFreehand);
       io.to(roomId).emit("chess:freehand_toggled", { isFreehand });
@@ -267,7 +272,7 @@ export function handleSocketConnection(io: IO) {
 
     socket.on("chess:update_node", ({ roomId, nodeId, comment, glyphs }) => {
       const role = (socket as any).user?.role?.toUpperCase();
-      if (role === 'STUDENT') return;
+      if (role === 'STUDENT' && !roomId.startsWith('batch_analysis-')) return;
 
       if (updateNodeAnnotations(roomId, nodeId, comment, glyphs)) {
         io.to(roomId).emit("chess:node_updated", { nodeId, comment, glyphs });
@@ -276,7 +281,7 @@ export function handleSocketConnection(io: IO) {
 
     socket.on("chess:promote_to_mainline", ({ roomId, nodeId }) => {
       const role = (socket as any).user?.role?.toUpperCase();
-      if (role === 'STUDENT') return;
+      if (role === 'STUDENT' && !roomId.startsWith('batch_analysis-')) return;
 
       if (promoteToMainline(roomId, nodeId)) {
         io.to(roomId).emit("chess:state", getRoomState(roomId));
@@ -285,7 +290,7 @@ export function handleSocketConnection(io: IO) {
 
     socket.on("chess:promote_variation", ({ roomId, nodeId }) => {
       const role = (socket as any).user?.role?.toUpperCase();
-      if (role === 'STUDENT') return;
+      if (role === 'STUDENT' && !roomId.startsWith('batch_analysis-')) return;
 
       if (promoteVariation(roomId, nodeId)) {
         io.to(roomId).emit("chess:state", getRoomState(roomId));
@@ -294,7 +299,7 @@ export function handleSocketConnection(io: IO) {
 
     socket.on("chess:delete_subsequent_moves", ({ roomId, nodeId }) => {
       const role = (socket as any).user?.role?.toUpperCase();
-      if (role === 'STUDENT') return;
+      if (role === 'STUDENT' && !roomId.startsWith('batch_analysis-')) return;
 
       if (deleteSubsequentMoves(roomId, nodeId)) {
         io.to(roomId).emit("chess:state", getRoomState(roomId));
@@ -303,7 +308,7 @@ export function handleSocketConnection(io: IO) {
 
     socket.on("chess:delete_previous_moves", ({ roomId, nodeId }) => {
       const role = (socket as any).user?.role?.toUpperCase();
-      if (role === 'STUDENT') return;
+      if (role === 'STUDENT' && !roomId.startsWith('batch_analysis-')) return;
 
       if (deletePreviousMoves(roomId, nodeId)) {
         io.to(roomId).emit("chess:state", getRoomState(roomId));
@@ -312,7 +317,7 @@ export function handleSocketConnection(io: IO) {
 
     socket.on("chess:delete_move", ({ roomId, nodeId }) => {
       const role = (socket as any).user?.role?.toUpperCase();
-      if (role === 'STUDENT') return;
+      if (role === 'STUDENT' && !roomId.startsWith('batch_analysis-')) return;
 
       if (deleteMove(roomId, nodeId)) {
         io.to(roomId).emit("chess:state", getRoomState(roomId));
@@ -321,7 +326,7 @@ export function handleSocketConnection(io: IO) {
 
     socket.on("chess:load_pgn", ({ roomId, nodes, currentNodeId, chapters, activeChapterIndex }) => {
       const role = (socket as any).user?.role?.toUpperCase();
-      if (role === 'STUDENT') return;
+      if (role === 'STUDENT' && !roomId.startsWith('batch_analysis-')) return;
 
       const room = getRoom(roomId);
       room.nodes = nodes;
@@ -338,7 +343,7 @@ export function handleSocketConnection(io: IO) {
 
     socket.on("chess:select_chapter", ({ roomId, chapterIndex }) => {
       const role = (socket as any).user?.role?.toUpperCase();
-      if (role === 'STUDENT') return;
+      if (role === 'STUDENT' && !roomId.startsWith('batch_analysis-')) return;
 
       const room = getRoom(roomId);
       if (room.chapters && room.chapters[chapterIndex]) {
@@ -353,7 +358,7 @@ export function handleSocketConnection(io: IO) {
 
     socket.on("chess:set_tag", ({ roomId, key, value }) => {
       const role = (socket as any).user?.role?.toUpperCase();
-      if (role === 'STUDENT') return;
+      if (role === 'STUDENT' && !roomId.startsWith('batch_analysis-')) return;
 
       setStudyTag(roomId, key, value);
       io.to(roomId).emit("chess:set_tag", { key, value });
@@ -361,7 +366,7 @@ export function handleSocketConnection(io: IO) {
 
     socket.on("chess:remove_tag", ({ roomId, key }) => {
       const role = (socket as any).user?.role?.toUpperCase();
-      if (role === 'STUDENT') return;
+      if (role === 'STUDENT' && !roomId.startsWith('batch_analysis-')) return;
 
       removeStudyTag(roomId, key);
       io.to(roomId).emit("chess:remove_tag", { key });

@@ -78,27 +78,65 @@ export class SettingsController {
         wood_olive: { light: '#eedcd0', dark: '#c8854a', image: 'https://lichess1.org/assets/images/board/olive.jpg' },
         wood_dark_ash: { light: '#eedcd0', dark: '#c8854a', image: 'https://lichess1.org/assets/images/board/wood4.jpg' }
       };
-      const theme = themes[boardKey] || themes.brown;
-      css += `  --board-light: ${theme.light};\n`;
-      css += `  --board-dark: ${theme.dark};\n`;
-      if (theme.image) {
-        if (theme.hasOverlay) {
-          css += `  --board-image: conic-gradient(rgba(0, 0, 0, 0.22) 25%, transparent 0 50%, rgba(0, 0, 0, 0.22) 0 75%, transparent 0), url('${theme.image}');\n`;
-        } else {
-          css += `  --board-image: url('${theme.image}');\n`;
+      if (boardKey.startsWith('custom_')) {
+        let customTheme: any = null;
+        if (branding.customThemes) {
+          customTheme = branding.customThemes.find((t: any) => t.id.toLowerCase() === boardKey);
         }
-        css += `  --board-size: 100% 100%;\n`;
+        if (customTheme) {
+          css += `  --board-light: transparent;\n`;
+          css += `  --board-image: none;\n`;
+          css += `  --board-square-light: ${customTheme.light};\n`;
+          css += `  --board-square-dark: ${customTheme.dark};\n`;
+        } else {
+          const theme = themes.brown;
+          css += `  --board-light: ${theme.light};\n`;
+          css += `  --board-dark: ${theme.dark};\n`;
+          css += `  --board-image: conic-gradient(var(--board-dark) 25%, transparent 0 50%, var(--board-dark) 0 75%, transparent 0);\n`;
+          css += `  --board-size: 25% 25%;\n`;
+          css += `  --board-square-light: transparent;\n`;
+          css += `  --board-square-dark: transparent;\n`;
+        }
       } else {
-        css += `  --board-image: conic-gradient(var(--board-dark) 25%, transparent 0 50%, var(--board-dark) 0 75%, transparent 0);\n`;
-        css += `  --board-size: 25% 25%;\n`;
+        css += `  --board-square-light: transparent;\n`;
+        css += `  --board-square-dark: transparent;\n`;
+        
+        const theme = themes[boardKey] || themes.brown;
+        css += `  --board-light: ${theme.light};\n`;
+        css += `  --board-dark: ${theme.dark};\n`;
+        if (theme.image) {
+          if (theme.hasOverlay) {
+            css += `  --board-image: conic-gradient(rgba(0, 0, 0, 0.22) 25%, transparent 0 50%, rgba(0, 0, 0, 0.22) 0 75%, transparent 0), url('${theme.image}');\n`;
+          } else {
+            css += `  --board-image: url('${theme.image}');\n`;
+          }
+          css += `  --board-size: 100% 100%;\n`;
+        } else {
+          css += `  --board-image: conic-gradient(var(--board-dark) 25%, transparent 0 50%, var(--board-dark) 0 75%, transparent 0);\n`;
+          css += `  --board-size: 25% 25%;\n`;
+        }
       }
       
       // Chess pieces styles
       const pTheme = (branding.pieceTheme || 'cburnett').toLowerCase();
       const pieces = ['wP', 'wB', 'wN', 'wR', 'wQ', 'wK', 'bP', 'bB', 'bN', 'bR', 'bQ', 'bK'];
+      const isLocalTheme = pTheme === 'chibi';
       pieces.forEach(p => {
-        css += `  --piece-${p.toLowerCase()}: url(https://lichess1.org/assets/_L5MIdy/piece/${pTheme}/${p}.svg);\n`;
+        const url = isLocalTheme 
+          ? `/pieces/${pTheme}/${p.toLowerCase()}.png`
+          : `https://lichess1.org/assets/_L5MIdy/piece/${pTheme}/${p}.svg`;
+        css += `  --piece-${p.toLowerCase()}: url(${url});\n`;
       });
+      
+      if (branding.boardFrameColor) {
+        css += `  --board-frame-color: ${branding.boardFrameColor};\n`;
+      }
+      if (branding.boardCoordinatesColor) {
+        css += `  --board-coords-color: ${branding.boardCoordinatesColor};\n`;
+      }
+      if (branding.boardFramePadding !== undefined && branding.boardFramePadding !== null) {
+        css += `  --board-frame-padding: ${branding.boardFramePadding}px;\n`;
+      }
 
       // Panel Style CSS Custom Properties
       const pStyle = (branding.panelStyle || 'solid').toLowerCase();
@@ -162,10 +200,98 @@ export class SettingsController {
       css += `  --panel-bg-position: ${panelBgPosition};\n`;
       css += `  --panel-avatar-bg: ${panelAvatarBg};\n`;
       
+      // Classroom Background Custom CSS Properties
+      const bg = branding.classroomBackground || { type: 'solid', solidColor: '#fdf0e4' };
+      let bgValue = '#fdf0e4';
+      let bgSize = 'auto';
+      let bgRepeat = 'repeat';
+      let bgPosition = '0 0';
+      let bgOverlay = 'transparent';
+
+      if (bg.type === 'solid') {
+        bgValue = bg.solidColor || '#fdf0e4';
+      } else if (bg.type === 'gradient') {
+        const stops = bg.gradient?.stops || [
+          { color: '#fdf0e4', position: 0 },
+          { color: '#eedcd0', position: 100 }
+        ];
+        const direction = bg.gradient?.direction || '135deg';
+        const stopsStr = stops.map((s: any) => `${s.color} ${s.position}%`).join(', ');
+        bgValue = `linear-gradient(${direction}, ${stopsStr})`;
+      } else if (bg.type === 'texture') {
+        const texture = bg.texture || 'dots';
+        if (texture === 'dots') {
+          bgValue = 'radial-gradient(#eedcd0 15%, transparent 16%)';
+          bgSize = '16px 16px';
+          bgRepeat = 'repeat';
+        } else if (texture === 'grid') {
+          bgValue = 'linear-gradient(rgba(238, 220, 208, 0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(238, 220, 208, 0.4) 1px, transparent 1px)';
+          bgSize = '20px 20px';
+          bgRepeat = 'repeat';
+        } else if (texture === 'stripes') {
+          bgValue = 'repeating-linear-gradient(45deg, #fdf0e4, #fdf0e4 10px, #f5e4d7 10px, #f5e4d7 20px)';
+        } else if (texture === 'wood') {
+          bgValue = `url('https://lichess1.org/assets/images/board/maple.jpg')`;
+          bgSize = '200px 200px';
+          bgRepeat = 'repeat';
+        } else if (texture === 'stars') {
+          bgValue = '#0d1b2a';
+          bgValue = `radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 40px), radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 30px), radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 40px)`;
+          bgSize = '550px 550px, 350px 350px, 250px 250px';
+          bgPosition = '0 0, 40px 60px, 130px 270px';
+          bgRepeat = 'repeat';
+        }
+      } else if (bg.type === 'image') {
+        // For uploads, serve via a dedicated endpoint to avoid embedding 5MB+ base64 in CSS
+        const imgUrl = bg.imageSource === 'upload'
+          ? (bg.imageUpload ? '/api/settings/branding/background-image' : '')
+          : (bg.imageUrl || '');
+        if (imgUrl) {
+          bgValue = `url('${imgUrl}')`;
+          bgSize = 'cover';
+          bgPosition = 'center';
+          bgRepeat = 'no-repeat';
+          if (bg.imageOverlay) {
+            bgOverlay = 'rgba(0, 0, 0, 0.45)';
+          }
+        }
+      }
+
+      css += `  --classroom-bg: ${bgValue};\n`;
+      css += `  --classroom-bg-size: ${bgSize};\n`;
+      css += `  --classroom-bg-repeat: ${bgRepeat};\n`;
+      css += `  --classroom-bg-position: ${bgPosition};\n`;
+      css += `  --classroom-bg-overlay: ${bgOverlay};\n`;
+      
       css += '}';
       
       res.setHeader('Content-Type', 'text/css');
       res.send(css);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  }
+
+  async getBrandingBackgroundImage(req: Request, res: Response) {
+    try {
+      const branding = (await service.get('branding') || {}) as any;
+      const bg = branding.classroomBackground;
+      if (bg?.type === 'image' && bg?.imageSource === 'upload' && bg?.imageUpload) {
+        const dataUri: string = bg.imageUpload;
+        const commaIdx = dataUri.indexOf(',');
+        if (commaIdx === -1) {
+          return res.status(400).json({ error: 'Invalid image data' });
+        }
+        const header = dataUri.substring(0, commaIdx);
+        const base64Data = dataUri.substring(commaIdx + 1);
+        const mimeMatch = header.match(/data:(.*?);/);
+        const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+        const buffer = Buffer.from(base64Data, 'base64');
+        res.setHeader('Content-Type', mimeType);
+        res.setHeader('Cache-Control', 'no-cache');
+        return res.send(buffer);
+      }
+      return res.status(404).json({ error: 'No uploaded background image set' });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
