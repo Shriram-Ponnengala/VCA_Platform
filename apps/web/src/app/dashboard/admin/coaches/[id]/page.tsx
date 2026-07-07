@@ -7,6 +7,7 @@ import { useCoaches } from '@/lib/hooks/useCoaches';
 import { useBatches } from '@/lib/hooks/useBatches';
 import { generateBatchSlug } from '@/lib/utils/urlUtils';
 import { AddCoachModal } from '../AddCoachModal';
+import { ConfirmModal } from '@vca/ui';
 import styles from './coachDetail.module.css';
 
 export default function CoachProfilePage() {
@@ -17,6 +18,7 @@ export default function CoachProfilePage() {
   const { batches, isLoaded: batchesLoaded } = useBatches();
   
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const coachId = params.id as string;
   const coach = coaches.find(c => c.id === coachId);
@@ -40,15 +42,7 @@ export default function CoachProfilePage() {
   };
 
   const handleDelete = () => {
-    if (window.confirm(`Delete ${coach.name}?\nThis coach will be removed from all assigned batches.\nThis action cannot be undone.`)) {
-      try {
-        deleteCoach(coach.id);
-        router.push('/dashboard/admin/coaches');
-      } catch (error) {
-        console.error('Delete failed:', error);
-        alert('Failed to delete coach. Your storage might be full.');
-      }
-    }
+    setShowDeleteConfirm(true);
   };
 
   return (
@@ -134,6 +128,24 @@ export default function CoachProfilePage() {
         onClose={() => setIsEditModalOpen(false)} 
         onSave={handleEditSave}
         initialData={coach}
+      />
+
+      <ConfirmModal 
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={async () => {
+          try {
+            await deleteCoach(coach.id);
+            router.push('/dashboard/admin/coaches');
+          } catch (error) {
+            console.error('Delete failed:', error);
+          }
+          setShowDeleteConfirm(false);
+        }}
+        title="Delete Coach"
+        message={`Delete ${coach?.name || ''}? This coach will be removed from all assigned batches. This action cannot be undone.`}
+        confirmText="Delete"
+        variant="danger"
       />
     </div>
   );

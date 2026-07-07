@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Chess } from 'chess.js';
-import { Cpu, MoreHorizontal, Plus, Minus } from 'lucide-react';
+import { Chess } from '@vca/chess';
+import { Cpu, MoreHorizontal, Plus, Minus, AlertCircle } from 'lucide-react';
+
+const SEARCH_DEPTH = 22;
+const MAX_DISPLAY_PLIES = 8; // cap shown PV at ~4 full moves; engine still searches full depth
 
 interface EngineAnalysisPanelProps {
   fen: string;
@@ -13,6 +16,19 @@ interface AnalysisLine {
   pv: string;
   san: string;
   score: string;
+}
+
+interface RawAnalysisLine {
+  rank: number;
+  pvMoves: string[];
+  score: string;
+}
+
+interface EvaluationBuffer {
+  depth: number;
+  nps: number;
+  evalScore: string;
+  topLines: RawAnalysisLine[];
 }
 
 type EngineStatus = 'initializing' | 'ready' | 'analyzing' | 'error';
@@ -106,6 +122,7 @@ function formatMovesWithNumbers(fen: string, sanMoves: string[]): string {
 }
 
 export default function EngineAnalysisPanel({ fen }: EngineAnalysisPanelProps) {
+  const isGamified = fen.includes('|');
   const [isEngineOn, setIsEngineOn] = useState<boolean>(false);
   const [numLines, setNumLines] = useState<number>(3);
   
@@ -128,6 +145,32 @@ export default function EngineAnalysisPanel({ fen }: EngineAnalysisPanelProps) {
   const isSearchingRef = useRef<boolean>(false);
   const pendingFenRef = useRef<string | null>(null);
 
+  const analyzingFenRef = useRef<string | null>(null);
+  const evaluationBufferRef = useRef<EvaluationBuffer>({
+    depth: 0,
+    nps: 0,
+    evalScore: '0.0',
+    topLines: Array.from({ length: 3 }, (_, i) => ({ rank: i + 1, pvMoves: [], score: '' }))
+  });
+
+  const [showToast, setShowToast] = useState<boolean>(false);
+  const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (isGamified) {
+      setShowToast(true);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = setTimeout(() => {
+        setShowToast(false);
+      }, 5000);
+    } else {
+      setShowToast(false);
+    }
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, [isGamified]);
+
   // Keep refs updated to prevent closure issues in the web worker callback
   useEffect(() => {
     fenRef.current = fen;
@@ -143,17 +186,52 @@ export default function EngineAnalysisPanel({ fen }: EngineAnalysisPanelProps) {
 
   // Handle resizing/changing number of lines
   useEffect(() => {
-    setTopLines(Array.from({ length: numLines }, (_, i) => ({
+    const lines = Array.from({ length: numLines }, (_, i) => ({
       rank: i + 1,
       pv: '',
       san: '',
       score: ''
-    })));
+    }));
+    setTopLines(lines);
+    evaluationBufferRef.current.topLines = Array.from({ length: numLines }, (_, i) => ({
+      rank: i + 1,
+      pvMoves: [],
+      score: ''
+    }));
   }, [numLines]);
+
+  // Interval for flushing engine evaluations to state (4 times per second max)
+  useEffect(() => {
+    if (!isEngineOn || isGamified) return;
+
+    const intervalId = setInterval(() => {
+      const buf = evaluationBufferRef.current;
+      setDepth(buf.depth);
+      setNps(buf.nps);
+      setEvalScore(buf.evalScore);
+      
+      const formattedLines = buf.topLines.map(line => {
+        if (!line.pvMoves || line.pvMoves.length === 0) {
+          return { rank: line.rank, pv: '', san: '', score: line.score };
+        }
+        const sanMoves = convertPVToSAN(fenRef.current, line.pvMoves).slice(0, MAX_DISPLAY_PLIES);
+        const formattedPV = formatMovesWithNumbers(fenRef.current, sanMoves);
+        return {
+          rank: line.rank,
+          pv: line.pvMoves.join(' '),
+          san: formattedPV,
+          score: line.score
+        };
+      });
+      setTopLines(formattedLines);
+    }, 250);
+
+    return () => clearInterval(intervalId);
+  }, [isEngineOn, isGamified]);
 
   // Initialize Stockfish Worker
   useEffect(() => {
-    if (!isEngineOn) {
+    if (isGamified || !isEngineOn) {
       setStatus('ready');
       setDepth(0);
       setNps(0);
@@ -162,7 +240,11 @@ export default function EngineAnalysisPanel({ fen }: EngineAnalysisPanelProps) {
 
     try {
       setStatus('initializing');
-      const worker = new Worker('/stockfish.js');
+      const useThreads = typeof crossOriginIsolated !== 'undefined' && crossOriginIsolated;
+      const engineFile = useThreads
+        ? '/engine/stockfish-18-lite.js'
+        : '/engine/stockfish-18-lite-single.js';
+      const worker = new Worker(engineFile);
       workerRef.current = worker;
 
       worker.onmessage = (event: MessageEvent) => {
@@ -177,20 +259,24 @@ export default function EngineAnalysisPanel({ fen }: EngineAnalysisPanelProps) {
             pendingFenRef.current = null;
             isSearchingRef.current = true;
             if (workerRef.current) {
+              analyzingFenRef.current = newFen; // Update analyzing FEN
               workerRef.current.postMessage(`setoption name MultiPV value ${numLinesRef.current}`);
               workerRef.current.postMessage(`position fen ${newFen}`);
-              workerRef.current.postMessage('go depth 18');
+              workerRef.current.postMessage(`go depth ${SEARCH_DEPTH}`);
             }
           }
         } else if (line.startsWith('info ')) {
           if (!isEngineOnRef.current) return;
-          const chess = new Chess(fenRef.current);
-          const parsed = parseStockfishLine(line, chess.turn());
+          // Ignore evaluations that don't match the FEN we are currently analyzing
+          if (analyzingFenRef.current !== fenRef.current) return;
+
+          const turn = fenRef.current.split(' ')[1] === 'b' ? 'b' : 'w';
+          const parsed = parseStockfishLine(line, turn);
 
           if (parsed && parsed.multipv <= numLinesRef.current) {
-            setDepth(parsed.depth);
+            evaluationBufferRef.current.depth = parsed.depth;
             if (parsed.nps) {
-              setNps(parsed.nps);
+              evaluationBufferRef.current.nps = parsed.nps;
             }
             
             // Format score
@@ -202,26 +288,20 @@ export default function EngineAnalysisPanel({ fen }: EngineAnalysisPanelProps) {
               scoreStr = parsed.scoreValue > 0 ? `M+${parsed.scoreValue}` : `M-${Math.abs(parsed.scoreValue)}`;
             }
 
-            // Convert and format PV
-            const sanMoves = convertPVToSAN(fenRef.current, parsed.pvMoves);
-            const formattedPV = formatMovesWithNumbers(fenRef.current, sanMoves);
+            // Update topLines in buffer
+            const updatedLines = [...evaluationBufferRef.current.topLines];
+            while (updatedLines.length < parsed.multipv) {
+              updatedLines.push({ rank: updatedLines.length + 1, pvMoves: [], score: '' });
+            }
+            const idx = parsed.multipv - 1;
+            updatedLines[idx] = {
+              rank: parsed.multipv,
+              pvMoves: parsed.pvMoves,
+              score: scoreStr
+            };
+            evaluationBufferRef.current.topLines = updatedLines.slice(0, numLinesRef.current);
 
-            setTopLines(prev => {
-              const updated = [...prev];
-              while (updated.length < parsed.multipv) {
-                updated.push({ rank: updated.length + 1, pv: '', san: '', score: '' });
-              }
-              const idx = parsed.multipv - 1;
-              updated[idx] = {
-                rank: parsed.multipv,
-                pv: parsed.pvMoves.join(' '),
-                san: formattedPV,
-                score: scoreStr
-              };
-              return updated.slice(0, numLinesRef.current);
-            });
-
-            // Update main eval score from depth rank 1
+            // Update main eval score in buffer from depth rank 1
             if (parsed.multipv === 1) {
               let mainEvalStr = '';
               if (parsed.scoreType === 'cp') {
@@ -230,7 +310,7 @@ export default function EngineAnalysisPanel({ fen }: EngineAnalysisPanelProps) {
               } else if (parsed.scoreType === 'mate') {
                 mainEvalStr = parsed.scoreValue > 0 ? `M+${parsed.scoreValue}` : `M-${Math.abs(parsed.scoreValue)}`;
               }
-              setEvalScore(mainEvalStr);
+              evaluationBufferRef.current.evalScore = mainEvalStr;
             }
           }
         }
@@ -242,6 +322,11 @@ export default function EngineAnalysisPanel({ fen }: EngineAnalysisPanelProps) {
 
       // Set up engine options
       worker.postMessage('uci');
+      if (useThreads) {
+        const threads = Math.min(2, navigator.hardwareConcurrency || 1);
+        worker.postMessage(`setoption name Threads value ${threads}`);
+      }
+      worker.postMessage('setoption name Hash value 128');
       worker.postMessage(`setoption name MultiPV value ${numLinesRef.current}`);
       worker.postMessage('isready');
 
@@ -256,11 +341,11 @@ export default function EngineAnalysisPanel({ fen }: EngineAnalysisPanelProps) {
         workerRef.current = null;
       }
     };
-  }, [isEngineOn]);
+  }, [isEngineOn, isGamified]);
 
   // Handle position/FEN updates & lines settings changes
   useEffect(() => {
-    if (status === 'error') return;
+    if (isGamified || status === 'error') return;
     if (!isEngineOn) {
       if (workerRef.current) {
         workerRef.current.postMessage('stop');
@@ -277,12 +362,18 @@ export default function EngineAnalysisPanel({ fen }: EngineAnalysisPanelProps) {
           setEvalScore('#');
           const turnText = chess.turn() === 'w' ? 'Black wins (Checkmate)' : 'White wins (Checkmate)';
           setGameOverText(turnText);
-          setTopLines(Array.from({ length: numLines }, (_, i) => ({
+          const lines = Array.from({ length: numLines }, (_, i) => ({
             rank: i + 1,
             pv: i === 0 ? turnText : '',
             san: i === 0 ? turnText : '',
             score: i === 0 ? (chess.turn() === 'w' ? '0-1' : '1-0') : ''
-          })));
+          }));
+          setTopLines(lines);
+          evaluationBufferRef.current.topLines = Array.from({ length: numLines }, (_, i) => ({
+            rank: i + 1,
+            pvMoves: i === 0 ? [turnText] : [],
+            score: i === 0 ? (chess.turn() === 'w' ? '0-1' : '1-0') : ''
+          }));
         } else if (chess.isDraw()) {
           setEvalScore('0.0');
           let drawReason = 'Draw';
@@ -290,12 +381,18 @@ export default function EngineAnalysisPanel({ fen }: EngineAnalysisPanelProps) {
           else if (chess.isThreefoldRepetition()) drawReason = 'Draw (Repetition)';
           else if (chess.isInsufficientMaterial()) drawReason = 'Draw (Insufficient Material)';
           setGameOverText(drawReason);
-          setTopLines(Array.from({ length: numLines }, (_, i) => ({
+          const lines = Array.from({ length: numLines }, (_, i) => ({
             rank: i + 1,
             pv: i === 0 ? drawReason : '',
             san: i === 0 ? drawReason : '',
             score: i === 0 ? '1/2-1/2' : ''
-          })));
+          }));
+          setTopLines(lines);
+          evaluationBufferRef.current.topLines = Array.from({ length: numLines }, (_, i) => ({
+            rank: i + 1,
+            pvMoves: i === 0 ? [drawReason] : [],
+            score: i === 0 ? '1/2-1/2' : ''
+          }));
         }
         
         if (workerRef.current) {
@@ -314,18 +411,32 @@ export default function EngineAnalysisPanel({ fen }: EngineAnalysisPanelProps) {
       setStatus('analyzing');
       setDepth(0);
       setNps(0);
+
+      // Clear the evaluation buffer for the new search
+      const initialLines = Array.from({ length: numLines }, (_, i) => ({
+        rank: i + 1,
+        pvMoves: [],
+        score: ''
+      }));
+      evaluationBufferRef.current = {
+        depth: 0,
+        nps: 0,
+        evalScore: '0.0',
+        topLines: initialLines
+      };
       
       if (isSearchingRef.current) {
         pendingFenRef.current = fen;
         workerRef.current.postMessage('stop');
       } else {
         isSearchingRef.current = true;
+        analyzingFenRef.current = fen; // Update current analyzing FEN
         workerRef.current.postMessage(`setoption name MultiPV value ${numLines}`);
         workerRef.current.postMessage(`position fen ${fen}`);
-        workerRef.current.postMessage('go depth 18');
+        workerRef.current.postMessage(`go depth ${SEARCH_DEPTH}`);
       }
     }
-  }, [fen, status, isEngineOn, numLines]);
+  }, [fen, status, isEngineOn, numLines, isGamified]);
 
   const getScoreBadgeClass = (score: string, rank: number) => {
     if (!score || score === '--') return 'badge-neutral';
@@ -347,6 +458,273 @@ export default function EngineAnalysisPanel({ fen }: EngineAnalysisPanelProps) {
     }
     return ` · ${(n / 1000).toFixed(0)} Kn/s`;
   };
+
+  if (isGamified) {
+    const handleSwitchClick = () => {
+      setShowToast(true);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = setTimeout(() => {
+        setShowToast(false);
+      }, 5000);
+    };
+
+    return (
+      <div className="engine-analysis-container" style={{ position: 'relative' }}>
+        {showToast && (
+          <div className="custom-toast-overlay">
+            <div className="custom-toast">
+              <AlertCircle className="custom-toast-icon" size={18} />
+              <span className="custom-toast-message">Engine is disabled for gamified board</span>
+              <button className="custom-toast-close" onClick={() => setShowToast(false)}>&times;</button>
+            </div>
+          </div>
+        )}
+        {/* Header bar matching the user mockup */}
+        <div className="engine-header">
+          <div className="engine-title-group">
+            <Cpu className="engine-icon" size={18} />
+            <span className="engine-title">Engine</span>
+          </div>
+          <div className="engine-controls" onClick={handleSwitchClick} style={{ cursor: 'pointer' }}>
+            <span className="engine-status-text">disabled</span>
+            <label className="engine-switch disabled-switch" style={{ pointerEvents: 'none' }}>
+              <input 
+                type="checkbox" 
+                checked={false} 
+                disabled
+                aria-label="Toggle Engine Analysis"
+              />
+              <span className="engine-slider" />
+            </label>
+          </div>
+        </div>
+
+        {/* Engine stats row */}
+        <div className="engine-stats-row">
+          <span className="engine-name-label">Stockfish 18 · NNUE</span>
+        </div>
+
+        {/* Main output lines scroll area */}
+        <div className="analysis-lines-scroll">
+          <div className="engine-disabled-state">
+            <div className="disabled-badge">
+              <AlertCircle className="engine-disabled-icon" size={28} />
+            </div>
+            <span className="engine-disabled-text">Engine is disabled for gamified board</span>
+            <span className="engine-disabled-subtext">Interactive analysis is only available for standard chess boards.</span>
+          </div>
+        </div>
+
+        <style>{`
+          .custom-toast-overlay {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            z-index: 50;
+            animation: slideDown 0.3s ease-out;
+          }
+
+          @keyframes slideDown {
+            from {
+              transform: translateY(-20px);
+              opacity: 0;
+            }
+            to {
+              transform: translateY(0);
+              opacity: 1;
+            }
+          }
+
+          .custom-toast {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #dc2626;
+            color: #ffffff;
+            padding: 10px 14px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            font-size: 0.85rem;
+            font-weight: 500;
+          }
+
+          .custom-toast-icon {
+            flex-shrink: 0;
+          }
+
+          .custom-toast-message {
+            flex-grow: 1;
+          }
+
+          .custom-toast-close {
+            background: none;
+            border: none;
+            color: #ffffff;
+            font-size: 1.2rem;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0 4px;
+            opacity: 0.8;
+            transition: opacity 0.15s;
+          }
+
+          .custom-toast-close:hover {
+            opacity: 1;
+          }
+
+          .engine-analysis-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            color: #334155;
+            font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+            background: #ffffff;
+          }
+
+          .engine-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid #f1f5f9;
+          }
+
+          .engine-title-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+
+          .engine-icon {
+            color: #94a3b8;
+          }
+
+          .engine-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #0f172a;
+          }
+
+          .engine-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          }
+
+          .engine-status-text {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #94a3b8;
+            text-transform: lowercase;
+          }
+
+          /* Switch Styling */
+          .engine-switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 22px;
+          }
+
+          .engine-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+          }
+
+          .engine-slider {
+            position: absolute;
+            cursor: not-allowed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #e2e8f0;
+            transition: .2s ease;
+            border-radius: 22px;
+          }
+
+          .engine-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .2s ease;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          }
+
+          .disabled-switch {
+            opacity: 0.6;
+            cursor: not-allowed;
+          }
+
+          /* Stats Row */
+          .engine-stats-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 16px;
+            background: #f8fafc;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 0.75rem;
+            color: #94a3b8;
+            font-weight: 500;
+          }
+
+          .engine-name-label {
+            color: #94a3b8;
+          }
+
+          /* Disabled State */
+          .analysis-lines-scroll {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+
+          .engine-disabled-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            text-align: center;
+          }
+
+          .disabled-badge {
+            background: #f1f5f9;
+            border-radius: 50%;
+            padding: 16px;
+            margin-bottom: 16px;
+          }
+
+          .engine-disabled-icon {
+            color: #94a3b8;
+          }
+
+          .engine-disabled-text {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 6px;
+          }
+
+          .engine-disabled-subtext {
+            font-size: 0.8rem;
+            color: #64748b;
+            max-width: 240px;
+            line-height: 1.4;
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   return (
     <div className="engine-analysis-container">
@@ -377,7 +755,7 @@ export default function EngineAnalysisPanel({ fen }: EngineAnalysisPanelProps) {
 
       {/* Engine stats row */}
       <div className="engine-stats-row">
-        <span className="engine-name-label">Stockfish 16 · NNUE</span>
+        <span className="engine-name-label">Stockfish 18 · NNUE</span>
         {isEngineOn && !isGameOver && (
           <span className="engine-performance-label">
             depth {depth}{formatNps(nps)}

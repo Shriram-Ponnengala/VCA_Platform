@@ -15,7 +15,7 @@ import EngineAnalysisPanel from '@/components/chess/EngineAnalysisPanel';
 import OpeningExplorerPanel from '@/components/chess/OpeningExplorerPanel';
 import DatabasePanel from '@/components/chess/DatabasePanel';
 import ChapterCard from '@/components/chess/ChapterCard';
-import { Chess } from 'chess.js';
+import { Chess } from '@vca/chess';
 import { applyContextMenuPosition } from '@/lib/utils/contextMenuUtils';
 
 const featureFlags = {
@@ -69,7 +69,7 @@ export default function AnalysisBoardPage() {
 
   const { 
     nodes, currentNodeId, participants, isConnected, isReady, isLocked, isFreehand, chatHistory, studyTags,
-    chapters, activeChapterIndex, loadPgn, selectChapter,
+    chapters, activeChapterIndex, loadPgn, selectChapter, moveRejectedAt,
     makeMove, makeNullMove, navigate, resetBoard, updateArrows, clearArrows, toggleLock, toggleFreehand, sendChatMessage,
     updateNodeAnnotations, setStudyTag, removeStudyTag, setupPosition,
     promoteToMainline, promoteVariation, deleteSubsequentMoves, deletePreviousMoves, deleteMove
@@ -90,6 +90,7 @@ export default function AnalysisBoardPage() {
   const [selectedVariationIndex, setSelectedVariationIndex] = useState(0);
   const [chatInput, setChatInput] = useState('');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showNewPgnConfirm, setShowNewPgnConfirm] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
   const [dbNav, setDbNav] = useState<{ games: any[], currentIndex: number } | null>(null);
 
@@ -240,6 +241,43 @@ export default function AnalysisBoardPage() {
     } finally {
       setSavingGame(false);
     }
+  };
+
+  const handleUpdatePgn = async () => {
+    const activeGame = dbNav?.games[dbNav.currentIndex];
+    if (!activeGame) return;
+    
+    setSavingGame(true);
+    try {
+      const { buildPgnFromMoveTree } = await import('@/features/database/pgnUtils');
+      const pgn = buildPgnFromMoveTree(nodes, 'root');
+      
+      const res = await fetch(`/api/database/games/${activeGame.id}/pgn`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pgn })
+      });
+      
+      if (res.ok) {
+        setToast({ message: `Successfully saved changes to "${activeGame.chapterName}"!`, type: 'success' });
+      } else {
+        let errorMsg = 'Failed to update game';
+        try {
+          const err = await res.json();
+          errorMsg = err.error || errorMsg;
+        } catch {}
+        setToast({ message: errorMsg, type: 'error' });
+      }
+    } catch (err: any) {
+      console.error(err);
+      setToast({ message: 'Error saving game: ' + err.message, type: 'error' });
+    } finally {
+      setSavingGame(false);
+    }
+  };
+
+  const handleCreateNewPgn = () => {
+    setShowNewPgnConfirm(true);
   };
 
   const handleContextMenu = (e: React.MouseEvent, nodeId: string) => {
@@ -601,6 +639,7 @@ export default function AnalysisBoardPage() {
               onPrev={handlePrev}
               onStart={handleStart}
               onEnd={handleEnd}
+              moveRejectedAt={moveRejectedAt}
               onVariationUp={handleVariationUp}
               onVariationDown={handleVariationDown}
               arrows={currentNode?.arrows || []}
@@ -626,7 +665,9 @@ export default function AnalysisBoardPage() {
                 setDbNav(null);
                 loadPgn(pgn);
               }}
-              onSaveToDb={userRole?.toUpperCase() === 'COACH' ? handleSaveToDb : undefined}
+              onSaveToDb={handleSaveToDb}
+              onUpdatePgn={dbNav ? handleUpdatePgn : undefined}
+              onCreateNewPgn={handleCreateNewPgn}
               chapterCount={dbNav ? dbNav.games.length : (chapters?.length || 0)}
               activeChapterIndex={dbNav ? dbNav.currentIndex : activeChapterIndex}
               onNextChapter={() => {
@@ -768,8 +809,8 @@ export default function AnalysisBoardPage() {
                 />
 
                 <div
-                  className="annotations-wrapper"
-                  style={{ height: `calc(${(1 - splitRatio) * 100}% - 4px)` }}
+                  className="annotations-wrapper sidebar-panel glass-panel"
+                  style={{ height: `calc(${(1 - splitRatio) * 100}% - 4px)`, padding: 0 }}
                 >
                   <AnnotationsPanel
                     currentNode={currentNode}
@@ -891,6 +932,22 @@ export default function AnalysisBoardPage() {
           setShowResetConfirm(false);
         }}
         onCancel={() => setShowResetConfirm(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={showNewPgnConfirm}
+        title="Start new PGN?"
+        message="This will clear the board and detach from the database game. Unsaved changes will be lost."
+        confirmText="Clear"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={() => {
+          setDbNav(null);
+          resetBoard();
+          setToast({ message: 'Board cleared. Ready for new PGN!', type: 'success' });
+          setShowNewPgnConfirm(false);
+        }}
+        onCancel={() => setShowNewPgnConfirm(false)}
       />
 
       <SaveToDbModal
@@ -1151,7 +1208,7 @@ export default function AnalysisBoardPage() {
           color: var(--panel-text-color, #4a2018);
           backdrop-filter: var(--panel-backdrop-filter, none);
           -webkit-backdrop-filter: var(--panel-backdrop-filter, none);
-          transition: all 0.3s ease;
+          transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
         }
 
         .board-section {
@@ -1176,6 +1233,7 @@ export default function AnalysisBoardPage() {
         
         .tabs-container {
           display: flex;
+          flex-wrap: wrap;
           gap: 4px;
           padding: 4px;
           background: var(--panel-bg, #fdf5ea);
@@ -1188,7 +1246,7 @@ export default function AnalysisBoardPage() {
           -webkit-backdrop-filter: var(--panel-backdrop-filter, none);
           z-index: 1;
           position: relative;
-          transition: all 0.3s ease;
+          transition: background-color 0.3s ease, border-color 0.3s ease;
         }
         
         .tab-btn {
@@ -1197,15 +1255,15 @@ export default function AnalysisBoardPage() {
           align-items: center;
           justify-content: center;
           gap: 6px;
-          padding: 10px 0;
+          padding: 8px 12px;
           background: transparent;
           border: none;
           color: var(--panel-subtext-color, rgba(74, 32, 24, 0.6));
-          font-size: 0.9rem;
-          font-weight: 500;
+          font-size: 0.85rem;
+          font-weight: 600;
           border-radius: 8px;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
         .tab-btn:hover {
@@ -1216,9 +1274,9 @@ export default function AnalysisBoardPage() {
         .tab-btn.active {
           color: var(--panel-text-color, #4a2018);
           background: var(--panel-card-bg, #ffffff);
-          box-shadow: none;
-          border-bottom: 2px solid var(--panel-accent-color, #c8854a);
-          border-radius: 8px 8px 0 0;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+          border: 1px solid var(--panel-border-color, rgba(0,0,0,0.05));
+          border-radius: 8px;
         }
 
         .sidebar-panel { 

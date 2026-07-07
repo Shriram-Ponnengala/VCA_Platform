@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Chessground } from 'chessground';
-import { Chess, Move } from 'chess.js';
+import { Chess, Move, parseGamifiedFen, GAMIFIED_ITEMS } from '@vca/chess';
 import type { Api } from 'chessground/api';
 import type { Config } from 'chessground/config';
 import type { Key } from 'chessground/types';
-import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, RefreshCw, Eraser, RotateCcw, MoreHorizontal, Lock, Clock, LayoutGrid, Copy, FileText, Eye, ArrowUpRight, Square, Pen, Wrench, ChevronDown, Upload, ArrowUpDown, Database, SkipBack, SkipForward, Smile } from 'lucide-react';
+import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, RefreshCw, Eraser, RotateCcw, MoreHorizontal, Lock, Clock, LayoutGrid, Copy, FileText, Eye, ArrowUpRight, Square, Pen, Wrench, ChevronDown, Upload, ArrowUpDown, Database, SkipBack, SkipForward, Smile, PlusSquare, Check } from 'lucide-react';
 import type { ArrowData, MoveNode } from '@vca/types';
 import { VariationData } from './VariationChooser';
 import { NagBadge } from './NagBadge';
@@ -48,12 +48,15 @@ interface ChessBoardProps {
   onNullMove?: () => void;
   onUploadPgn?: (pgnText: string) => void;
   onSaveToDb?: () => void;
+  onUpdatePgn?: () => void;
+  onCreateNewPgn?: () => void;
   chapterCount?: number;
   activeChapterIndex?: number;
   onNextChapter?: () => void;
   onPrevChapter?: () => void;
   onToggleLock?: (locked: boolean) => void;
   hideSocialFeatures?: boolean;
+  moveRejectedAt?: number;
 }
 
 const ChessBoard: React.FC<ChessBoardProps> = ({
@@ -69,16 +72,26 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
   onNullMove,
   onUploadPgn,
   onSaveToDb,
+  onUpdatePgn,
+  onCreateNewPgn,
   chapterCount = 0,
   activeChapterIndex = -1,
   onNextChapter,
   onPrevChapter,
   onToggleLock,
   hideSocialFeatures = false,
+  moveRejectedAt = 0,
 }) => {
   const [orientation, setOrientation] = useState<'white' | 'black'>('white');
   const [showToolsMenu, setShowToolsMenu] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const { cleanFen, targets, blocks } = React.useMemo(() => {
+    try {
+      return parseGamifiedFen(fen);
+    } catch {
+      return { cleanFen: fen || '', targets: {}, blocks: {} };
+    }
+  }, [fen]);
+  const [copiedAction, setCopiedAction] = useState<'pgn' | 'fen' | null>(null);
   const [showCoordinates, setShowCoordinates] = useState(true);
   const [isHighlightMode, setIsHighlightMode] = useState(false);
   const [isArrowMode, setIsArrowMode] = useState(false);
@@ -339,7 +352,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
         turnColor = chess.turn() === 'w' ? 'white' : 'black';
         dests = (isFreehandRef.current || isHighlightMode || isArrowMode || isEmojiMode) ? undefined : toDests(chess);
       } catch (e) {
-        turnColor = fen.split(' ')[1] === 'w' ? 'white' : 'black';
+        turnColor = cleanFen.split(' ')[1] === 'w' ? 'white' : 'black';
       }
 
       const lastMove = (currentNode?.from && currentNode?.to && !currentNode?.isNull && currentNode?.san !== '--')
@@ -347,7 +360,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
         : undefined;
 
       const config: Config = {
-        fen: fen,
+        fen: cleanFen,
         orientation: orientation,
         coordinates: false, // Disabled native coords, rendering our own in the frame
         turnColor: turnColor,
@@ -449,11 +462,15 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
       let turnColor: 'white' | 'black' = 'white';
       let dests: any = undefined;
       try {
+        console.log("[ChessBoard] Loading FEN:", fen);
         const chess = new Chess(fen);
+        console.log("[ChessBoard] Chess loaded. Turn:", chess.turn(), "Added kings:", (chess as any).addedKings);
         turnColor = chess.turn() === 'w' ? 'white' : 'black';
         dests = (isFreehand || isHighlightMode || isArrowMode || isEmojiMode) ? undefined : toDests(chess);
-      } catch (e) {
-        turnColor = fen.split(' ')[1] === 'w' ? 'white' : 'black';
+        console.log("[ChessBoard] Computed dests size:", dests ? dests.size : 0);
+      } catch (e: any) {
+        console.error("[ChessBoard] Error loading Chess with FEN:", fen, e);
+        turnColor = cleanFen.split(' ')[1] === 'w' ? 'white' : 'black';
       }
 
       const lastMove = (currentNode?.from && currentNode?.to && !currentNode?.isNull && currentNode?.san !== '--')
@@ -461,7 +478,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
         : undefined;
 
       cgRef.current.set({
-        fen: fen,
+        fen: cleanFen,
         orientation: orientation,
         coordinates: false, // Disabled native coords, rendering our own in the frame
         turnColor: turnColor,
@@ -479,7 +496,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
         }
       });
     }
-  }, [fen, currentIndex, isLocked, arrows, orientation, showCoordinates, isFreehand, isHighlightMode, isArrowMode, isEmojiMode, currentNode]);
+  }, [fen, currentIndex, isLocked, arrows, orientation, showCoordinates, isFreehand, isHighlightMode, isArrowMode, isEmojiMode, currentNode, moveRejectedAt]);
 
   // ── Clock logic ─────────────────────────────────────────────────────────
   const [whiteClock, setWhiteClock] = useState<string | null>(null);
@@ -811,7 +828,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     onPrevChapter, onNextChapter, canPrev, canNext, onPrev, onNext,
-    onReset, onSetupPosition, onUploadPgn, onSaveToDb, onNullMove,
+    onReset, onSetupPosition, onUploadPgn, onSaveToDb, onUpdatePgn, onCreateNewPgn, onNullMove,
     onToggleLock, isLocked, onToggleFreehand, isFreehand,
     history, currentIndex
   ]);
@@ -900,6 +917,78 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
               ref={containerRef} 
               style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1 }} 
             />
+
+            {/* Targets and Blocks overlays */}
+            {Object.entries(targets).map(([sq, code]) => {
+              const file = sq[0];
+              const rank = parseInt(sq[1], 10);
+              const colIdx = file.charCodeAt(0) - 97;
+              const rowIdx = 8 - rank;
+              const col = orientation === 'white' ? colIdx : 7 - colIdx;
+              const row = orientation === 'white' ? rowIdx : 7 - rowIdx;
+              const left = col * 12.5;
+              const top = row * 12.5;
+              const item = GAMIFIED_ITEMS[code];
+              if (!item) return null;
+              return (
+                <div
+                  key={sq}
+                  className="gamified-item target-item"
+                  style={{
+                    position: 'absolute',
+                    left: `${left}%`,
+                    top: `${top}%`,
+                    width: '12.5%',
+                    height: '12.5%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 'min(2.2rem, 5vw)',
+                    zIndex: 2,
+                    pointerEvents: 'none',
+                    userSelect: 'none'
+                  }}
+                  title={item.name}
+                >
+                  {item.emoji}
+                </div>
+              );
+            })}
+            {Object.entries(blocks).map(([sq, code]) => {
+              const file = sq[0];
+              const rank = parseInt(sq[1], 10);
+              const colIdx = file.charCodeAt(0) - 97;
+              const rowIdx = 8 - rank;
+              const col = orientation === 'white' ? colIdx : 7 - colIdx;
+              const row = orientation === 'white' ? rowIdx : 7 - rowIdx;
+              const left = col * 12.5;
+              const top = row * 12.5;
+              const item = GAMIFIED_ITEMS[code];
+              if (!item) return null;
+              return (
+                <div
+                  key={sq}
+                  className="gamified-item block-item"
+                  style={{
+                    position: 'absolute',
+                    left: `${left}%`,
+                    top: `${top}%`,
+                    width: '12.5%',
+                    height: '12.5%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 'min(2.2rem, 5vw)',
+                    zIndex: 2,
+                    pointerEvents: 'none',
+                    userSelect: 'none'
+                  }}
+                  title={item.name}
+                >
+                  {item.emoji}
+                </div>
+              );
+            })}
           </div>
         </div>
         {promotionPending && (
@@ -975,7 +1064,13 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
 
         {/* nag-overlay is OUTSIDE board-clip so badges are never clipped */}
         <div className="nag-overlay" style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 500
+          position: 'absolute',
+          top: 'var(--board-frame-padding)',
+          left: 'var(--board-frame-padding)',
+          right: 'var(--board-frame-padding)',
+          bottom: 'var(--board-frame-padding)',
+          pointerEvents: 'none',
+          zIndex: 500
         }}>
           {currentNode && currentNode.glyphs && currentNode.glyphs.length > 0 && (
             <NagBadge
@@ -998,206 +1093,232 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
             <div className="tools-menu">
               <div className="tools-menu-header">Tools</div>
 
-              {/* BOARD */}
-              <div className="tools-section-label">BOARD</div>
-              {onMoreTools && (
-                <div className="tools-menu-row tools-menu-row-clickable" onClick={() => { onMoreTools(); }}>
-                  <span className="tools-row-icon"><Lock size={15} /></span>
-                  <span className="tools-row-label">Board Lock</span>
-                  <button
-                    className={`tools-toggle ${isLocked ? 'tools-toggle-on' : ''}`}
-                    onClick={(e) => { e.stopPropagation(); onMoreTools(); }}
-                    aria-label="Toggle Board Lock"
-                  >
-                    <span className="tools-toggle-knob" />
-                  </button>
+              <div className="tools-grid-container">
+                {/* BOARD */}
+                <div className="tools-grid-column">
+                  <div className="tools-section-label">BOARD</div>
+                  {onMoreTools && (
+                    <div className="tools-menu-row tools-menu-row-clickable" onClick={() => { onMoreTools(); }}>
+                      <span className="tools-row-icon"><Lock size={15} /></span>
+                      <span className="tools-row-label">Board Lock</span>
+                      <button
+                        className={`tools-toggle ${isLocked ? 'tools-toggle-on' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); onMoreTools(); }}
+                        aria-label="Toggle Board Lock"
+                      >
+                        <span className="tools-toggle-knob" />
+                      </button>
+                    </div>
+                  )}
+                  <div className="tools-menu-row tools-menu-row-clickable" onClick={() => setUserShowClocks(prev => !prev)}>
+                    <span className="tools-row-icon"><Clock size={15} /></span>
+                    <span className="tools-row-label">Show Clocks</span>
+                    <button
+                      className={`tools-toggle ${userShowClocks ? 'tools-toggle-on' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); setUserShowClocks(prev => !prev); }}
+                      aria-label="Toggle Clocks"
+                    >
+                      <span className="tools-toggle-knob" />
+                    </button>
+                  </div>
+                  {onSetupPosition && (
+                    <button
+                      className="tools-menu-row tools-row-btn"
+                      onClick={() => { setShowSetupModal(true); setShowToolsMenu(false); }}
+                    >
+                      <span className="tools-row-icon"><LayoutGrid size={15} /></span>
+                      <span className="tools-row-label">Setup Position</span>
+                    </button>
+                  )}
+                  {onUploadPgn && (
+                    <button
+                      className="tools-menu-row tools-row-btn"
+                      onClick={() => { setShowUploadPgnModal(true); setShowToolsMenu(false); }}
+                    >
+                      <span className="tools-row-icon"><Upload size={15} /></span>
+                      <span className="tools-row-label">Upload PGN</span>
+                    </button>
+                  )}
+                  {onUpdatePgn && (
+                    <button
+                      className="tools-menu-row tools-row-btn"
+                      onClick={() => { onUpdatePgn(); setShowToolsMenu(false); }}
+                    >
+                      <span className="tools-row-icon"><Check size={15} /></span>
+                      <span className="tools-row-label">Save Changes</span>
+                    </button>
+                  )}
+                  {onSaveToDb && (
+                    <button
+                      className="tools-menu-row tools-row-btn"
+                      onClick={() => { onSaveToDb(); setShowToolsMenu(false); }}
+                    >
+                      <span className="tools-row-icon"><Database size={15} /></span>
+                      <span className="tools-row-label">Save As New Game</span>
+                    </button>
+                  )}
+                  {onCreateNewPgn && (
+                    <button
+                      className="tools-menu-row tools-row-btn"
+                      onClick={() => { onCreateNewPgn(); setShowToolsMenu(false); }}
+                    >
+                      <span className="tools-row-icon"><PlusSquare size={15} /></span>
+                      <span className="tools-row-label">New PGN (Clear)</span>
+                    </button>
+                  )}
+                  {onNullMove && (
+                    <button
+                      className="tools-menu-row tools-row-btn"
+                      onClick={() => { onNullMove(); setShowToolsMenu(false); }}
+                    >
+                      <span className="tools-row-icon" style={{ fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '15px' }}>∅</span>
+                      <span className="tools-row-label">Null Move (Pass)</span>
+                    </button>
+                  )}
                 </div>
-              )}
-              {nodes && Object.values(nodes).some(n => !!n.clk) && (
-                <div className="tools-menu-row tools-menu-row-clickable" onClick={() => setUserShowClocks(prev => !prev)}>
-                  <span className="tools-row-icon"><Clock size={15} /></span>
-                  <span className="tools-row-label">Show Clocks</span>
+
+                {/* COPY */}
+                <div className="tools-grid-column">
+                  <div className="tools-section-label">COPY</div>
                   <button
-                    className={`tools-toggle ${userShowClocks ? 'tools-toggle-on' : ''}`}
-                    onClick={(e) => { e.stopPropagation(); setUserShowClocks(prev => !prev); }}
-                    aria-label="Toggle Clocks"
-                  >
-                    <span className="tools-toggle-knob" />
-                  </button>
-                </div>
-              )}
-              {onSetupPosition && (
-                <button
-                  className="tools-menu-row tools-row-btn"
-                  onClick={() => { setShowSetupModal(true); setShowToolsMenu(false); }}
-                >
-                  <span className="tools-row-icon"><LayoutGrid size={15} /></span>
-                  <span className="tools-row-label">Setup Position</span>
-                </button>
-              )}
-              {onUploadPgn && (
-                <button
-                  className="tools-menu-row tools-row-btn"
-                  onClick={() => { setShowUploadPgnModal(true); setShowToolsMenu(false); }}
-                >
-                  <span className="tools-row-icon"><Upload size={15} /></span>
-                  <span className="tools-row-label">Upload PGN</span>
-                </button>
-              )}
-              {onSaveToDb && (
-                <button
-                  className="tools-menu-row tools-row-btn"
-                  onClick={() => { onSaveToDb(); setShowToolsMenu(false); }}
-                >
-                  <span className="tools-row-icon"><Database size={15} /></span>
-                  <span className="tools-row-label">Save to My DB</span>
-                </button>
-              )}
-              {onNullMove && (
-                <button
-                  className="tools-menu-row tools-row-btn"
-                  onClick={() => { onNullMove(); setShowToolsMenu(false); }}
-                >
-                  <span className="tools-row-icon" style={{ fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '15px' }}>∅</span>
-                  <span className="tools-row-label">Null Move (Pass)</span>
-                </button>
-              )}
-
-              <div className="tools-section-divider" />
-
-              {/* COPY */}
-              <div className="tools-section-label">COPY</div>
-              <button
-                className="tools-menu-row tools-row-btn"
-                onClick={() => {
-                  // Build PGN from history
-                  try {
-                    const chess = new Chess();
-                    history.slice(0, currentIndex + 1).forEach(san => { try { chess.move(san); } catch(e){} });
-                    navigator.clipboard.writeText(chess.pgn());
-                  } catch(e) {
-                    navigator.clipboard.writeText(history.slice(0, currentIndex + 1).join(' '));
-                  }
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                }}
-              >
-                <span className="tools-row-icon"><FileText size={15} /></span>
-                <span className="tools-row-label">{copied ? 'Copied!' : 'Copy PGN'}</span>
-              </button>
-              <button
-                className="tools-menu-row tools-row-btn"
-                onClick={() => {
-                  navigator.clipboard.writeText(fen);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                }}
-              >
-                <span className="tools-row-icon"><Copy size={15} /></span>
-                <span className="tools-row-label">{copied ? 'Copied!' : 'Copy FEN'}</span>
-              </button>
-
-              <div className="tools-section-divider" />
-
-              {/* VIEW */}
-              <div className="tools-section-label">VIEW</div>
-              <div className="tools-menu-row tools-menu-row-clickable" onClick={() => setShowCoordinates(prev => !prev)}>
-                <span className="tools-row-icon"><Eye size={15} /></span>
-                <span className="tools-row-label">Show Coordinates</span>
-                <button
-                  className={`tools-toggle ${showCoordinates ? 'tools-toggle-on' : ''}`}
-                  onClick={(e) => { e.stopPropagation(); setShowCoordinates(prev => !prev); }}
-                  aria-label="Toggle Coordinates"
-                >
-                  <span className="tools-toggle-knob" />
-                </button>
-              </div>
-
-              <div className="tools-section-divider" />
-
-              {/* ANNOTATION TOOLS */}
-              <div className="tools-section-label">ANNOTATION TOOLS</div>
-              <div className="tools-menu-row tools-menu-row-clickable" onClick={() => {
-                  setIsArrowMode(prev => {
-                    const next = !prev;
-                    if (next) setIsHighlightMode(false);
-                    return next;
-                  });
-                }}>
-                <span className="tools-row-icon"><ArrowUpRight size={15} /></span>
-                <span className="tools-row-label">Arrow</span>
-                <button
-                  className={`tools-toggle ${isArrowMode ? 'tools-toggle-on' : ''}`}
-                  onClick={(e) => { e.stopPropagation(); setIsArrowMode(prev => { const next = !prev; if (next) setIsHighlightMode(false); return next; }); }}
-                  aria-label="Toggle Arrow Mode"
-                >
-                  <span className="tools-toggle-knob" />
-                </button>
-              </div>
-              <div className="tools-menu-row tools-menu-row-clickable" onClick={() => {
-                  setIsHighlightMode(prev => {
-                    const next = !prev;
-                    if (next) setIsArrowMode(false);
-                    return next;
-                  });
-                }}>
-                <span className="tools-row-icon"><Square size={15} /></span>
-                <span className="tools-row-label">Highlight Square</span>
-                <button
-                  className={`tools-toggle ${isHighlightMode ? 'tools-toggle-on' : ''}`}
-                  onClick={(e) => { e.stopPropagation(); setIsHighlightMode(prev => { const next = !prev; if (next) setIsArrowMode(false); return next; }); }}
-                  aria-label="Toggle Highlight Mode"
-                >
-                  <span className="tools-toggle-knob" />
-                </button>
-              </div>
-              {!hideSocialFeatures && onToggleFreehand && (
-                <div className="tools-menu-row tools-menu-row-clickable" onClick={() => { onToggleFreehand(!isFreehand); }}>
-                  <span className="tools-row-icon"><Pen size={15} /></span>
-                  <span className="tools-row-label">Freehand</span>
-                  <button
-                    className={`tools-toggle ${isFreehand ? 'tools-toggle-on' : ''}`}
-                    onClick={(e) => { e.stopPropagation(); onToggleFreehand(!isFreehand); }}
-                    aria-label="Toggle Freehand"
-                  >
-                    <span className="tools-toggle-knob" />
-                  </button>
-                </div>
-              )}
-              {!hideSocialFeatures && (
-                <div className="tools-menu-row tools-menu-row-clickable" onClick={() => {
-                    setIsEmojiMode(prev => {
-                      const next = !prev;
-                      if (next) {
-                        setIsArrowMode(false);
-                        setIsHighlightMode(false);
-                        if (onToggleFreehand && isFreehand) {
-                          onToggleFreehand(false);
+                    className="tools-menu-row tools-row-btn"
+                    onClick={() => {
+                      try {
+                        const chess = new Chess();
+                        const moves = history ? history.slice(0, currentIndex + 1) : [];
+                        moves.forEach(san => { try { chess.move(san); } catch(e){} });
+                        const pgnString = chess.pgn();
+                        if (pgnString) {
+                          navigator.clipboard.writeText(pgnString);
+                        } else {
+                          navigator.clipboard.writeText(moves.join(' '));
                         }
+                      } catch(e) {
+                        const moves = history ? history.slice(0, currentIndex + 1) : [];
+                        navigator.clipboard.writeText(moves.join(' '));
                       }
-                      return next;
-                    });
-                  }}>
-                  <span className="tools-row-icon"><Smile size={15} /></span>
-                  <span className="tools-row-label">Emoji Reactions</span>
-                  <button
-                    className={`tools-toggle ${isEmojiMode ? 'tools-toggle-on' : ''}`}
-                    onClick={(e) => { e.stopPropagation(); setIsEmojiMode(prev => { const next = !prev; if (next) { setIsArrowMode(false); setIsHighlightMode(false); if (onToggleFreehand && isFreehand) onToggleFreehand(false); } return next; }); }}
-                    aria-label="Toggle Emoji Mode"
+                      setCopiedAction('pgn');
+                      setTimeout(() => setCopiedAction(null), 2000);
+                    }}
                   >
-                    <span className="tools-toggle-knob" />
+                    <span className="tools-row-icon"><FileText size={15} /></span>
+                    <span className="tools-row-label">{copiedAction === 'pgn' ? 'Copied!' : 'Copy PGN'}</span>
+                  </button>
+                  <button
+                    className="tools-menu-row tools-row-btn"
+                    onClick={() => {
+                      navigator.clipboard.writeText(fen);
+                      setCopiedAction('fen');
+                      setTimeout(() => setCopiedAction(null), 2000);
+                    }}
+                  >
+                    <span className="tools-row-icon"><Copy size={15} /></span>
+                    <span className="tools-row-label">{copiedAction === 'fen' ? 'Copied!' : 'Copy FEN'}</span>
                   </button>
                 </div>
-              )}
-              {onClearArrows && (
-                <button
-                  className="tools-menu-row tools-row-btn"
-                  onClick={() => { onClearArrows(); setShowToolsMenu(false); }}
-                >
-                  <span className="tools-row-icon"><Eraser size={15} /></span>
-                  <span className="tools-row-label">Clear Annotations</span>
-                </button>
-              )}
+
+                {/* VIEW */}
+                <div className="tools-grid-column">
+                  <div className="tools-section-label">VIEW</div>
+                  <div className="tools-menu-row tools-menu-row-clickable" onClick={() => setShowCoordinates(prev => !prev)}>
+                    <span className="tools-row-icon"><Eye size={15} /></span>
+                    <span className="tools-row-label">Show Coordinates</span>
+                    <button
+                      className={`tools-toggle ${showCoordinates ? 'tools-toggle-on' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); setShowCoordinates(prev => !prev); }}
+                      aria-label="Toggle Coordinates"
+                    >
+                      <span className="tools-toggle-knob" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* ANNOTATION TOOLS */}
+                <div className="tools-grid-column">
+                  <div className="tools-section-label">ANNOTATION TOOLS</div>
+                  <div className="tools-menu-row tools-menu-row-clickable" onClick={() => {
+                      setIsArrowMode(prev => {
+                        const next = !prev;
+                        if (next) setIsHighlightMode(false);
+                        return next;
+                      });
+                    }}>
+                    <span className="tools-row-icon"><ArrowUpRight size={15} /></span>
+                    <span className="tools-row-label">Arrow</span>
+                    <button
+                      className={`tools-toggle ${isArrowMode ? 'tools-toggle-on' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); setIsArrowMode(prev => { const next = !prev; if (next) setIsHighlightMode(false); return next; }); }}
+                      aria-label="Toggle Arrow Mode"
+                    >
+                      <span className="tools-toggle-knob" />
+                    </button>
+                  </div>
+                  <div className="tools-menu-row tools-menu-row-clickable" onClick={() => {
+                      setIsHighlightMode(prev => {
+                        const next = !prev;
+                        if (next) setIsArrowMode(false);
+                        return next;
+                      });
+                    }}>
+                    <span className="tools-row-icon"><Square size={15} /></span>
+                    <span className="tools-row-label">Highlight Square</span>
+                    <button
+                      className={`tools-toggle ${isHighlightMode ? 'tools-toggle-on' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); setIsHighlightMode(prev => { const next = !prev; if (next) setIsArrowMode(false); return next; }); }}
+                      aria-label="Toggle Highlight Mode"
+                    >
+                      <span className="tools-toggle-knob" />
+                    </button>
+                  </div>
+                  {!hideSocialFeatures && onToggleFreehand && (
+                    <div className="tools-menu-row tools-menu-row-clickable" onClick={() => { onToggleFreehand(!isFreehand); }}>
+                      <span className="tools-row-icon"><Pen size={15} /></span>
+                      <span className="tools-row-label">Freehand</span>
+                      <button
+                        className={`tools-toggle ${isFreehand ? 'tools-toggle-on' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); onToggleFreehand(!isFreehand); }}
+                        aria-label="Toggle Freehand"
+                      >
+                        <span className="tools-toggle-knob" />
+                      </button>
+                    </div>
+                  )}
+                  {!hideSocialFeatures && (
+                    <div className="tools-menu-row tools-menu-row-clickable" onClick={() => {
+                        setIsEmojiMode(prev => {
+                          const next = !prev;
+                          if (next) {
+                            setIsArrowMode(false);
+                            setIsHighlightMode(false);
+                            if (onToggleFreehand && isFreehand) {
+                              onToggleFreehand(false);
+                            }
+                          }
+                          return next;
+                        });
+                      }}>
+                      <span className="tools-row-icon"><Smile size={15} /></span>
+                      <span className="tools-row-label">Emoji Reactions</span>
+                      <button
+                        className={`tools-toggle ${isEmojiMode ? 'tools-toggle-on' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); setIsEmojiMode(prev => { const next = !prev; if (next) { setIsArrowMode(false); setIsHighlightMode(false); if (onToggleFreehand && isFreehand) onToggleFreehand(false); } return next; }); }}
+                        aria-label="Toggle Emoji Mode"
+                      >
+                        <span className="tools-toggle-knob" />
+                      </button>
+                    </div>
+                  )}
+                  {onClearArrows && (
+                    <button
+                      className="tools-menu-row tools-row-btn"
+                      onClick={() => { onClearArrows(); setShowToolsMenu(false); }}
+                    >
+                      <span className="tools-row-icon"><Eraser size={15} /></span>
+                      <span className="tools-row-label">Clear Annotations</span>
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </>
         )}
@@ -1638,10 +1759,25 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           background: #ffffff;
           border: 1px solid #e8ddd5;
           box-shadow: 0 20px 40px -8px rgba(74, 32, 24, 0.18), 0 8px 16px -4px rgba(74, 32, 24, 0.08);
-          min-width: 260px;
+          min-width: 520px;
           overflow: hidden;
           animation: menuIn 0.18s cubic-bezier(0.34, 1.2, 0.64, 1);
           transform-origin: bottom right;
+        }
+        .tools-grid-container {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+        }
+        .tools-grid-column {
+          padding: 8px 0;
+          display: flex;
+          flex-direction: column;
+        }
+        .tools-grid-column:nth-child(odd) {
+          border-right: 1px solid #f0e8e0;
+        }
+        .tools-grid-column:nth-child(-n+2) {
+          border-bottom: 1px solid #f0e8e0;
         }
         @keyframes menuIn {
           from { opacity: 0; transform: translateY(8px) scale(0.96); }

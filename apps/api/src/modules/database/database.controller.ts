@@ -323,4 +323,21 @@ export class DatabaseController {
       res.status(500).json({ error: e.message });
     }
   }
+
+  async reorderItems(req: Request, res: Response) {
+    try {
+      const user = await getUser(req);
+      if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+      const { parentId, itemIds } = req.body;
+      if (!Array.isArray(itemIds)) {
+        return res.status(400).json({ error: 'itemIds must be an array.' });
+      }
+
+      const result = await service.reorderItems(user.id, user.role, parentId || null, itemIds);
+      res.json(result);
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  }
 }

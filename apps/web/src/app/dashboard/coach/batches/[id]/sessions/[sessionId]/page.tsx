@@ -1,9 +1,9 @@
-// Force rebuild
+// Force rebuild  
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Video, Edit2, Download, MoreVertical, Activity, UserCircle, ExternalLink, Trash2, Link as LinkIcon, Copy, Plus, Check, PlayCircle, FileText, Youtube } from 'lucide-react';
+import { ArrowLeft, Video, Edit2, Download, MoreVertical, Activity, UserCircle, ExternalLink, Trash2, Link as LinkIcon, Copy, Plus, Check, PlayCircle, FileText, Youtube, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { useSessions } from '@/lib/hooks/useSessions';
 import { useBatches } from '@/lib/hooks/useBatches';
 import { useStudents } from '@/lib/hooks/useStudents';
@@ -23,7 +23,7 @@ export default function CoachSessionDetailPage() {
   const sessionId = params.sessionId as string;
 
   const { sessions, isLoaded: sessionsLoaded, refetch: refetchSessions } = useSessions(batchId);
-  const [activeTab, setActiveTab] = useState('attendance');
+  const [activeTab, setActiveTab] = useState('overview');
   const [isEditSessionOpen, setIsEditSessionOpen] = useState(false);
 
   const [recordingUrl, setRecordingUrl] = useState('');
@@ -34,12 +34,65 @@ export default function CoachSessionDetailPage() {
   const [newFileTitle, setNewFileTitle] = useState('');
   const [newFileType, setNewFileType] = useState('link');
 
-  if (!batchesLoaded || !studentsLoaded || !sessionsLoaded) {
-    return <div className={styles.container}>Loading Session...</div>;
-  }
+  const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
+  const [attendanceDraft, setAttendanceDraft] = useState<any[]>([]);
+  const [isSavingAttendance, setIsSavingAttendance] = useState(false);
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  const displayToast = (msg: string) => {
+    setToastMessage(msg);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+
+  useEffect(() => {
+    if (!sessionId) return;
+    const fetchAttendance = async () => {
+      try {
+        const res = await fetch(`/api/attendance/records/${sessionId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setAttendanceRecords(data);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchAttendance();
+  }, [sessionId]);
 
   const batch = batches.find(b => b.id === batchId);
   const session = sessions.find(s => s.id === sessionId);
+
+  const safeStudents = Array.isArray(batch?.students) ? batch.students : [];
+  const enrolledStudents = allStudents.filter(s => safeStudents.includes(s.id));
+
+  // Initialize draft whenever enrolled students or backend records change
+  useEffect(() => {
+    if (allStudents.length === 0 || !batch) return;
+    
+    const initialDraft = enrolledStudents.map((student: any) => {
+      const record = attendanceRecords.find(r => r.studentId === student.id);
+      return {
+        id: student.id,
+        name: student.name || 'Student',
+        email: student.email || '',
+        status: record?.status || 'absent',
+        remarks: record?.comment || '',
+        color: 'blue'
+      };
+    });
+    
+    // Only update draft if it hasn't been modified yet or if backend data refreshed
+    setAttendanceDraft(initialDraft);
+  }, [allStudents, batch, attendanceRecords]);
+
+  if (!batchesLoaded || !studentsLoaded || !sessionsLoaded) {
+    return <div className={styles.container}>Loading Session...</div>;
+  }
 
   if (!batch || !session) {
     return (
@@ -52,18 +105,61 @@ export default function CoachSessionDetailPage() {
     );
   }
 
-  const safeStudents = Array.isArray(batch.students) ? batch.students : [];
-  const enrolledStudents = allStudents.filter(s => safeStudents.includes(s.id));
+  const handleMarkAllPresent = () => {
+    setAttendanceDraft(prev => prev.map(s => ({ ...s, status: 'present' })));
+  };
 
-  // Mocking the specific data from the image: 3 Present, 1 Late, 0 Absent, 60 mins Total
-  // To match the image "Class 1 - June" "Students (4)", let's mock the 4 students from the image perfectly.
-  const mockedAttendance = [
-    { id: '1', name: 'Aditri NSP', email: 'nirmalaprabhu2009@gmail.com', status: 'present', remarks: 'Great endgame play', color: 'blue' },
-    { id: '2', name: 'Akanksha NSP', email: 'akankshaaditripx@gmail.com', status: 'present', remarks: 'Answered well', color: 'pink' },
-    { id: '3', name: 'Ira G Mallia', email: 'ganeshmallia@gmail.com', status: 'absent', remarks: 'Informed absence', color: 'orange' },
-    { id: '4', name: 'Avni Mallia', email: 'anuradhaaprabhu@gmail.com', status: 'present', remarks: '—', color: 'teal' },
-    { id: '5', name: 'Rohan M', email: 'Makeup · from Weekday Pawn', status: 'compensated', remarks: 'Makeup for missed class', color: 'gray' },
-  ];
+  const handleBulkAction = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const action = e.target.value;
+    if (!action || selectedStudents.length === 0) return;
+    
+    const statusMap: Record<string, string> = {
+      'mark_present': 'present',
+      'mark_absent': 'absent',
+      'mark_compensated': 'compensated'
+    };
+    
+    if (statusMap[action]) {
+      setAttendanceDraft(prev => prev.map(s => 
+        selectedStudents.includes(s.id) ? { ...s, status: statusMap[action] } : s
+      ));
+    }
+    
+    // Reset dropdown visually
+    e.target.value = '';
+  };
+
+  const handleAttendanceChange = (studentId: string, field: string, value: string) => {
+    setAttendanceDraft(prev => prev.map(s => s.id === studentId ? { ...s, [field]: value } : s));
+  };
+
+  const handleSaveAttendance = async () => {
+    setIsSavingAttendance(true);
+    try {
+      const recordsToSave = attendanceDraft.map(d => ({
+        studentId: d.id,
+        status: d.status,
+        comment: d.remarks,
+        isGuest: false
+      }));
+      const res = await fetch(`/api/attendance/records/${sessionId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ records: recordsToSave })
+      });
+      if (res.ok) {
+        setAttendanceRecords(recordsToSave);
+        displayToast('Attendance saved successfully');
+      } else {
+        displayToast('Failed to save attendance');
+      }
+    } catch (err) {
+      console.error(err);
+      displayToast('Failed to save attendance');
+    } finally {
+      setIsSavingAttendance(false);
+    }
+  };
 
   const d = new Date(session.date);
   const monthStr = d.toLocaleDateString('en-US', { month: 'short' });
@@ -176,11 +272,8 @@ export default function CoachSessionDetailPage() {
           <button className={`${styles.tab} ${activeTab === 'overview' ? styles.tabActive : ''}`} onClick={() => setActiveTab('overview')}>
             Overview
           </button>
-          <button className={`${styles.tab} ${activeTab === 'topics' ? styles.tabActive : ''}`} onClick={() => setActiveTab('topics')}>
-            Topics Covered
-          </button>
           <button className={`${styles.tab} ${activeTab === 'attendance' ? styles.tabActive : ''}`} onClick={() => setActiveTab('attendance')}>
-            Attendance ({mockedAttendance.length})
+            Attendance ({attendanceDraft.length})
           </button>
           <button className={`${styles.tab} ${activeTab === 'recording' ? styles.tabActive : ''}`} onClick={() => setActiveTab('recording')}>
             Recording & Files
@@ -261,8 +354,24 @@ export default function CoachSessionDetailPage() {
             <div className={styles.overviewCol}>
               <h2 className={styles.sectionTitle}><PlayCircle size={16} /> Session Recording</h2>
               <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Recording Link (Google Drive)</p>
-              <button className={styles.btnSecondary} style={{ marginTop: 'auto', alignSelf: 'flex-start' }}>
-                <ExternalLink size={16} color="#3b82f6" /> Open Recording
+              <button 
+                className={styles.btnSecondary} 
+                style={{ 
+                  marginTop: 'auto', 
+                  alignSelf: 'flex-start',
+                  opacity: recordingAttachment ? 1 : 0.6,
+                  cursor: recordingAttachment ? 'pointer' : 'not-allowed'
+                }}
+                onClick={() => {
+                  if (recordingAttachment?.url) {
+                    window.open(recordingAttachment.url, '_blank');
+                  } else {
+                    displayToast('No recording link found for this session');
+                  }
+                }}
+              >
+                <ExternalLink size={16} color={recordingAttachment ? "#3b82f6" : "#94a3b8"} /> 
+                {recordingAttachment ? 'Open Recording' : 'No Recording Added'}
               </button>
             </div>
           </div>
@@ -276,17 +385,17 @@ export default function CoachSessionDetailPage() {
           <div className={styles.panelCard}>
             <div className={styles.summaryGrid3}>
               <div className={styles.summaryCard}>
-                <span className={`${styles.summaryValue} ${styles.green}`}>3</span>
+                <span className={`${styles.summaryValue} ${styles.green}`}>{attendanceDraft.filter(s => s.status === 'present').length}</span>
                 <span className={styles.summaryLabel}>Present</span>
-                <span className={styles.summarySubtext}>3 of 4 students</span>
+                <span className={styles.summarySubtext}>{attendanceDraft.filter(s => s.status === 'present').length} of {attendanceDraft.length} students</span>
               </div>
               <div className={styles.summaryCard}>
-                <span className={`${styles.summaryValue} ${styles.red}`}>1</span>
+                <span className={`${styles.summaryValue} ${styles.red}`}>{attendanceDraft.filter(s => s.status === 'absent').length}</span>
                 <span className={styles.summaryLabel}>Absent</span>
-                <span className={styles.summarySubtext}>1 of 4 students</span>
+                <span className={styles.summarySubtext}>{attendanceDraft.filter(s => s.status === 'absent').length} of {attendanceDraft.length} students</span>
               </div>
               <div className={styles.summaryCard}>
-                <span className={`${styles.summaryValue} ${styles.orange}`}>1</span>
+                <span className={`${styles.summaryValue} ${styles.orange}`}>{attendanceDraft.filter(s => s.status === 'compensated').length}</span>
                 <span className={styles.summaryLabel}>Compensated</span>
                 <span className={styles.summarySubtext}>makeup attendee</span>
               </div>
@@ -302,29 +411,70 @@ export default function CoachSessionDetailPage() {
           <div className={styles.panelCard}>
             <div className={styles.attendanceHeaderRow}>
               <h2 className={styles.sectionTitle}>
-                <UsersIcon size={18} color="#10b981" /> Students Attendance ({mockedAttendance.length})
+                <UsersIcon size={18} color="#10b981" /> Students Attendance ({attendanceDraft.length})
               </h2>
-              <button className={styles.btnSecondary} style={{ fontSize: '0.8rem', padding: '6px 12px' }}>
-                <Download size={14} /> Export
-              </button>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button 
+                  className={styles.btnSecondary} 
+                  style={{ fontSize: '0.8rem', padding: '6px 12px', display: 'flex', alignItems: 'center' }}
+                  onClick={handleMarkAllPresent}
+                >
+                  <CheckCircle size={14} style={{ marginRight: '4px' }} /> Mark All Present
+                </button>
+                <div className={styles.selectWrapper} style={{ position: 'relative' }}>
+                  <select 
+                    className={styles.selectField} 
+                    style={{ padding: '6px 24px 6px 12px', fontSize: '0.8rem', height: 'auto', minHeight: '30px', margin: 0 }}
+                    onChange={handleBulkAction}
+                    defaultValue=""
+                  >
+                    <option value="" disabled>Bulk Actions</option>
+                    <option value="mark_present">Mark Selected Present</option>
+                    <option value="mark_absent">Mark Selected Absent</option>
+                    <option value="mark_compensated">Mark Selected Compensated</option>
+                  </select>
+                </div>
+                <button className={styles.btnSecondary} style={{ fontSize: '0.8rem', padding: '6px 12px', display: 'flex', alignItems: 'center' }}>
+                  <Download size={14} style={{ marginRight: '4px' }} /> Export
+                </button>
+              </div>
             </div>
 
             <table className={styles.table}>
               <thead>
                 <tr>
+                  <th style={{ width: '40px', textAlign: 'center' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedStudents.length === attendanceDraft.length && attendanceDraft.length > 0}
+                      onChange={(e) => {
+                        if (e.target.checked) setSelectedStudents(attendanceDraft.map(s => s.id));
+                        else setSelectedStudents([]);
+                      }}
+                    />
+                  </th>
                   <th>STUDENT</th>
                   <th>STATUS</th>
                   <th>REMARKS</th>
-                  <th><div style={{ textAlign: 'right' }}>ACTION</div></th>
                 </tr>
               </thead>
               <tbody>
-                {mockedAttendance.map(student => (
+                {attendanceDraft.map((student: any) => (
                   <tr key={student.id}>
+                    <td style={{ textAlign: 'center' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedStudents.includes(student.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedStudents(prev => [...prev, student.id]);
+                          else setSelectedStudents(prev => prev.filter(id => id !== student.id));
+                        }}
+                      />
+                    </td>
                     <td>
                       <div className={styles.studentCell}>
                         <div className={`${styles.studentAvatar} ${styles[student.color] || ''}`}>
-                          {student.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                          {student.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
                         </div>
                         <div>
                           <p className={styles.studentName}>{student.name}</p>
@@ -333,19 +483,94 @@ export default function CoachSessionDetailPage() {
                       </div>
                     </td>
                     <td>
-                      <span className={`${styles.statusPill} ${styles[student.status]}`}>
-                        {student.status.charAt(0).toUpperCase() + student.status.slice(1)}
-                      </span>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button 
+                          onClick={() => handleAttendanceChange(student.id, 'status', 'present')}
+                          style={{ 
+                            display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: '16px', border: '1px solid',
+                            backgroundColor: student.status === 'present' ? '#dcfce7' : 'transparent',
+                            borderColor: student.status === 'present' ? '#22c55e' : '#cbd5e1',
+                            color: student.status === 'present' ? '#166534' : '#64748b',
+                            fontSize: '0.75rem', fontWeight: 500, cursor: 'pointer'
+                          }}
+                        >
+                          <CheckCircle size={14} /> Present
+                        </button>
+                        <button 
+                          onClick={() => handleAttendanceChange(student.id, 'status', 'absent')}
+                          style={{ 
+                            display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: '16px', border: '1px solid',
+                            backgroundColor: student.status === 'absent' ? '#fee2e2' : 'transparent',
+                            borderColor: student.status === 'absent' ? '#ef4444' : '#cbd5e1',
+                            color: student.status === 'absent' ? '#991b1b' : '#64748b',
+                            fontSize: '0.75rem', fontWeight: 500, cursor: 'pointer'
+                          }}
+                        >
+                          <XCircle size={14} /> Absent
+                        </button>
+                        <button 
+                          onClick={() => handleAttendanceChange(student.id, 'status', 'compensated')}
+                          style={{ 
+                            display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: '16px', border: '1px solid',
+                            backgroundColor: student.status === 'compensated' ? '#fef3c7' : 'transparent',
+                            borderColor: student.status === 'compensated' ? '#f59e0b' : '#cbd5e1',
+                            color: student.status === 'compensated' ? '#92400e' : '#64748b',
+                            fontSize: '0.75rem', fontWeight: 500, cursor: 'pointer'
+                          }}
+                        >
+                          <RefreshCw size={14} /> Compensated
+                        </button>
+                      </div>
                     </td>
-                    <td><span className={styles.valText}>{student.remarks}</span></td>
-                    <td style={{ textAlign: 'right' }}>
-                      <button className={styles.actionBtnSmall}><Edit2 size={16} /></button>
-                      <button className={styles.actionBtnSmall}><MoreVertical size={16} /></button>
+                    <td>
+                      <input 
+                        type="text" 
+                        className={styles.inputField} 
+                        value={student.remarks} 
+                        onChange={(e) => handleAttendanceChange(student.id, 'remarks', e.target.value)}
+                        placeholder="—"
+                        style={{ padding: '4px 8px', fontSize: '0.85rem', maxWidth: '200px' }}
+                      />
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 0 0 0', marginTop: '16px', borderTop: '1px solid #e2e8f0' }}>
+              <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>
+                {selectedStudents.length} of {attendanceDraft.length} marked
+              </span>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button 
+                  className={styles.btnSecondary} 
+                  onClick={() => {
+                    const resetDraft = enrolledStudents.map((student: any) => {
+                      const record = attendanceRecords.find(r => r.studentId === student.id);
+                      return {
+                        id: student.id,
+                        name: student.name || 'Student',
+                        email: student.email || '',
+                        status: record?.status || 'absent',
+                        remarks: record?.comment || '',
+                        color: 'blue'
+                      };
+                    });
+                    setAttendanceDraft(resetDraft);
+                    setSelectedStudents([]);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className={styles.btnPrimarySolid} 
+                  onClick={handleSaveAttendance} 
+                  disabled={isSavingAttendance}
+                >
+                  {isSavingAttendance ? 'Saving...' : 'Save Attendance'}
+                </button>
+              </div>
+            </div>
           </div>
 
 
@@ -483,6 +708,12 @@ export default function CoachSessionDetailPage() {
             setIsEditSessionOpen(false);
           }}
         />
+      )}
+
+      {showToast && (
+        <div className={styles.toast}>
+          {toastMessage}
+        </div>
       )}
     </div>
   );

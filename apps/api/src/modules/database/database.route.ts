@@ -21,6 +21,7 @@ router.delete('/games/:id', controller.deleteGame.bind(controller));
 router.put('/folders/:id/move', controller.moveFolder.bind(controller));
 router.put('/collections/:id/move', controller.moveCollection.bind(controller));
 router.put('/games/:id/move', controller.moveGame.bind(controller));
+router.put('/reorder', controller.reorderItems.bind(controller));
 
 router.post('/collections/upload', controller.uploadPgn.bind(controller));
 router.post('/collections/save-analysis', controller.saveAnalysisGame.bind(controller));

@@ -48,7 +48,7 @@ export class DatabaseService {
           { ownerId: userId, visibility: 'private' }
         ]
       },
-      orderBy: { name: 'asc' }
+      orderBy: { orderIndex: 'asc' }
     });
 
     // 2. Collections
@@ -84,7 +84,7 @@ export class DatabaseService {
           }
         }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { orderIndex: 'asc' }
     });
 
     // 3. Shared Items (grouped in tree under virtual folders of the sharers)
@@ -101,7 +101,7 @@ export class DatabaseService {
 
     const sharerFolders = await prisma.folder.findMany({
       where: { ownerId: { in: sharerIds }, visibility: 'private' },
-      orderBy: { name: 'asc' }
+      orderBy: { orderIndex: 'asc' }
     });
 
     const sharerCollections = await prisma.collection.findMany({
@@ -119,7 +119,7 @@ export class DatabaseService {
           orderBy: { orderIndex: 'asc' }
         }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { orderIndex: 'asc' }
     });
 
     const sharedFolderIds = new Set(shares.map(s => s.folderId).filter(Boolean) as string[]);
@@ -823,5 +823,83 @@ export class DatabaseService {
       games,
       chapterCount: collection.chapterCount
     };
+  }
+
+  async reorderItems(
+    userId: string,
+    role: string,
+    parentId: string | null,
+    itemIds: { id: string; type: 'folder' | 'collection' }[]
+  ) {
+    if (parentId) {
+      const folder = await prisma.folder.findUnique({ where: { id: parentId } });
+      if (!folder) throw new Error('Target folder not found.');
+      if (folder.visibility === 'public' && role?.toUpperCase() !== 'ADMIN') {
+        throw new Error('Permission denied.');
+      }
+      if (folder.visibility === 'private' && folder.ownerId !== userId) {
+        throw new Error('Permission denied.');
+      }
+    }
+
+    return prisma.$transaction(async (tx) => {
+      for (let i = 0; i < itemIds.length; i++) {
+        const { id, type } = itemIds[i];
+
+        if (type === 'folder') {
+          const folder = await tx.folder.findUnique({ where: { id } });
+          if (!folder) throw new Error(`Folder ${id} not found.`);
+          if (folder.visibility === 'public' && role?.toUpperCase() !== 'ADMIN') {
+            throw new Error('Permission denied.');
+          }
+          if (folder.visibility === 'private' && folder.ownerId !== userId) {
+            throw new Error('Permission denied.');
+          }
+
+          if (parentId) {
+            if (parentId === id) {
+              throw new Error('Cannot move folder inside itself.');
+            }
+            let currentParentId: string | null = parentId;
+            const visited = new Set<string>();
+            while (currentParentId) {
+              if (visited.has(currentParentId)) break;
+              visited.add(currentParentId);
+              if (currentParentId === id) {
+                throw new Error('Cannot move folder inside its own descendant.');
+              }
+              const pFolder = (await tx.folder.findUnique({ where: { id: currentParentId } })) as { parentFolderId: string | null } | null;
+              currentParentId = pFolder ? pFolder.parentFolderId : null;
+            }
+          }
+
+          await tx.folder.update({
+            where: { id },
+            data: {
+              parentFolderId: parentId,
+              orderIndex: i
+            }
+          });
+        } else if (type === 'collection') {
+          const collection = await tx.collection.findUnique({ where: { id } });
+          if (!collection) throw new Error(`Collection ${id} not found.`);
+          if (collection.visibility === 'public' && role?.toUpperCase() !== 'ADMIN') {
+            throw new Error('Permission denied.');
+          }
+          if (collection.visibility === 'private' && collection.ownerId !== userId) {
+            throw new Error('Permission denied.');
+          }
+
+          await tx.collection.update({
+            where: { id },
+            data: {
+              folderId: parentId,
+              orderIndex: i
+            }
+          });
+        }
+      }
+      return { success: true };
+    });
   }
 }

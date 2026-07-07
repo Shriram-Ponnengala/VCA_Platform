@@ -12,12 +12,6 @@ export class AttendanceService {
   async getAttendanceRecords(sessionId: string) { return repo.getAttendanceRecords(sessionId); }
 
   async upsertAttendanceRecords(sessionId: string, records: any[], markedById: string) {
-    // Validate records
-    for (const r of records) {
-      if (r.status === 'compensated' && !r.isGuest) {
-        throw new Error('Status compensated is only valid when isGuest is true');
-      }
-    }
     return repo.upsertAttendanceRecords(sessionId, records, markedById);
   }
 

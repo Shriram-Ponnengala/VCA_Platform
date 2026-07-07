@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef } from 'react';
-import { Search, Loader2, ExternalLink, ChevronRight, AlertCircle, User } from 'lucide-react';
+import { Search, Loader2, ExternalLink, ChevronRight, AlertCircle, User, Filter } from 'lucide-react';
 
 export interface AccessGame {
   id: string;
@@ -48,6 +48,14 @@ export default function AccessGamesPanel({
   const inputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = React.useState(false);
   const [loadingId, setLoadingId] = React.useState<string | null>(null);
+  const [showFilters, setShowFilters] = React.useState(false);
+  const [filters, setFilters] = React.useState({
+    startDate: '',
+    endDate: '',
+    format: '',
+    result: '',
+    opponent: ''
+  });
 
   const fetchGames = async () => {
     const uname = username.trim();
@@ -56,7 +64,7 @@ export default function AccessGamesPanel({
       return;
     }
 
-    const key = `${platform}:${uname.toLowerCase()}`;
+    const key = `${platform}:${uname.toLowerCase()}:${JSON.stringify(filters)}`;
 
     // Return from network cache if available
     if (networkCache[key]) {
@@ -70,9 +78,18 @@ export default function AccessGamesPanel({
     onGamesChange(null);
 
     try {
-      const res = await fetch(
-        `/api/database/access-games?platform=${platform}&username=${encodeURIComponent(uname)}&max=20`
-      );
+      const query = new URLSearchParams({
+        platform,
+        username: uname,
+        max: '20'
+      });
+      if (filters.startDate) query.append('startDate', filters.startDate);
+      if (filters.endDate) query.append('endDate', filters.endDate);
+      if (filters.format) query.append('format', filters.format);
+      if (filters.result) query.append('result', filters.result);
+      if (filters.opponent) query.append('opponent', filters.opponent);
+
+      const res = await fetch(`/api/database/access-games?${query.toString()}`);
       const data = await res.json();
 
       if (!res.ok) {
@@ -155,6 +172,13 @@ export default function AccessGamesPanel({
           />
         </div>
         <button
+          className={`ag-filter-toggle-btn ${showFilters ? 'active' : ''}`}
+          onClick={() => setShowFilters(!showFilters)}
+          title="Toggle Filters"
+        >
+          <Filter size={15} />
+        </button>
+        <button
           className="ag-fetch-btn"
           onClick={fetchGames}
           disabled={loading || !username.trim()}
@@ -164,6 +188,49 @@ export default function AccessGamesPanel({
           {loading ? 'Fetching…' : 'Fetch'}
         </button>
       </div>
+
+      {/* Filters container */}
+      {showFilters && (
+        <div className="ag-filters-container">
+          <div className="ag-filter-group">
+            <label>Date Range</label>
+            <div className="ag-filter-row">
+              <input type="date" className="ag-filter-input" value={filters.startDate} onChange={e => setFilters({...filters, startDate: e.target.value})} />
+              <span>to</span>
+              <input type="date" className="ag-filter-input" value={filters.endDate} onChange={e => setFilters({...filters, endDate: e.target.value})} />
+            </div>
+          </div>
+          
+          <div className="ag-filter-row-split">
+            <div className="ag-filter-group">
+              <label>Format</label>
+              <select className="ag-filter-input" value={filters.format} onChange={e => setFilters({...filters, format: e.target.value})}>
+                <option value="">All Formats</option>
+                <option value="ultrabullet">Ultra Bullet</option>
+                <option value="bullet">Bullet</option>
+                <option value="blitz">Blitz</option>
+                <option value="rapid">Rapid</option>
+                <option value="classical">Classical</option>
+              </select>
+            </div>
+
+            <div className="ag-filter-group">
+              <label>Result</label>
+              <select className="ag-filter-input" value={filters.result} onChange={e => setFilters({...filters, result: e.target.value})}>
+                <option value="">All Results</option>
+                <option value="win">Win</option>
+                <option value="loss">Loss</option>
+                <option value="draw">Draw</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="ag-filter-group">
+            <label>Opponent Username</label>
+            <input type="text" className="ag-filter-input" placeholder="Any opponent" value={filters.opponent} onChange={e => setFilters({...filters, opponent: e.target.value})} />
+          </div>
+        </div>
+      )}
 
       {/* Error state */}
       {error && (
@@ -318,6 +385,81 @@ export default function AccessGamesPanel({
         }
         .ag-input:focus { border-color: #c8854a; }
         .ag-input::placeholder { color: rgba(74, 32, 24, 0.4); }
+
+        .ag-filter-toggle-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 8px;
+          background: #ffffff;
+          color: #a08070;
+          border: 1px solid #eedcd0;
+          border-radius: 7px;
+          cursor: pointer;
+          transition: all 0.15s;
+          flex-shrink: 0;
+        }
+        .ag-filter-toggle-btn:hover {
+          background: #fdf5ea;
+          color: #c8854a;
+          border-color: #c8854a;
+        }
+        .ag-filter-toggle-btn.active {
+          background: #fdf5ea;
+          color: #c8854a;
+          border-color: #c8854a;
+        }
+
+        .ag-filters-container {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          padding: 12px;
+          background: #fdf5ea;
+          border: 1px solid #eedcd0;
+          border-radius: 8px;
+          margin-top: -2px;
+        }
+        .ag-filter-group {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          flex: 1;
+        }
+        .ag-filter-group label {
+          font-size: 0.7rem;
+          font-weight: 600;
+          color: #a08070;
+          text-transform: uppercase;
+        }
+        .ag-filter-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .ag-filter-row span {
+          font-size: 0.8rem;
+          color: #a08070;
+        }
+        .ag-filter-row-split {
+          display: flex;
+          gap: 10px;
+        }
+        .ag-filter-input {
+          width: 100%;
+          padding: 6px 8px;
+          border: 1px solid #eedcd0;
+          border-radius: 5px;
+          font-size: 0.8rem;
+          color: #4a2018;
+          background: #ffffff;
+          outline: none;
+          transition: border-color 0.15s;
+          box-sizing: border-box;
+        }
+        .ag-filter-input:focus {
+          border-color: #c8854a;
+        }
 
         .ag-fetch-btn {
           display: flex;

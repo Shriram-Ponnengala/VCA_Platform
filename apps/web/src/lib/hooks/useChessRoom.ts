@@ -35,6 +35,7 @@ export interface UseChessRoomReturn {
   isFreehand: boolean;
   chapters: ChessChapter[];
   activeChapterIndex: number;
+  moveRejectedAt: number;
   loadPgn: (pgnText: string) => void;
   selectChapter: (index: number) => void;
   makeMove: (from: string, to: string, promotion?: string, parentId?: string) => void;
@@ -79,6 +80,7 @@ export function useChessRoom(
   const [studyTags, setStudyTags] = useState<Record<string, string>>({});
   const [isConnected, setIsConnected] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const [moveRejectedAt, setMoveRejectedAt] = useState(0);
 
   const socketRef = useRef<ChessSocket | null>(null);
   const roomIdRef = useRef(actualRoomId);
@@ -191,6 +193,8 @@ export function useChessRoom(
 
         socket.on('chess:move_rejected', ({ reason }) => {
           console.warn('[ChessRoom] Move rejected:', reason);
+          // Increment rejection counter so ChessBoard can snap the piece back
+          setMoveRejectedAt(prev => prev + 1);
         });
         
         socket.on('chess:arrows_updated', ({ nodeId, arrows }) => {
@@ -461,7 +465,7 @@ export function useChessRoom(
 
   return { 
     nodes, currentNodeId, participants, isConnected, isReady, isLocked, isFreehand, chatHistory, studyTags,
-    chapters, activeChapterIndex, loadPgn, selectChapter,
+    chapters, activeChapterIndex, loadPgn, selectChapter, moveRejectedAt,
     makeMove, makeNullMove, navigate, resetBoard, updateArrows, clearArrows, toggleLock, toggleFreehand, sendChatMessage,
     updateNodeAnnotations, setStudyTag, removeStudyTag, setupPosition,
     promoteToMainline, promoteVariation, deleteSubsequentMoves, deletePreviousMoves, deleteMove

@@ -57,7 +57,7 @@
 
 .chess {
   font-family: var(--font-sans), sans-serif;
-  font-size: 0.85rem;
+  font-size: 1.02rem;
   font-weight: 500;
   color: var(--sidebar-foreground);
   opacity: 0.85;

@@ -37,6 +37,30 @@ export class AttendanceRepository {
 
   async upsertAttendanceRecords(sessionId: string, records: any[], markedById: string) {
     // records is an array of { studentId, status, isGuest, comment }
+    
+    // Check if the BatchSession exists. If not, try to find a Session with this ID and copy details to a new BatchSession
+    const batchSessionExists = await prisma.batchSession.findUnique({
+      where: { id: sessionId }
+    });
+
+    if (!batchSessionExists) {
+      const session = await prisma.session.findUnique({
+        where: { id: sessionId }
+      });
+      if (session) {
+        await prisma.batchSession.create({
+          data: {
+            id: sessionId,
+            classId: session.classId,
+            sessionDate: session.date,
+            startTime: session.startTime,
+            endTime: session.endTime,
+            createdById: markedById
+          }
+        });
+      }
+    }
+
     const results = [];
     for (const record of records) {
       results.push(await prisma.attendanceRecord.upsert({

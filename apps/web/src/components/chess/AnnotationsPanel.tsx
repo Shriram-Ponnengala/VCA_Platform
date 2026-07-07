@@ -361,17 +361,20 @@ export const AnnotationsPanel: React.FC<AnnotationsPanelProps> = ({
         .annotations-panel {
           display: flex;
           flex-direction: column;
-          background: var(--panel-bg-inner, #fdf5ea);
-          border: 1px solid var(--panel-border-color, #eedcd0);
-          border-radius: 12px;
+          background: transparent;
+          border: none;
+          border-radius: 0;
           overflow: hidden;
           color: var(--panel-text-color, #4a2018);
+          height: 100%;
         }
 
         .ap-tabs {
           display: flex;
-          border-bottom: 1px solid var(--panel-border-color, #eedcd0);
-          background: rgba(74, 32, 24, 0.04);
+          gap: 8px;
+          padding: 12px;
+          border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+          background: rgba(0, 0, 0, 0.02);
         }
 
         .ap-tab {
@@ -379,25 +382,26 @@ export const AnnotationsPanel: React.FC<AnnotationsPanelProps> = ({
           background: transparent;
           border: none;
           color: var(--panel-subtext-color, rgba(74, 32, 24, 0.6));
-          padding: 10px 0;
-          font-size: 0.85rem;
-          font-weight: 600;
+          padding: 8px 0;
+          font-size: 0.8rem;
+          font-weight: 700;
           cursor: pointer;
           text-transform: uppercase;
           letter-spacing: 0.05em;
-          border-bottom: 2px solid transparent;
-          transition: all 0.2s;
+          border-radius: 8px;
+          transition: all 0.2s ease;
         }
 
         .ap-tab:hover:not(:disabled) {
+          background: rgba(255, 255, 255, 0.1);
           color: var(--panel-text-color, #4a2018);
-          background: var(--panel-avatar-bg, rgba(74, 32, 24, 0.03));
         }
 
         .ap-tab.active {
           color: var(--panel-text-color, #4a2018);
-          border-bottom-color: var(--panel-accent-color, #c8854a);
           background: var(--panel-card-bg, #ffffff);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+          border: 1px solid var(--panel-border-color, rgba(0, 0, 0, 0.05));
         }
 
         .ap-content {
@@ -409,25 +413,23 @@ export const AnnotationsPanel: React.FC<AnnotationsPanelProps> = ({
         .ap-tags-list {
           display: flex;
           flex-direction: column;
-          border: 1px solid var(--panel-border-color, #eedcd0);
-          border-radius: 6px;
-          overflow: hidden;
+          gap: 8px;
         }
 
         .ap-tag-row {
           display: flex;
           align-items: center;
-          padding: 8px 12px;
-          border-bottom: 1px solid var(--panel-border-color, #eedcd0);
+          padding: 10px 14px;
           background: var(--panel-card-bg, #ffffff);
+          border: 1px solid var(--panel-border-color, #eedcd0);
+          border-radius: 10px;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+          transition: all 0.2s;
         }
         
-        .ap-tag-row:nth-child(even) {
-          background: rgba(74, 32, 24, 0.02);
-        }
-        
-        .ap-tag-row:last-child {
-          border-bottom: none;
+        .ap-tag-row:hover {
+          box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+          border-color: var(--panel-accent-color, #c8854a);
         }
 
         .ap-tag-key {
@@ -487,22 +489,26 @@ export const AnnotationsPanel: React.FC<AnnotationsPanelProps> = ({
         }
 
         .ap-tag-select, .ap-custom-tag-input {
-          background: var(--panel-bg-inner, #ffffff);
+          background: var(--panel-card-bg, #ffffff);
           border: 1px solid var(--panel-border-color, #eedcd0);
           color: var(--panel-text-color, #4a2018);
-          padding: 6px 10px;
-          border-radius: 4px;
+          padding: 8px 14px;
+          border-radius: 8px;
           font-size: 0.85rem;
+          font-weight: 500;
           outline: none;
           min-width: 140px;
+          transition: all 0.2s ease;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.02);
         }
 
         .ap-tag-select:focus, .ap-custom-tag-input:focus {
           border-color: var(--panel-accent-color, #c8854a);
+          box-shadow: 0 0 0 3px rgba(200, 133, 74, 0.15);
         }
 
         .ap-tag-select option {
-          background: var(--panel-bg-inner, #ffffff);
+          background: var(--panel-card-bg, #ffffff);
           color: var(--panel-text-color, #4a2018);
         }
 
@@ -532,19 +538,22 @@ export const AnnotationsPanel: React.FC<AnnotationsPanelProps> = ({
         .ap-comments textarea {
           width: 100%;
           min-height: 120px;
-          background: var(--panel-bg-inner, #ffffff);
+          background: var(--panel-card-bg, #ffffff);
           border: 1px solid var(--panel-border-color, #eedcd0);
           color: var(--panel-text-color, #4a2018);
-          padding: 10px;
-          border-radius: 6px;
+          padding: 14px;
+          border-radius: 12px;
           resize: vertical;
           font-family: inherit;
-          font-size: 0.9rem;
+          font-size: 0.95rem;
+          transition: all 0.2s ease;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.02);
         }
         
         .ap-comments textarea:focus {
           outline: none;
           border-color: var(--panel-accent-color, #c8854a);
+          box-shadow: 0 0 0 3px rgba(200, 133, 74, 0.15);
         }
         
         .ap-comments textarea:disabled {

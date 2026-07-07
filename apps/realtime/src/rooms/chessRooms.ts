@@ -1,4 +1,4 @@
-import { Chess } from "chess.js";
+import { Chess } from "@vca/chess";
 import type { MoveNode, Participant, ChessRoomState, ArrowData, ChatMessage } from "@vca/types";
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -261,7 +261,8 @@ export function applyMove(
         node: room.nodes[newCurrentNodeId],
         currentNodeId: newCurrentNodeId
       };
-    } catch (err) {
+    } catch (err: any) {
+      console.error('[ChessRoom] Move error in applyMove:', err.message || err);
       return null;
     }
   }

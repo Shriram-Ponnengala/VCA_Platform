@@ -58,6 +58,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'personal' | 'account' | 'appearance' | 'administration' | 'academy'>('appearance');
   const [activeAppearanceSubTab, setActiveAppearanceSubTab] = useState<'branding' | 'classroom'>('branding');
   const [showToast, setShowToast] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [activeLogoTab, setActiveLogoTab] = useState<'primary' | 'dark' | 'icon'>('primary');
 
@@ -102,6 +103,12 @@ export default function SettingsPage() {
     panelOpacity: number;
     panelBlur: number;
     customThemes: any[];
+    logoUrl?: string;
+    logoUpload?: string;
+    logoDarkUrl?: string;
+    logoDarkUpload?: string;
+    iconUrl?: string;
+    iconUpload?: string;
     classroomBackground?: {
       type: 'solid' | 'gradient' | 'texture' | 'image';
       solidColor: string;
@@ -127,6 +134,12 @@ export default function SettingsPage() {
     panelStyle: 'solid',
     panelOpacity: 95,
     panelBlur: 0,
+    logoUrl: '',
+    logoUpload: '',
+    logoDarkUrl: '',
+    logoDarkUpload: '',
+    iconUrl: '',
+    iconUpload: '',
     customThemes: [],
     classroomBackground: {
       type: 'solid',
@@ -330,8 +343,11 @@ export default function SettingsPage() {
     setTimeout(() => setShowToast(false), 3000);
   };
 
-  const handleResetToDefaults = async () => {
-    if (!window.confirm("Are you sure you want to reset all platform settings to their original defaults? This cannot be undone.")) return;
+  const handleResetToDefaults = () => {
+    setShowResetConfirm(true);
+  };
+
+  const confirmResetToDefaults = async () => {
     
     const defaultBranding = {
       primaryColor: '#2d4a6b',
@@ -347,12 +363,13 @@ export default function SettingsPage() {
       panelBlur: 0,
       logoUrl: '',
       logoUpload: '',
+      customThemes: [],
       classroomBackground: {
-        type: 'solid',
+        type: 'solid' as const,
         solidColor: '#fdf0e4',
         gradient: { stops: [{ color: '#fdf0e4', position: 0 }, { color: '#eedcd0', position: 100 }], direction: '135deg' },
-        texture: 'dots',
-        imageSource: 'url',
+        texture: 'dots' as const,
+        imageSource: 'url' as const,
         imageUrl: '',
         imageUpload: '',
         imageOverlay: false
@@ -2403,6 +2420,20 @@ export default function SettingsPage() {
         variant="danger"
         onConfirm={confirmDeleteCustomTheme}
         onCancel={() => setThemeToDelete(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={showResetConfirm}
+        title="Reset settings?"
+        message="Are you sure you want to reset all platform settings to defaults? This cannot be undone."
+        confirmText="Reset"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={async () => {
+          setShowResetConfirm(false);
+          await confirmResetToDefaults();
+        }}
+        onCancel={() => setShowResetConfirm(false)}
       />
     </div>
   );

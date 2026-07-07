@@ -1,7 +1,8 @@
 .container {
   padding: 16px 24px;
+  margin: -32px;
   background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-  min-height: calc(100vh - 64px);
+  min-height: calc(100vh - 64px + 64px);
   font-family: var(--font-sans);
   display: flex;
   flex-direction: column;

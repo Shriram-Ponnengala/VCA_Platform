@@ -89,7 +89,7 @@ export default function ClassroomPage() {
 
   const { 
     nodes, currentNodeId, participants, isConnected, isReady, isLocked, isFreehand, chatHistory,
-    chapters, activeChapterIndex, loadPgn, selectChapter,
+    chapters, activeChapterIndex, loadPgn, selectChapter, moveRejectedAt,
     makeMove, makeNullMove, navigate, resetBoard, updateArrows, clearArrows, toggleLock, toggleFreehand, sendChatMessage,
     setupPosition, promoteToMainline, promoteVariation, deleteSubsequentMoves, deletePreviousMoves, deleteMove
   } = useChessRoom(ROOM_ID, token, { enabled: !!token });
@@ -523,6 +523,7 @@ export default function ClassroomPage() {
               onPrev={handlePrev}
               onStart={handleStart}
               onEnd={handleEnd}
+              moveRejectedAt={moveRejectedAt}
               onVariationUp={handleVariationUp}
               onVariationDown={handleVariationDown}
               arrows={currentNode?.arrows || []}

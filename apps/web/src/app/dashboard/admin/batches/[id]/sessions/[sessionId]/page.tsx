@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Video, Edit2, Download, MoreVertical, Activity, UserCircle, ExternalLink, Trash2, Link as LinkIcon, Copy, Plus, Check, PlayCircle, FileText, Youtube } from 'lucide-react';
 import { useSessions } from '@/lib/hooks/useSessions';
@@ -20,7 +20,7 @@ export default function AdminSessionDetailPage() {
   const batchId = extractBatchId(rawBatchId, batches);
   const sessionId = params.sessionId as string;
 
-  const { sessions, isLoaded: sessionsLoaded } = useSessions(batchId);
+  const { sessions, isLoaded: sessionsLoaded, refetch: refetchSessions } = useSessions(batchId);
   const [activeTab, setActiveTab] = useState('attendance');
   const [isEditSessionOpen, setIsEditSessionOpen] = useState(false);
 
@@ -31,6 +31,24 @@ export default function AdminSessionDetailPage() {
   const [newFileUrl, setNewFileUrl] = useState('');
   const [newFileTitle, setNewFileTitle] = useState('');
   const [newFileType, setNewFileType] = useState('link');
+
+  const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    const fetchAttendance = async () => {
+      try {
+        const res = await fetch(`/api/attendance/records/${sessionId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setAttendanceRecords(data);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchAttendance();
+  }, [sessionId]);
 
   if (!batchesLoaded || !studentsLoaded || !sessionsLoaded) {
     return <div className={styles.container}>Loading Session...</div>;
@@ -50,14 +68,27 @@ export default function AdminSessionDetailPage() {
     );
   }
 
-  // Mocked attendance
-  const mockedAttendance = [
-    { id: '1', name: 'Aditri NSP', email: 'nirmalaprabhu2009@gmail.com', status: 'present', remarks: 'Great endgame play', color: 'blue' },
-    { id: '2', name: 'Akanksha NSP', email: 'akankshaaditripx@gmail.com', status: 'present', remarks: 'Answered well', color: 'pink' },
-    { id: '3', name: 'Ira G Mallia', email: 'ganeshmallia@gmail.com', status: 'absent', remarks: 'Informed absence', color: 'orange' },
-    { id: '4', name: 'Avni Mallia', email: 'anuradhaaprabhu@gmail.com', status: 'present', remarks: '—', color: 'teal' },
-    { id: '5', name: 'Rohan M', email: 'Makeup · from Weekday Pawn', status: 'compensated', remarks: 'Makeup for missed class', color: 'gray' },
-  ];
+  const safeStudents = Array.isArray(batch.students) ? batch.students : [];
+  const enrolledStudents = allStudents.filter(s => safeStudents.includes(s.id));
+
+  // Dynamic mapped attendance based on database records
+  const displayAttendance = enrolledStudents.map((student: any, idx: number) => {
+    const record = attendanceRecords.find(r => r.studentId === student.id);
+    const colors = ['blue', 'pink', 'orange', 'teal'];
+    return {
+      id: student.id,
+      name: student.name || 'Student',
+      email: student.email || '',
+      status: record?.status || 'absent',
+      remarks: record?.comment || '—',
+      color: colors[idx % colors.length]
+    };
+  });
+
+  const presentCount = displayAttendance.filter(s => s.status === 'present').length;
+  const absentCount = displayAttendance.filter(s => s.status === 'absent').length;
+  const compensatedCount = displayAttendance.filter(s => s.status === 'compensated').length;
+  const totalCount = displayAttendance.length;
 
   const d = new Date(session.date);
   const monthStr = d.toLocaleDateString('en-US', { month: 'short' });
@@ -111,26 +142,7 @@ export default function AdminSessionDetailPage() {
 
   return (
     <div className={styles.container}>
-      {/* Top Nav Row */}
-      <div className={styles.headerTopRow}>
-        <button
-          className={styles.backLink}
-          onClick={() => router.push(`/dashboard/admin/batches/${params.id}`)}
-        >
-          <ArrowLeft size={16} /> Session History <span className={styles.breadcrumbSeparator}>&gt;</span> <span className={styles.breadcrumbTitle}>{session.title}</span>
-        </button>
-        <div className={styles.headerActions}>
-          <button
-            className={styles.btnPrimarySolid}
-            onClick={() => window.open(session.meetingLink || '', '_blank')}
-          >
-            Join Session <Video size={16} />
-          </button>
-          <button className={styles.btnIcon}>
-            <MoreVertical size={18} />
-          </button>
-        </div>
-      </div>
+
 
       {/* Main Header Card */}
       <div className={styles.headerCard}>
@@ -168,7 +180,7 @@ export default function AdminSessionDetailPage() {
             Topics Covered
           </button>
           <button className={`${styles.tab} ${activeTab === 'attendance' ? styles.tabActive : ''}`} onClick={() => setActiveTab('attendance')}>
-            Attendance ({mockedAttendance.length})
+            Attendance ({displayAttendance.length})
           </button>
           <button className={`${styles.tab} ${activeTab === 'recording' ? styles.tabActive : ''}`} onClick={() => setActiveTab('recording')}>
             Recording & Files
@@ -269,24 +281,22 @@ export default function AdminSessionDetailPage() {
           <div className={styles.panelCard}>
             <div className={styles.summaryGrid3}>
               <div className={styles.summaryCard}>
-                <span className={`${styles.summaryValue} ${styles.green}`}>3</span>
+                <span className={`${styles.summaryValue} ${styles.green}`}>{presentCount}</span>
                 <span className={styles.summaryLabel}>Present</span>
-                <span className={styles.summarySubtext}>3 of 4 students</span>
+                <span className={styles.summarySubtext}>{presentCount} of {totalCount} students</span>
               </div>
               <div className={styles.summaryCard}>
-                <span className={`${styles.summaryValue} ${styles.red}`}>1</span>
+                <span className={`${styles.summaryValue} ${styles.red}`}>{absentCount}</span>
                 <span className={styles.summaryLabel}>Absent</span>
-                <span className={styles.summarySubtext}>1 of 4 students</span>
+                <span className={styles.summarySubtext}>{absentCount} of {totalCount} students</span>
               </div>
               <div className={styles.summaryCard}>
-                <span className={`${styles.summaryValue} ${styles.orange}`}>1</span>
+                <span className={`${styles.summaryValue} ${styles.orange}`}>{compensatedCount}</span>
                 <span className={styles.summaryLabel}>Compensated</span>
                 <span className={styles.summarySubtext}>makeup attendee</span>
               </div>
             </div>
           </div>
-
-          <button className={styles.btnCancel}>Cancel Session <Trash2 size={16} /></button>
         </div>
       )}
 
@@ -298,11 +308,8 @@ export default function AdminSessionDetailPage() {
           <div className={styles.panelCard}>
             <div className={styles.attendanceHeaderRow}>
               <h2 className={styles.sectionTitle}>
-                <UsersIcon size={18} color="#10b981" /> Students Attendance ({mockedAttendance.length})
+                <UsersIcon size={18} color="#10b981" /> Students Attendance ({displayAttendance.length})
               </h2>
-              <button className={styles.btnSecondary} style={{ fontSize: '0.8rem', padding: '6px 12px' }}>
-                <Download size={14} /> Export
-              </button>
             </div>
 
             <table className={styles.table}>
@@ -311,16 +318,15 @@ export default function AdminSessionDetailPage() {
                   <th>STUDENT</th>
                   <th>STATUS</th>
                   <th>REMARKS</th>
-                  <th><div style={{ textAlign: 'right' }}>ACTION</div></th>
                 </tr>
               </thead>
               <tbody>
-                {mockedAttendance.map(student => (
+                {displayAttendance.map(student => (
                   <tr key={student.id}>
                     <td>
                       <div className={styles.studentCell}>
                         <div className={`${styles.studentAvatar} ${styles[student.color] || ''}`}>
-                          {student.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                          {student.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()}
                         </div>
                         <div>
                           <p className={styles.studentName}>{student.name}</p>
@@ -334,10 +340,6 @@ export default function AdminSessionDetailPage() {
                       </span>
                     </td>
                     <td><span className={styles.valText}>{student.remarks}</span></td>
-                    <td style={{ textAlign: 'right' }}>
-                      <button className={styles.actionBtnSmall}><Edit2 size={16} /></button>
-                      <button className={styles.actionBtnSmall}><MoreVertical size={16} /></button>
-                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Chess, Move } from 'chess.js';
+import { Chess, Move } from '@vca/chess';
 import { Chessground } from 'chessground';
 import type { Api } from 'chessground/api';
 import type { Config } from 'chessground/config';
-import { ArrowLeft, Clock, Star, Heart, Lightbulb, Eye, CheckCircle2, XCircle, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Clock, Star, Heart, Lightbulb, Eye, CheckCircle2, XCircle, ChevronRight, FileText } from 'lucide-react';
 import styles from './boardPuzzleSolver.module.css';
 
 import 'chessground/assets/chessground.base.css';

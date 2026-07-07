@@ -5,6 +5,7 @@ import { Eye, Edit2, MoreVertical, Plus, Trash2 } from 'lucide-react';
 import { useSessions, Session } from '@/lib/hooks/useSessions';
 import { CreateSessionModal } from './CreateSessionModal';
 import { SessionDetailsModal } from './SessionDetailsModal';
+import { ConfirmModal } from '@vca/ui';
 import styles from './SessionsTab.module.css';
 
 interface SessionsTabProps {
@@ -20,6 +21,7 @@ export function SessionsTab({ batchId, enrolledStudents }: SessionsTabProps) {
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [viewingSession, setViewingSession] = useState<Session | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [sessionToDeleteId, setSessionToDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     const handleClickOutside = () => {
@@ -152,11 +154,9 @@ export function SessionsTab({ batchId, enrolledStudents }: SessionsTabProps) {
                             fontSize: '0.875rem',
                             textAlign: 'left'
                           }}
-                          onClick={async (e) => {
+                          onClick={(e) => {
                             e.stopPropagation();
-                            if (window.confirm('Are you sure you want to delete this session?')) {
-                              await deleteSession(session.id);
-                            }
+                            setSessionToDeleteId(session.id);
                             setOpenMenuId(null);
                           }}
                           onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
@@ -202,6 +202,21 @@ export function SessionsTab({ batchId, enrolledStudents }: SessionsTabProps) {
           }}
         />
       )}
+
+      <ConfirmModal 
+        isOpen={!!sessionToDeleteId}
+        onClose={() => setSessionToDeleteId(null)}
+        onConfirm={async () => {
+          if (sessionToDeleteId) {
+            await deleteSession(sessionToDeleteId);
+            setSessionToDeleteId(null);
+          }
+        }}
+        title="Delete Session"
+        message="Are you sure you want to delete this session? This action cannot be undone."
+        confirmText="Delete"
+        variant="danger"
+      />
     </div>
   );
 }

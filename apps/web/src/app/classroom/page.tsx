@@ -15,7 +15,7 @@ import EngineAnalysisPanel from '@/components/chess/EngineAnalysisPanel';
 import OpeningExplorerPanel from '@/components/chess/OpeningExplorerPanel';
 import DatabasePanel from '@/components/chess/DatabasePanel';
 import ChapterCard from '@/components/chess/ChapterCard';
-import { Chess } from 'chess.js';
+import { Chess } from '@vca/chess';
 import { applyContextMenuPosition } from '@/lib/utils/contextMenuUtils';
 
 const featureFlags = {
@@ -67,7 +67,7 @@ export default function ClassroomPage() {
 
   const { 
     nodes, currentNodeId, participants, isConnected, isReady, isLocked, isFreehand, chatHistory, studyTags,
-    chapters, activeChapterIndex, loadPgn, selectChapter,
+    chapters, activeChapterIndex, loadPgn, selectChapter, moveRejectedAt,
     makeMove, makeNullMove, navigate, resetBoard, updateArrows, clearArrows, toggleLock, toggleFreehand, sendChatMessage,
     updateNodeAnnotations, setStudyTag, removeStudyTag, setupPosition,
     promoteToMainline, promoteVariation, deleteSubsequentMoves, deletePreviousMoves, deleteMove
@@ -598,6 +598,7 @@ export default function ClassroomPage() {
               onPrev={handlePrev}
               onStart={handleStart}
               onEnd={handleEnd}
+              moveRejectedAt={moveRejectedAt}
               onVariationUp={handleVariationUp}
               onVariationDown={handleVariationDown}
               arrows={currentNode?.arrows || []}
@@ -606,7 +607,6 @@ export default function ClassroomPage() {
               isFreehand={isFreehand}
               nodes={nodes}
               branches={branches}
-              hideSocialFeatures={true}
               selectedBranchIndex={selectedVariationIndex}
               onSelectBranch={setSelectedVariationIndex}
               onChooseBranch={(id) => {
@@ -766,8 +766,8 @@ export default function ClassroomPage() {
                 />
 
                 <div
-                  className="annotations-wrapper"
-                  style={{ height: `calc(${(1 - splitRatio) * 100}% - 4px)` }}
+                  className="annotations-wrapper sidebar-panel glass-panel"
+                  style={{ height: `calc(${(1 - splitRatio) * 100}% - 4px)`, padding: 0 }}
                 >
                   <AnnotationsPanel
                     currentNode={currentNode}
@@ -1147,7 +1147,7 @@ export default function ClassroomPage() {
           color: var(--panel-text-color, #4a2018);
           backdrop-filter: var(--panel-backdrop-filter, none);
           -webkit-backdrop-filter: var(--panel-backdrop-filter, none);
-          transition: all 0.3s ease;
+          transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
         }
 
         .board-section {
@@ -1172,6 +1172,7 @@ export default function ClassroomPage() {
         
         .tabs-container {
           display: flex;
+          flex-wrap: wrap;
           gap: 4px;
           padding: 4px;
           background: var(--panel-bg, #fdf5ea);
@@ -1184,7 +1185,7 @@ export default function ClassroomPage() {
           -webkit-backdrop-filter: var(--panel-backdrop-filter, none);
           z-index: 1;
           position: relative;
-          transition: all 0.3s ease;
+          transition: background-color 0.3s ease, border-color 0.3s ease;
         }
         
         .tab-btn {
@@ -1193,15 +1194,15 @@ export default function ClassroomPage() {
           align-items: center;
           justify-content: center;
           gap: 6px;
-          padding: 10px 0;
+          padding: 8px 12px;
           background: transparent;
           border: none;
           color: var(--panel-subtext-color, rgba(74, 32, 24, 0.6));
-          font-size: 0.9rem;
-          font-weight: 500;
+          font-size: 0.85rem;
+          font-weight: 600;
           border-radius: 8px;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
         .tab-btn:hover {
@@ -1212,9 +1213,9 @@ export default function ClassroomPage() {
         .tab-btn.active {
           color: var(--panel-text-color, #4a2018);
           background: var(--panel-card-bg, #ffffff);
-          box-shadow: none;
-          border-bottom: 2px solid var(--panel-accent-color, #c8854a);
-          border-radius: 8px 8px 0 0;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+          border: 1px solid var(--panel-border-color, rgba(0,0,0,0.05));
+          border-radius: 8px;
         }
 
         .sidebar-panel { 

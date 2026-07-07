@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { MoveNode, Arrow } from '../types/chess';
 import { findNode, insertNode, updateNode } from '../lib/treeUtils';
-import { Chess, Move } from 'chess.js';
+import { Chess, Move } from '@vca/chess';
 
 const INITIAL_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 

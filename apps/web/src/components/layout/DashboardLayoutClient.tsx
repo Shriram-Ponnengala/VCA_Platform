@@ -18,7 +18,8 @@ export function DashboardLayoutClient({ children, role, username, userId }: Dash
   const pathname = usePathname();
   const isClassroom = pathname === '/classroom' || pathname.startsWith('/classroom/');
   const isAnalysis = pathname === '/dashboard/analysis';
-  const isFullScreen = isClassroom || isAnalysis;
+  const isDatabase = pathname.includes('/database');
+  const isFullScreen = isClassroom || isAnalysis || isDatabase;
 
   const isHomework = pathname === '/dashboard/student/homework' || pathname.startsWith('/dashboard/student/homework/');
 

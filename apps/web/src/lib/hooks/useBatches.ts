@@ -85,11 +85,15 @@ export function useBatches() {
         studentDetails: [
           ...(b.enrollments || []).map((e: any) => ({
             id: e.student?.id || e.studentId,
-            name: e.student?.user ? `${e.student.user.firstName} ${e.student.user.lastName}` : 'Unknown Student'
+            name: e.student?.user 
+              ? `${e.student.user.firstName || ''} ${e.student.user.lastName || ''}`.trim() || e.student.user.username 
+              : 'Unknown Student'
           })),
           ...(b.targetMakeovers || []).map((m: any) => ({
             id: m.student?.id || m.studentId,
-            name: m.student?.user ? `${m.student.user.firstName} ${m.student.user.lastName} (Makeover)` : 'Makeover Student',
+            name: m.student?.user 
+              ? `${`${m.student.user.firstName || ''} ${m.student.user.lastName || ''}`.trim() || m.student.user.username} (Makeover)` 
+              : 'Makeover Student',
             isMakeover: true
           }))
         ],

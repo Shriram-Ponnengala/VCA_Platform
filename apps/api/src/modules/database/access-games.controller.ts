@@ -32,14 +32,38 @@ export interface AccessGame {
 }
 
 // ── Lichess ───────────────────────────────────────────────────────────────
-async function fetchLichessGames(username: string, max: number): Promise<AccessGame[]> {
+async function fetchLichessGames(username: string, max: number, filters: any): Promise<AccessGame[]> {
   const token = process.env.LICHESS_API_TOKEN;
   const headers: Record<string, string> = {
     Accept: 'application/x-ndjson',
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const url = `https://lichess.org/api/games/user/${encodeURIComponent(username)}?max=${max}&pgnInJson=true&opening=true&clocks=false&evals=false`;
+  const { startDate, endDate, format, result, opponent } = filters || {};
+
+  let url = `https://lichess.org/api/games/user/${encodeURIComponent(username)}?pgnInJson=true&opening=true&clocks=false&evals=false`;
+
+  if (startDate) {
+    const since = new Date(startDate).getTime();
+    if (!isNaN(since)) url += `&since=${since}`;
+  }
+  if (endDate) {
+    const until = new Date(endDate).getTime() + 86400000; // Add 1 day
+    if (!isNaN(until)) url += `&until=${until}`;
+  }
+  if (format) {
+    url += `&perfType=${format}`;
+  }
+  if (opponent) {
+    url += `&vs=${encodeURIComponent(opponent)}`;
+  }
+
+  // If result is filtered, fetch more games to ensure we get enough matches
+  if (result) {
+    url += `&max=${max * 5}`;
+  } else {
+    url += `&max=${max}`;
+  }
 
   const res = await fetch(url, { headers });
 
@@ -49,13 +73,13 @@ async function fetchLichessGames(username: string, max: number): Promise<AccessG
   const text = await res.text();
   const lines = text.trim().split('\n').filter(Boolean);
 
-  return lines.map((line) => {
+  let games = lines.map((line) => {
     const g = JSON.parse(line);
     const white = g.players?.white?.user?.name || g.players?.white?.name || 'White';
     const black = g.players?.black?.user?.name || g.players?.black?.name || 'Black';
     const whiteElo = g.players?.white?.rating;
     const blackElo = g.players?.black?.rating;
-    const result = g.winner === 'white' ? '1-0' : g.winner === 'black' ? '0-1' : '½-½';
+    const gameResult = g.winner === 'white' ? '1-0' : g.winner === 'black' ? '0-1' : '½-½';
     const date = g.createdAt ? new Date(g.createdAt).toISOString().split('T')[0] : '';
     const tc = g.clock ? `${g.clock.initial / 60}+${g.clock.increment}` : g.speed || '';
     const opening = g.opening?.name || '';
@@ -67,7 +91,7 @@ async function fetchLichessGames(username: string, max: number): Promise<AccessG
       black,
       whiteElo,
       blackElo,
-      result,
+      result: gameResult,
       date,
       timeControl: tc,
       opening,
@@ -76,10 +100,22 @@ async function fetchLichessGames(username: string, max: number): Promise<AccessG
       url: `https://lichess.org/${g.id}`,
     };
   });
+
+  if (result) {
+    games = games.filter(g => {
+      const isWhite = g.white.toLowerCase() === username.toLowerCase();
+      if (result === 'win') return isWhite ? g.result === '1-0' : g.result === '0-1';
+      if (result === 'loss') return isWhite ? g.result === '0-1' : g.result === '1-0';
+      if (result === 'draw') return g.result === '½-½';
+      return true;
+    });
+  }
+
+  return games.slice(0, max);
 }
 
 // ── Chess.com ─────────────────────────────────────────────────────────────
-async function fetchChesscomGames(username: string, max: number): Promise<AccessGame[]> {
+async function fetchChesscomGames(username: string, max: number, filters: any): Promise<AccessGame[]> {
   const userAgent = 'VCA-Platform/1.0 (contact: admin@vcaplatform.com)';
   const headers = {
     'User-Agent': userAgent,
@@ -98,11 +134,29 @@ async function fetchChesscomGames(username: string, max: number): Promise<Access
   const archives: string[] = archivesData.archives || [];
   if (archives.length === 0) throw new Error(`No games found for Chess.com user "${username}".`);
 
-  // Step 2: Fetch most recent archive(s) until we have enough games
+  const { startDate, endDate, format, result, opponent } = filters || {};
+
+  // Step 2: Filter archives if dates are provided
+  let filteredArchives = archives;
+  if (startDate || endDate) {
+    const startMonth = startDate ? startDate.substring(0, 7) : '1970-01';
+    const endMonth = endDate ? endDate.substring(0, 7) : '2099-12';
+    
+    filteredArchives = archives.filter(url => {
+      const parts = url.split('/');
+      if (parts.length < 2) return true;
+      const month = parts[parts.length - 1];
+      const year = parts[parts.length - 2];
+      const archiveMonth = `${year}-${month}`;
+      return archiveMonth >= startMonth && archiveMonth <= endMonth;
+    });
+  }
+
+  // Step 3: Fetch most recent archive(s) until we have enough games
   const games: AccessGame[] = [];
 
-  for (let i = archives.length - 1; i >= 0 && games.length < max; i--) {
-    const archiveUrl = archives[i];
+  for (let i = filteredArchives.length - 1; i >= 0 && games.length < max; i--) {
+    const archiveUrl = filteredArchives[i];
     const gamesRes = await fetch(archiveUrl, { headers });
     if (!gamesRes.ok) continue;
 
@@ -116,13 +170,40 @@ async function fetchChesscomGames(username: string, max: number): Promise<Access
       const whiteElo = g.white?.rating;
       const blackElo = g.black?.rating;
       const rawResult = g.white?.result;
-      let result = '½-½';
-      if (rawResult === 'win') result = '1-0';
-      else if (g.black?.result === 'win') result = '0-1';
+      let gameResult = '½-½';
+      if (rawResult === 'win') gameResult = '1-0';
+      else if (g.black?.result === 'win') gameResult = '0-1';
 
       const date = g.end_time
         ? new Date(g.end_time * 1000).toISOString().split('T')[0]
         : '';
+        
+      if (startDate && date < startDate) continue;
+      if (endDate && date > endDate) continue;
+        
+      if (format) {
+        let cFormat = format;
+        if (format === 'ultrabullet') cFormat = 'bullet';
+        if (format === 'classical') cFormat = 'rapid';
+        if (g.time_class !== cFormat && g.time_class !== format) continue;
+      }
+      
+      if (opponent) {
+        if (white.toLowerCase() !== opponent.toLowerCase() && black.toLowerCase() !== opponent.toLowerCase()) {
+          continue;
+        }
+      }
+      
+      if (result) {
+        const isWhite = white.toLowerCase() === username.toLowerCase();
+        let isMatch = false;
+        if (result === 'win') isMatch = isWhite ? gameResult === '1-0' : gameResult === '0-1';
+        else if (result === 'loss') isMatch = isWhite ? gameResult === '0-1' : gameResult === '1-0';
+        else if (result === 'draw') isMatch = gameResult === '½-½';
+        
+        if (!isMatch) continue;
+      }
+
       const tc = g.time_control || '';
       const opening = g.eco || '';
       const pgn = g.pgn || '';
@@ -133,7 +214,7 @@ async function fetchChesscomGames(username: string, max: number): Promise<Access
         black,
         whiteElo,
         blackElo,
-        result,
+        result: gameResult,
         date,
         timeControl: tc,
         opening,
@@ -160,7 +241,7 @@ export class AccessGamesController {
         return res.status(403).json({ error: 'Access denied. Coaches only.' });
       }
 
-      const { platform, username } = req.query;
+      const { platform, username, startDate, endDate, format, result, opponent } = req.query;
       const max = Math.min(parseInt(req.query.max as string) || 20, 50);
 
       if (!platform || !username) {
@@ -173,11 +254,19 @@ export class AccessGamesController {
       const uname = (username as string).trim();
       if (!uname) return res.status(400).json({ error: 'username cannot be empty.' });
 
+      const filters = {
+        startDate: startDate as string,
+        endDate: endDate as string,
+        format: format as string,
+        result: result as string,
+        opponent: opponent as string,
+      };
+
       let games: AccessGame[];
       if (platform === 'lichess') {
-        games = await fetchLichessGames(uname, max);
+        games = await fetchLichessGames(uname, max, filters);
       } else {
-        games = await fetchChesscomGames(uname, max);
+        games = await fetchChesscomGames(uname, max, filters);
       }
 
       res.json({ games, count: games.length });

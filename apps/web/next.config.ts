@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ['@vca/ui'],
+  transpilePackages: ['@vca/ui', '@vca/chess'],
   experimental: {
     // Prevents Turbopack from persisting stale route resolution cache across restarts
     turbopackFileSystemCacheForDev: false,
@@ -28,6 +28,18 @@ const nextConfig: NextConfig = {
       {
         source: '/api/:path*',
         destination: `${apiTarget}/api/:path*`,
+      },
+    ];
+  },
+
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+          { key: 'Cross-Origin-Embedder-Policy', value: 'credentialless' },
+        ],
       },
     ];
   },

@@ -1,6 +1,6 @@
 
 import { useState, useCallback, useMemo } from 'react';
-import { Chess, SQUARES } from 'chess.js';
+import { Chess, SQUARES } from '@vca/chess';
 
 export function useChessGame() {
   // Use a string (FEN) as the primary state to ensure perfect React reactivity

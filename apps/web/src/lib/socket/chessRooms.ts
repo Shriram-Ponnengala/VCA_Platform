@@ -1,4 +1,4 @@
-import { Chess } from "chess.js";
+import { Chess } from "@vca/chess";
 import type { MoveNode, Participant, ChessRoomState, ArrowData, ChatMessage } from "./types";
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';

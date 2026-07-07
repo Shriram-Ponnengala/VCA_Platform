@@ -233,6 +233,7 @@ model Folder {
   childFolders   Folder[]     @relation("FolderHierarchy")
   name           String
   visibility     String       // 'public' | 'private'
+  orderIndex     Int          @default(0)
   collections    Collection[]
   shares         Share[]
 
@@ -250,6 +251,7 @@ model Collection {
   visibility  String       // 'public' | 'private'
   source      String       // 'upload' | 'analysis' | 'classroom'
   chapterCount Int         @default(0)
+  orderIndex     Int        @default(0)
   createdAt   DateTime     @default(now())
   games       Game[]
   shares      Share[]

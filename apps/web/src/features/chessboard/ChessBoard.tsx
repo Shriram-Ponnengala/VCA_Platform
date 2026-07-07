@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Chessground } from 'chessground';
-import { Chess } from 'chess.js';
+import { Chess } from '@vca/chess';
 import type { Api } from 'chessground/api';
 import type { Config } from 'chessground/config';
 import type { Key } from 'chessground/types';

@@ -32,6 +32,7 @@ interface FolderData {
   parentFolderId: string | null;
   visibility: 'public' | 'private';
   ownerId: string;
+  orderIndex?: number;
 }
 
 interface GameData {
@@ -53,6 +54,7 @@ interface Collection {
   chapterCount?: number;
   createdAt: string;
   games: GameData[];
+  orderIndex?: number;
 }
 
 interface SharedData {
@@ -107,6 +109,164 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
   const [expandedCollections, setExpandedCollections] = useState<Record<string, boolean>>({});
   const [showAllGames, setShowAllGames] = useState<Record<string, boolean>>({});
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
+
+  // Drag and drop states
+  const [draggedItem, setDraggedItem] = useState<{ id: string; type: 'folder' | 'collection'; parentFolderId: string | null } | null>(null);
+  const [dragOverTarget, setDragOverTarget] = useState<{ id: string; type: 'folder' | 'collection'; position: 'top' | 'middle' | 'bottom' } | null>(null);
+  const [dragOverRoot, setDragOverRoot] = useState(false);
+
+  const isDragEnabled = useMemo(() => {
+    if (activeSubTab === 'private') return true;
+    if (activeSubTab === 'public') return role?.toUpperCase() === 'ADMIN';
+    return false;
+  }, [activeSubTab, role]);
+
+  const isDescendant = useCallback((folderId: string, potentialDescendantId: string): boolean => {
+    let currentId: string | null = potentialDescendantId;
+    const visited = new Set<string>();
+    while (currentId) {
+      if (visited.has(currentId)) break;
+      visited.add(currentId);
+      const parentFolder = folders.find(f => f.id === currentId);
+      if (!parentFolder) break;
+      if (parentFolder.parentFolderId === folderId) return true;
+      currentId = parentFolder.parentFolderId;
+    }
+    return false;
+  }, [folders]);
+
+  const handleDragStart = (
+    e: React.DragEvent,
+    id: string,
+    type: 'folder' | 'collection',
+    parentFolderId: string | null
+  ) => {
+    if (!isDragEnabled) return;
+    setDraggedItem({ id, type, parentFolderId });
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+  };
+
+  const handleDragOver = (
+    e: React.DragEvent,
+    targetId: string,
+    targetType: 'folder' | 'collection',
+    targetParentFolderId: string | null
+  ) => {
+    if (!isDragEnabled || !draggedItem) return;
+    if (draggedItem.id === targetId) return;
+
+    if (draggedItem.type === 'folder' && targetType === 'folder') {
+      if (targetId === draggedItem.id || isDescendant(draggedItem.id, targetId)) {
+        return;
+      }
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const relativeY = e.clientY - rect.top;
+    let position: 'top' | 'middle' | 'bottom' = 'middle';
+
+    if (relativeY < rect.height * 0.25) {
+      position = 'top';
+    } else if (relativeY > rect.height * 0.75) {
+      position = 'bottom';
+    }
+
+    if (targetType === 'collection' && position === 'middle') {
+      position = relativeY < rect.height * 0.5 ? 'top' : 'bottom';
+    }
+
+    setDragOverTarget({ id: targetId, type: targetType, position });
+    setDragOverRoot(false);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverTarget(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+    setDragOverTarget(null);
+    setDragOverRoot(false);
+  };
+
+  const handleDrop = async (
+    e: React.DragEvent,
+    targetId: string | null,
+    targetType: 'folder' | 'collection' | null,
+    targetParentFolderId: string | null
+  ) => {
+    if (!isDragEnabled || !draggedItem) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const itemType = draggedItem.type;
+    const itemId = draggedItem.id;
+
+    let targetParentId: string | null = null;
+    let dropPosition: 'top' | 'middle' | 'bottom' = 'middle';
+
+    if (targetId && targetType) {
+      dropPosition = dragOverTarget?.position || 'middle';
+      if (dropPosition === 'middle' && targetType === 'folder') {
+        targetParentId = targetId;
+      } else {
+        targetParentId = targetParentFolderId;
+      }
+    }
+
+    const { folders: fList, collections: cList } = filteredTree;
+    const destFolders = fList.filter(f => f.parentFolderId === targetParentId && f.visibility === activeSubTab);
+    const destCollections = cList.filter(c => c.folderId === targetParentId && c.visibility === activeSubTab);
+
+    let siblings = [
+      ...destFolders.map(f => ({ id: f.id, type: 'folder' as const, orderIndex: f.orderIndex || 0 })),
+      ...destCollections.map(c => ({ id: c.id, type: 'collection' as const, orderIndex: c.orderIndex || 0 }))
+    ].sort((a, b) => a.orderIndex - b.orderIndex);
+
+    siblings = siblings.filter(s => !(s.id === itemId && s.type === itemType));
+
+    if (targetId && targetType && dropPosition !== 'middle') {
+      const idx = siblings.findIndex(s => s.id === targetId && s.type === targetType);
+      if (idx !== -1) {
+        const insertIdx = dropPosition === 'top' ? idx : idx + 1;
+        siblings.splice(insertIdx, 0, { id: itemId, type: itemType, orderIndex: 0 });
+      } else {
+        siblings.push({ id: itemId, type: itemType, orderIndex: 0 });
+      }
+    } else {
+      siblings.push({ id: itemId, type: itemType, orderIndex: 0 });
+    }
+
+    const itemIds = siblings.map(s => ({ id: s.id, type: s.type }));
+
+    setDraggedItem(null);
+    setDragOverTarget(null);
+    setDragOverRoot(false);
+
+    try {
+      const res = await fetch('/api/database/reorder', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          parentId: targetParentId,
+          itemIds
+        })
+      });
+
+      if (res.ok) {
+        await fetchTree();
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Failed to reorder items.');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error occurred during reordering.');
+    }
+  };
 
   // Pagination states for collection detail view
   const [paginatedGames, setPaginatedGames] = useState<any[]>([]);
@@ -711,108 +871,139 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
            (parentVisibility === 'public' || c.ownerId === currentUserId)
     );
 
-    if (childFolders.length === 0 && childCollections.length === 0) {
+    const childItems = [
+      ...childFolders.map(f => ({ ...f, type: 'folder' as const })),
+      ...childCollections.map(c => ({ ...c, type: 'collection' as const }))
+    ].sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+
+    if (childItems.length === 0) {
       return null;
     }
 
     return (
       <div className="children-container">
-        {childFolders.map(folder => {
-          const isExpanded = !!expandedFolders[folder.id];
-          return (
-            <div key={folder.id} className="folder-node">
-              <button 
-                className="node-row" 
-                onClick={() => toggleFolder(folder.id)}
-                data-context-entity-id={folder.id}
-                data-context-entity-name={folder.name}
-                data-context-entity-type="folder"
-                data-context-shared="false"
-              >
-                <span className="expand-icon-wrapper">
-                  {isExpanded ? <ChevronDown size={14} strokeWidth={2} /> : <ChevronRight size={14} strokeWidth={2} />}
-                </span>
-                <Folder size={16} strokeWidth={1.5} className="folder-icon" />
-                <span className="node-text">{folder.name}</span>
-              </button>
-              {isExpanded && renderFolderContent(folder.id, parentVisibility)}
-            </div>
-          );
-        })}
+        {childItems.map(item => {
+          if (item.type === 'folder') {
+            const isExpanded = !!expandedFolders[item.id];
+            const isOverTop = dragOverTarget?.id === item.id && dragOverTarget?.position === 'top';
+            const isOverBottom = dragOverTarget?.id === item.id && dragOverTarget?.position === 'bottom';
+            const isOverMiddle = dragOverTarget?.id === item.id && dragOverTarget?.position === 'middle';
 
-        {childCollections.map(col => {
-          const isExpanded = !!expandedCollections[col.id];
-          const showLimit = 3;
-          const collectionGames = col.games || [];
-          const displayedGames = showAllGames[col.id] ? collectionGames : collectionGames.slice(0, showLimit);
-          const hasMoreGames = collectionGames.length > showLimit && !showAllGames[col.id];
-          const remainingCount = collectionGames.length - showLimit;
-
-          return (
-            <div key={col.id} className="collection-node">
-              <button 
-                className={`node-row ${isExpanded ? 'collection-expanded' : ''}`}
-                onClick={() => toggleCollection(col.id)}
-                data-context-entity-id={col.id}
-                data-context-entity-name={col.name}
-                data-context-entity-type="collection"
-                data-context-shared="false"
+            return (
+              <div 
+                key={item.id} 
+                className="folder-node"
+                draggable={isDragEnabled}
+                onDragStart={(e) => handleDragStart(e, item.id, 'folder', folderId)}
+                onDragOver={(e) => handleDragOver(e, item.id, 'folder', folderId)}
+                onDragLeave={handleDragLeave}
+                onDragEnd={handleDragEnd}
+                onDrop={(e) => handleDrop(e, item.id, 'folder', folderId)}
               >
-                <span className="expand-icon-wrapper">
-                  {isExpanded ? <ChevronDown size={14} strokeWidth={2} /> : <ChevronRight size={14} strokeWidth={2} />}
-                </span>
-                <BookOpen size={16} strokeWidth={1.5} className="collection-icon" />
-                <span className="node-text">{col.name}</span>
-                <span className="node-badge">
-                  {col.games.length}
-                </span>
-              </button>
-              {isExpanded && (
-                <div className="children-container">
-                  {displayedGames.map((game, idx) => (
-                    <div 
-                      key={game.id}
-                      className={`node-row game-node-row ${loadingGameId === game.id ? 'loading' : ''} ${activeGameId === game.id ? 'active-game' : ''}`}
-                      data-context-entity-id={game.id}
-                      data-context-entity-name={game.chapterName}
-                      data-context-entity-type="game"
-                      data-context-shared="false"
-                      onClick={() => handleLoadGameDirectly(game.id)}
-                    >
-                      <span className="game-index">{idx + 1}</span>
-                      <span className="game-icon-wrapper">
-                        {loadingGameId === game.id ? (
-                          <Loader2 size={14} className="animate-spin text-muted" />
-                        ) : (
-                          <FileText size={14} strokeWidth={1.5} className="game-icon" />
-                        )}
-                      </span>
-                      <span className="node-text">{game.chapterName}</span>
-                      {game.result && (
-                        <span className="node-badge game-result-badge">
-                          {formatResult(game.result)}
+                <button 
+                  className={`node-row ${isOverTop ? 'drag-over-top' : ''} ${isOverBottom ? 'drag-over-bottom' : ''} ${isOverMiddle ? 'drag-over-middle' : ''}`} 
+                  onClick={() => toggleFolder(item.id)}
+                  data-context-entity-id={item.id}
+                  data-context-entity-name={item.name}
+                  data-context-entity-type="folder"
+                  data-context-shared="false"
+                >
+                  <span className="expand-icon-wrapper">
+                    {isExpanded ? <ChevronDown size={14} strokeWidth={2} /> : <ChevronRight size={14} strokeWidth={2} />}
+                  </span>
+                  <Folder size={16} strokeWidth={1.5} className="folder-icon" />
+                  <span className="node-text">{item.name}</span>
+                </button>
+                {isExpanded && renderFolderContent(item.id, parentVisibility)}
+              </div>
+            );
+          } else {
+            const col = item;
+            const isExpanded = !!expandedCollections[col.id];
+            const showLimit = 3;
+            const collectionGames = col.games || [];
+            const displayedGames = showAllGames[col.id] ? collectionGames : collectionGames.slice(0, showLimit);
+            const hasMoreGames = collectionGames.length > showLimit && !showAllGames[col.id];
+            const remainingCount = collectionGames.length - showLimit;
+
+            const isOverTop = dragOverTarget?.id === col.id && dragOverTarget?.position === 'top';
+            const isOverBottom = dragOverTarget?.id === col.id && dragOverTarget?.position === 'bottom';
+
+            return (
+              <div 
+                key={col.id} 
+                className="collection-node"
+                draggable={isDragEnabled}
+                onDragStart={(e) => handleDragStart(e, col.id, 'collection', folderId)}
+                onDragOver={(e) => handleDragOver(e, col.id, 'collection', folderId)}
+                onDragLeave={handleDragLeave}
+                onDragEnd={handleDragEnd}
+                onDrop={(e) => handleDrop(e, col.id, 'collection', folderId)}
+              >
+                <button 
+                  className={`node-row ${isExpanded ? 'collection-expanded' : ''} ${isOverTop ? 'drag-over-top' : ''} ${isOverBottom ? 'drag-over-bottom' : ''}`}
+                  onClick={() => toggleCollection(col.id)}
+                  data-context-entity-id={col.id}
+                  data-context-entity-name={col.name}
+                  data-context-entity-type="collection"
+                  data-context-shared="false"
+                >
+                  <span className="expand-icon-wrapper">
+                    {isExpanded ? <ChevronDown size={14} strokeWidth={2} /> : <ChevronRight size={14} strokeWidth={2} />}
+                  </span>
+                  <BookOpen size={16} strokeWidth={1.5} className="collection-icon" />
+                  <span className="node-text">{col.name}</span>
+                  <span className="node-badge">
+                    {col.games.length}
+                  </span>
+                </button>
+                {isExpanded && (
+                  <div className="children-container">
+                    {displayedGames.map((game, idx) => (
+                      <div 
+                        key={game.id}
+                        className={`node-row game-node-row ${loadingGameId === game.id ? 'loading' : ''} ${activeGameId === game.id ? 'active-game' : ''}`}
+                        data-context-entity-id={game.id}
+                        data-context-entity-name={game.chapterName}
+                        data-context-entity-type="game"
+                        data-context-shared="false"
+                        onClick={() => handleLoadGameDirectly(game.id)}
+                      >
+                        <span className="game-index">{idx + 1}</span>
+                        <span className="game-icon-wrapper">
+                          {loadingGameId === game.id ? (
+                            <Loader2 size={14} className="animate-spin text-muted" />
+                          ) : (
+                            <FileText size={14} strokeWidth={1.5} className="game-icon" />
+                          )}
                         </span>
-                      )}
-                    </div>
-                  ))}
-                  {hasMoreGames && (
-                    <div 
-                      className="more-games-row"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowAllGames(prev => ({ ...prev, [col.id]: true }));
-                      }}
-                    >
-                      <ChevronDown size={14} className="more-games-chevron" />
-                      <span className="more-games-text">
-                        + {remainingCount} more · open panel to browse all
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          );
+                        <span className="node-text">{game.chapterName}</span>
+                        {game.result && (
+                          <span className="node-badge game-result-badge">
+                            {formatResult(game.result)}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                    {hasMoreGames && (
+                      <div 
+                        className="more-games-row"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowAllGames(prev => ({ ...prev, [col.id]: true }));
+                        }}
+                      >
+                        <ChevronDown size={14} className="more-games-chevron" />
+                        <span className="more-games-text">
+                          + {remainingCount} more · open panel to browse all
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          }
         })}
       </div>
     );
@@ -1119,8 +1310,8 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
     );
   };
 
-  const showMyAndShared = role?.toUpperCase() === 'COACH' || role?.toUpperCase() === 'ADMIN';
-  const isStudent = role?.toUpperCase() === 'STUDENT';
+  const showMyAndShared = role?.toUpperCase() === 'COACH' || role?.toUpperCase() === 'STUDENT';
+  const showAccess = role?.toUpperCase() === 'COACH';
 
   return (
     <div className="database-panel">
@@ -1149,14 +1340,16 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
               <Users size={14} />
               <span>Shared</span>
             </button>
-            <button
-              className={`sub-tab-btn ${activeSubTab === 'access' ? 'active' : ''}`}
-              onClick={() => setActiveSubTab('access')}
-            >
-              <Radio size={14} />
-              <span>Access</span>
-            </button>
           </>
+        )}
+        {showAccess && (
+          <button
+            className={`sub-tab-btn ${activeSubTab === 'access' ? 'active' : ''}`}
+            onClick={() => setActiveSubTab('access')}
+          >
+            <Radio size={14} />
+            <span>Access</span>
+          </button>
         )}
       </div>
 
@@ -1182,9 +1375,26 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
 
       {/* Scrollable Tree */}
       <div 
-        className="tree-container"
+        className={`tree-container ${dragOverRoot ? 'drag-over-root' : ''}`}
         ref={treeContainerRef}
         onScroll={handleScroll}
+        onDragOver={(e) => {
+          if (isDragEnabled && draggedItem) {
+            e.preventDefault();
+            if (e.target === treeContainerRef.current || (e.target as HTMLElement).classList.contains('tree-container')) {
+              setDragOverRoot(true);
+              setDragOverTarget(null);
+            }
+          }
+        }}
+        onDragLeave={() => {
+          setDragOverRoot(false);
+        }}
+        onDrop={(e) => {
+          if (isDragEnabled && draggedItem && dragOverRoot) {
+            handleDrop(e, null, null, null);
+          }
+        }}
       >
         {loading ? (
           <div className="loading-wrapper">
@@ -2040,6 +2250,20 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
         @keyframes contextFadeIn {
           from { opacity: 0; transform: translateY(-4px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+
+        .node-row.drag-over-top {
+          border-top: 2px solid #c8854a !important;
+        }
+        .node-row.drag-over-bottom {
+          border-bottom: 2px solid #c8854a !important;
+        }
+        .node-row.drag-over-middle {
+          background: rgba(200, 133, 74, 0.15) !important;
+          border: 1px dashed #c8854a !important;
+        }
+        .tree-container.drag-over-root {
+          background: rgba(200, 133, 74, 0.05) !important;
         }
       `}</style>
     </div>

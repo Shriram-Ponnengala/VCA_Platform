@@ -38,7 +38,10 @@ import {
   ArrowUp,
   ArrowUpToLine,
   UserPlus,
-  Save
+  Save,
+  AlertCircle,
+  CheckCircle,
+  Info
 } from 'lucide-react';
 
 interface GameMetadata {
@@ -59,6 +62,7 @@ interface Collection {
   createdAt: string;
   games: GameMetadata[];
   shares: any[];
+  orderIndex?: number;
 }
 
 interface FolderData {
@@ -67,6 +71,7 @@ interface FolderData {
   parentFolderId: string | null;
   visibility: 'public' | 'private';
   ownerId: string;
+  orderIndex?: number;
 }
 
 interface SharedData {
@@ -325,13 +330,186 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
   // Drag & Drop State
   const [draggedEntity, setDraggedEntity] = useState<{ id: string; type: 'folder' | 'collection'; parentId: string | null; visibility: 'public' | 'private' } | null>(null);
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null | 'virtual_public' | 'virtual_my'>(null);
+  const [dragOverTarget, setDragOverTarget] = useState<{ id: string; type: 'folder' | 'collection'; position: 'top' | 'middle' | 'bottom' } | null>(null);
 
-  // Undo Toast State
+  const handleTreeDragStart = (
+    e: React.DragEvent,
+    id: string,
+    type: 'folder' | 'collection',
+    parentId: string | null,
+    visibility: 'public' | 'private'
+  ) => {
+    setDraggedEntity({ id, type, parentId, visibility });
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleTreeDragOver = (
+    e: React.DragEvent,
+    targetId: string,
+    targetType: 'folder' | 'collection',
+    targetParentId: string | null,
+    targetVisibility: 'public' | 'private'
+  ) => {
+    if (!draggedEntity) return;
+    if (draggedEntity.id === targetId && draggedEntity.type === targetType) return;
+    if (draggedEntity.visibility !== targetVisibility) return;
+
+    if (draggedEntity.type === 'folder' && targetType === 'folder') {
+      if (targetId === draggedEntity.id || isDescendant(targetId, draggedEntity.id)) {
+        return;
+      }
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const relativeY = e.clientY - rect.top;
+    let position: 'top' | 'middle' | 'bottom' = 'middle';
+
+    if (relativeY < rect.height * 0.25) {
+      position = 'top';
+    } else if (relativeY > rect.height * 0.75) {
+      position = 'bottom';
+    }
+
+    if (targetType === 'collection' && position === 'middle') {
+      position = relativeY < rect.height * 0.5 ? 'top' : 'bottom';
+    }
+
+    setDragOverTarget({ id: targetId, type: targetType, position });
+    setDragOverFolderId(null);
+  };
+
+  const handleTreeDragLeave = () => {
+    setDragOverTarget(null);
+  };
+
+  const handleTreeDragEnd = () => {
+    setDraggedEntity(null);
+    setDragOverTarget(null);
+    setDragOverFolderId(null);
+  };
+
+  const handleTreeDrop = async (
+    e: React.DragEvent,
+    targetId: string,
+    targetType: 'folder' | 'collection',
+    targetParentId: string | null,
+    targetVisibility: 'public' | 'private'
+  ) => {
+    if (!draggedEntity) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const itemId = draggedEntity.id;
+    const itemType = draggedEntity.type;
+
+    let destinationParentId: string | null = null;
+    let dropPosition: 'top' | 'middle' | 'bottom' = 'middle';
+
+    dropPosition = dragOverTarget?.position || 'middle';
+    if (dropPosition === 'middle' && targetType === 'folder') {
+      destinationParentId = targetId;
+    } else {
+      destinationParentId = targetParentId;
+    }
+
+    const { folders: fList, collections: cList } = filteredTree;
+    const destFolders = fList.filter(f => f.parentFolderId === destinationParentId && f.visibility === targetVisibility);
+    const destCollections = cList.filter(c => c.folderId === destinationParentId && c.visibility === targetVisibility);
+
+    let siblings = [
+      ...destFolders.map(f => ({ id: f.id, type: 'folder' as const, orderIndex: f.orderIndex || 0 })),
+      ...destCollections.map(c => ({ id: c.id, type: 'collection' as const, orderIndex: c.orderIndex || 0 }))
+    ].sort((a, b) => a.orderIndex - b.orderIndex);
+
+    siblings = siblings.filter(s => !(s.id === itemId && s.type === itemType));
+
+    if (dropPosition !== 'middle') {
+      const idx = siblings.findIndex(s => s.id === targetId && s.type === targetType);
+      if (idx !== -1) {
+        const insertIdx = dropPosition === 'top' ? idx : idx + 1;
+        siblings.splice(insertIdx, 0, { id: itemId, type: itemType, orderIndex: 0 });
+      } else {
+        siblings.push({ id: itemId, type: itemType, orderIndex: 0 });
+      }
+    } else {
+      siblings.push({ id: itemId, type: itemType, orderIndex: 0 });
+    }
+
+    const itemIds = siblings.map(s => ({ id: s.id, type: s.type }));
+
+    // Optimistic UI updates
+    if (itemType === 'folder') {
+      setFolders(prev => prev.map(f => f.id === itemId ? { ...f, parentFolderId: destinationParentId } : f));
+    } else {
+      setCollections(prev => prev.map(c => c.id === itemId ? { ...c, folderId: destinationParentId } : c));
+    }
+
+    setDraggedEntity(null);
+    setDragOverTarget(null);
+    setDragOverFolderId(null);
+
+    try {
+      const res = await fetch('/api/database/reorder', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          parentId: destinationParentId,
+          itemIds
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error('Reorder failed');
+      }
+      await fetchTree();
+    } catch (err: any) {
+      console.error(err);
+      triggerToast(err.message || 'Failed to reorder items.', 'error');
+      await fetchTree();
+    }
+  };
+
+  // Toast & Notification State
+  const [toastTimer, setToastTimer] = useState<any>(null);
   const [toast, setToast] = useState<{
     message: string;
-    onUndo: () => void;
+    onUndo?: () => void;
     visible: boolean;
+    type?: 'success' | 'error' | 'info';
   } | null>(null);
+
+  const triggerToast = (message: string, type: 'success' | 'error' | 'info' = 'info', onUndo?: () => void) => {
+    if (toastTimer) clearTimeout(toastTimer);
+    
+    setToast({
+      message,
+      onUndo,
+      visible: true,
+      type
+    });
+
+    const duration = onUndo ? 6000 : 5000;
+    const timer = setTimeout(() => {
+      setToast(prev => {
+        if (prev && prev.message === message) {
+          return { ...prev, visible: false };
+        }
+        return prev;
+      });
+      setTimeout(() => {
+        setToast(prev => {
+          if (prev && prev.message === message && !prev.visible) {
+            return null;
+          }
+          return prev;
+        });
+      }, 300);
+    }, duration);
+    setToastTimer(timer);
+  };
 
   // Navigable Picker State
   const [pickerFolderId, setPickerFolderId] = useState<string | null>(null);
@@ -430,7 +608,7 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
       } else {
         setCollections(prev => prev.map(c => c.id === entityId ? { ...c, folderId: originalParentId } : c));
       }
-      alert('Failed to move item.');
+      triggerToast('Failed to move item.', 'error');
       return;
     }
 
@@ -449,7 +627,7 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
         }
       } catch (err) {
         console.error(err);
-        alert('Failed to undo move.');
+        triggerToast('Failed to undo move.', 'error');
         fetchTree();
       }
     };
@@ -461,15 +639,7 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
       ? folders.find(f => f.id === targetFolderId)?.name || 'Folder'
       : 'Root';
 
-    setToast({
-      message: `Moved "${entityName}" to "${targetName}"`,
-      onUndo: handleUndo,
-      visible: true
-    });
-
-    setTimeout(() => {
-      setToast(prev => prev && prev.onUndo === handleUndo ? null : prev);
-    }, 6000);
+    triggerToast(`Moved "${entityName}" to "${targetName}"`, 'success', handleUndo);
   };
 
   const entityVisibility = useMemo(() => {
@@ -546,8 +716,10 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
 
   const currentStatus = checkFolderTargetStatus(pickerFolderId);
 
+  const [isCreatingInline, setIsCreatingInline] = useState(false);
   const handleCreateFolderInline = async () => {
-    if (!pickerNewFolderName.trim()) return;
+    if (!pickerNewFolderName.trim() || isCreatingInline) return;
+    setIsCreatingInline(true);
     try {
       const res = await fetch('/api/database/folders', {
         method: 'POST',
@@ -563,11 +735,13 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
         setPickerNewFolderOpen(false);
         setPickerNewFolderName('');
       } else {
-        alert('Failed to create folder');
+        triggerToast('Failed to create folder', 'error');
       }
     } catch (err) {
       console.error(err);
-      alert('Error creating folder');
+      triggerToast('Error creating folder', 'error');
+    } finally {
+      setIsCreatingInline(false);
     }
   };
 
@@ -682,11 +856,11 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
         setActiveGame((prev: any) => ({ ...prev, pgn: newPgn }));
       } else {
         const error = await res.json();
-        alert('Failed to save game: ' + error.error);
+        triggerToast('Failed to save game: ' + error.error, 'error');
       }
     } catch (e) {
       console.error(e);
-      alert('Error saving game.');
+      triggerToast('Error saving game.', 'error');
     } finally {
       setSavingGame(false);
     }
@@ -773,8 +947,9 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
   // Folder CRUD handlers
   const handleCreateFolder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!modalInput.trim()) return;
+    if (!modalInput.trim() || submittingModal) return;
 
+    setSubmittingModal(true);
     try {
       const res = await fetch('/api/database/folders', {
         method: 'POST',
@@ -798,16 +973,19 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
         } else {
           errorMsg = `Server error: ${res.status}`;
         }
-        alert(errorMsg);
+        triggerToast(errorMsg, 'error');
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setSubmittingModal(false);
     }
   };
 
   const handleRenameFolder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeFolder || !modalInput.trim()) return;
+    if (!activeFolder || !modalInput.trim() || submittingModal) return;
+    setSubmittingModal(true);
 
     try {
       const res = await fetch(`/api/database/folders/${activeFolder.id}`, {
@@ -828,15 +1006,19 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
         } else {
           errorMsg = `Server error: ${res.status}`;
         }
-        alert(errorMsg);
+        triggerToast(errorMsg, 'error');
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setSubmittingModal(false);
     }
   };
 
   const handleDeleteFolder = async () => {
-    if (!activeFolder) return;
+    if (!activeFolder || submittingModal) return;
+    setSubmittingModal(true);
+
     try {
       const res = await fetch(`/api/database/folders/${activeFolder.id}`, {
         method: 'DELETE'
@@ -853,10 +1035,12 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
         } else {
           errorMsg = `Server error: ${res.status}`;
         }
-        alert(errorMsg);
+        triggerToast(errorMsg, 'error');
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setSubmittingModal(false);
     }
   };
 
@@ -890,7 +1074,7 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
         } else {
           errorMsg = `Server error: ${res.status}`;
         }
-        alert(errorMsg);
+        triggerToast(errorMsg, 'error');
       }
     } catch (err) {
       console.error(err);
@@ -925,7 +1109,7 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
         } else {
           errorMsg = `Server error: ${res.status}`;
         }
-        alert(errorMsg);
+        triggerToast(errorMsg, 'error');
       }
     } catch (err) {
       console.error(err);
@@ -1012,13 +1196,13 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
       if (res.ok) {
         const game = await res.json();
         await navigator.clipboard.writeText(game.pgn || '');
-        alert('PGN copied to clipboard!');
+        triggerToast('PGN copied to clipboard!', 'success');
       } else {
-        alert('Failed to fetch PGN.');
+        triggerToast('Failed to fetch PGN.', 'error');
       }
     } catch (e) {
       console.error(e);
-      alert('Error copying PGN.');
+      triggerToast('Error copying PGN.', 'error');
     }
   };
 
@@ -1047,10 +1231,10 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
         setActiveModal(null);
       } else {
         const err = await res.json();
-        alert(err.error || 'Failed to rename.');
+        triggerToast(err.error || 'Failed to rename.', 'error');
       }
     } catch (err: any) {
-      alert(err.message || 'Error occurred.');
+      triggerToast(err.message || 'Error occurred.', 'error');
     } finally {
       setSubmittingModal(false);
     }
@@ -1078,10 +1262,10 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
         setActiveModal(null);
       } else {
         const err = await res.json();
-        alert(err.error || 'Failed to delete.');
+        triggerToast(err.error || 'Failed to delete.', 'error');
       }
     } catch (err: any) {
-      alert(err.message || 'Error occurred.');
+      triggerToast(err.message || 'Error occurred.', 'error');
     } finally {
       setSubmittingModal(false);
     }
@@ -1108,10 +1292,10 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
         setActiveModal(null);
       } else {
         const err = await res.json();
-        alert(err.error || 'Failed to share.');
+        triggerToast(err.error || 'Failed to share.', 'error');
       }
     } catch (err: any) {
-      alert(err.message || 'Error occurred.');
+      triggerToast(err.message || 'Error occurred.', 'error');
     } finally {
       setSubmittingModal(false);
     }
@@ -1147,10 +1331,10 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
         setActiveModal(null);
       } else {
         const err = await res.json();
-        alert(err.error || 'Failed to move.');
+        triggerToast(err.error || 'Failed to move.', 'error');
       }
     } catch (err: any) {
-      alert(err.message || 'Error occurred.');
+      triggerToast(err.message || 'Error occurred.', 'error');
     } finally {
       setSubmittingModal(false);
     }
@@ -1438,169 +1622,146 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
     const childFolders = fList.filter(f => f.parentFolderId === folderId && f.visibility === parentVisibility && (parentVisibility === 'public' || f.ownerId === currentUserId));
     const childCollections = cList.filter(c => c.folderId === folderId && c.visibility === parentVisibility && (parentVisibility === 'public' || c.ownerId === currentUserId));
 
+    const childItems = [
+      ...childFolders.map(f => ({ ...f, type: 'folder' as const })),
+      ...childCollections.map(c => ({ ...c, type: 'collection' as const }))
+    ].sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+
+    if (childItems.length === 0) return null;
+
     return (
       <div className="tree-children-container">
-        {childFolders.map(folder => {
-          const isExpanded = !!expandedFolders[folder.id];
-          const hasAdminAccess = folder.visibility === 'public' && role === 'ADMIN';
-          const hasMyAccess = folder.visibility === 'private';
-          
-          return (
-            <div key={folder.id} className="tree-folder-node">
-              <div 
-                className={`tree-node-row ${dragOverFolderId === folder.id ? 'drag-over' : ''}`}
-                data-context-entity-id={folder.id}
-                data-context-entity-name={folder.name}
-                data-context-entity-type="folder"
-                data-context-shared="false"
-                draggable={isFolderWritable(folder)}
-                onDragStart={(e) => {
-                  setDraggedEntity({
-                    id: folder.id,
-                    type: 'folder',
-                    parentId: folder.parentFolderId,
-                    visibility: folder.visibility
-                  });
-                  e.dataTransfer.effectAllowed = 'move';
-                }}
-                onDragEnd={() => {
-                  setDraggedEntity(null);
-                  setDragOverFolderId(null);
-                }}
-                onDragOver={(e) => {
-                  if (!draggedEntity) return;
-                  if (isValidDropTarget(draggedEntity, folder.id)) {
-                    e.preventDefault();
-                    setDragOverFolderId(folder.id);
-                  }
-                }}
-                onDragLeave={() => {
-                  if (dragOverFolderId === folder.id) {
-                    setDragOverFolderId(null);
-                  }
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (!draggedEntity) return;
-                  if (isValidDropTarget(draggedEntity, folder.id)) {
-                    executeMove(draggedEntity.type, draggedEntity.id, folder.id, draggedEntity.parentId);
-                  }
-                  setDraggedEntity(null);
-                  setDragOverFolderId(null);
-                }}
-              >
-                <button className="tree-node-toggle" onClick={() => toggleFolder(folder.id)}>
-                  {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                  <Folder size={16} className="text-folder" />
-                  <span className="node-label">{folder.name}</span>
-                </button>
+        {childItems.map(item => {
+          if (item.type === 'folder') {
+            const folder = item;
+            const isExpanded = !!expandedFolders[folder.id];
+            const hasAdminAccess = folder.visibility === 'public' && role === 'ADMIN';
+            const hasMyAccess = folder.visibility === 'private';
+            const isOverTarget = dragOverTarget?.id === folder.id && dragOverTarget?.type === 'folder';
+            const dragOverClass = isOverTarget ? `drag-over-${dragOverTarget!.position}` : '';
+            const isTargetFolderHighlight = dragOverFolderId === folder.id ? 'drag-over' : '';
 
-                <div className="node-actions">
-                  {(hasAdminAccess || hasMyAccess) && (
-                    <>
-                      <button
-                        title="Create Subfolder"
-                        onClick={() => {
-                          setModalFolderParentId(folder.id);
-                          setModalVisibility(folder.visibility);
-                          setModalType('create_folder');
-                        }}
-                      >
-                        <FolderPlus size={14} />
-                      </button>
-                      {((role === 'ADMIN' && folder.visibility === 'public') || folder.visibility === 'private') && (
+            return (
+              <div key={folder.id} className="tree-folder-node">
+                <div 
+                  className={`tree-node-row ${isTargetFolderHighlight} ${dragOverClass}`}
+                  data-context-entity-id={folder.id}
+                  data-context-entity-name={folder.name}
+                  data-context-entity-type="folder"
+                  data-context-shared="false"
+                  draggable={isFolderWritable(folder)}
+                  onDragStart={(e) => handleTreeDragStart(e, folder.id, 'folder', folderId, parentVisibility)}
+                  onDragOver={(e) => handleTreeDragOver(e, folder.id, 'folder', folderId, parentVisibility)}
+                  onDragLeave={handleTreeDragLeave}
+                  onDragEnd={handleTreeDragEnd}
+                  onDrop={(e) => handleTreeDrop(e, folder.id, 'folder', folderId, parentVisibility)}
+                >
+                  <button className="tree-node-toggle" onClick={() => toggleFolder(folder.id)}>
+                    {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    <Folder size={16} className="text-folder" />
+                    <span className="node-label">{folder.name}</span>
+                  </button>
+
+                  <div className="node-actions">
+                    {(hasAdminAccess || hasMyAccess) && (
+                      <>
                         <button
-                          title="Upload PGN Here"
+                          title="Create Subfolder"
                           onClick={() => {
                             setModalFolderParentId(folder.id);
                             setModalVisibility(folder.visibility);
-                            setModalType('upload_pgn');
+                            setModalType('create_folder');
                           }}
                         >
-                          <Upload size={14} />
+                          <FolderPlus size={14} />
                         </button>
-                      )}
+                        {((role === 'ADMIN' && folder.visibility === 'public') || folder.visibility === 'private') && (
+                          <button
+                            title="Upload PGN Here"
+                            onClick={() => {
+                              setModalFolderParentId(folder.id);
+                              setModalVisibility(folder.visibility);
+                              setModalType('upload_pgn');
+                            }}
+                          >
+                            <Upload size={14} />
+                          </button>
+                        )}
+                        <button
+                          title="Rename"
+                          onClick={() => {
+                            setActiveFolder(folder);
+                            setModalInput(folder.name);
+                            setModalType('rename_folder');
+                          }}
+                        >
+                          <Edit3 size={14} />
+                        </button>
+                        <button
+                          title="Delete"
+                          className="text-danger"
+                          onClick={() => {
+                            setActiveFolder(folder);
+                            setModalType('delete_folder');
+                          }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {isExpanded && renderFolderContent(folder.id, parentVisibility)}
+              </div>
+            );
+          } else {
+            const col = item;
+            const isExpanded = !!expandedCollections[col.id];
+            const isOverTarget = dragOverTarget?.id === col.id && dragOverTarget?.type === 'collection';
+            const dragOverClass = isOverTarget ? `drag-over-${dragOverTarget!.position}` : '';
+
+            return (
+              <div key={col.id} className="tree-collection-node">
+                <div 
+                  className={`tree-node-row ${dragOverClass}`}
+                  data-context-entity-id={col.id}
+                  data-context-entity-name={col.name}
+                  data-context-entity-type="collection"
+                  data-context-shared="false"
+                  draggable={isCollectionWritable(col)}
+                  onDragStart={(e) => handleTreeDragStart(e, col.id, 'collection', folderId, parentVisibility)}
+                  onDragOver={(e) => handleTreeDragOver(e, col.id, 'collection', folderId, parentVisibility)}
+                  onDragLeave={handleTreeDragLeave}
+                  onDragEnd={handleTreeDragEnd}
+                  onDrop={(e) => handleTreeDrop(e, col.id, 'collection', folderId, parentVisibility)}
+                >
+                  <button className="tree-node-toggle" onClick={() => toggleCollection(col.id)}>
+                    {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    <BookOpen size={16} className="text-collection" />
+                    <span className="node-label">{col.name}</span>
+                    <span className="node-badge">{col.games.length} ch</span>
+                  </button>
+
+                  <div className="node-actions">
+                    {col.visibility === 'private' && (
                       <button
-                        title="Rename"
+                        title="Share Collection"
                         onClick={() => {
-                          setActiveFolder(folder);
-                          setModalInput(folder.name);
-                          setModalType('rename_folder');
+                          setActiveCollection(col);
+                          setModalType('share');
                         }}
                       >
-                        <Edit3 size={14} />
+                        <Share2 size={14} />
                       </button>
-                      <button
-                        title="Delete"
-                        className="text-danger"
-                        onClick={() => {
-                          setActiveFolder(folder);
-                          setModalType('delete_folder');
-                        }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </>
-                  )}
+                    )}
+                  </div>
                 </div>
+
+                {isExpanded && renderPaginatedGames(col, false)}
               </div>
-
-              {isExpanded && renderFolderContent(folder.id, parentVisibility)}
-            </div>
-          );
-        })}
-
-        {childCollections.map(col => {
-          const isExpanded = !!expandedCollections[col.id];
-          
-          return (
-            <div key={col.id} className="tree-collection-node">
-              <div 
-                className="tree-node-row"
-                data-context-entity-id={col.id}
-                data-context-entity-name={col.name}
-                data-context-entity-type="collection"
-                data-context-shared="false"
-                draggable={isCollectionWritable(col)}
-                onDragStart={(e) => {
-                  setDraggedEntity({
-                    id: col.id,
-                    type: 'collection',
-                    parentId: col.folderId,
-                    visibility: col.visibility
-                  });
-                  e.dataTransfer.effectAllowed = 'move';
-                }}
-                onDragEnd={() => {
-                  setDraggedEntity(null);
-                  setDragOverFolderId(null);
-                }}
-              >
-                <button className="tree-node-toggle" onClick={() => toggleCollection(col.id)}>
-                  {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                  <BookOpen size={16} className="text-collection" />
-                  <span className="node-label">{col.name}</span>
-                  <span className="node-badge">{col.games.length} ch</span>
-                </button>
-
-                <div className="node-actions">
-                  {col.visibility === 'private' && (
-                    <button
-                      title="Share Collection"
-                      onClick={() => {
-                        setActiveCollection(col);
-                        setModalType('share');
-                      }}
-                    >
-                      <Share2 size={14} />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {isExpanded && renderPaginatedGames(col, false)}
-            </div>
-          );
+            );
+          }
         })}
       </div>
     );
@@ -1854,7 +2015,31 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
                     e.preventDefault();
                     if (!draggedEntity) return;
                     if (isValidDropTarget(draggedEntity, 'virtual_public')) {
-                      executeMove(draggedEntity.type, draggedEntity.id, null, draggedEntity.parentId);
+                      const { folders: fList, collections: cList } = filteredTree;
+                      const destFolders = fList.filter(f => f.parentFolderId === null && f.visibility === 'public');
+                      const destCollections = cList.filter(c => c.folderId === null && c.visibility === 'public');
+                      let siblings = [
+                        ...destFolders.map(f => ({ id: f.id, type: 'folder' as const, orderIndex: f.orderIndex || 0 })),
+                        ...destCollections.map(c => ({ id: c.id, type: 'collection' as const, orderIndex: c.orderIndex || 0 }))
+                      ].sort((a, b) => a.orderIndex - b.orderIndex);
+                      siblings = siblings.filter(s => !(s.id === draggedEntity.id && s.type === draggedEntity.type));
+                      siblings.push({ id: draggedEntity.id, type: draggedEntity.type, orderIndex: 0 });
+                      const itemIds = siblings.map(s => ({ id: s.id, type: s.type }));
+
+                      if (draggedEntity.type === 'folder') {
+                        setFolders(prev => prev.map(f => f.id === draggedEntity.id ? { ...f, parentFolderId: null } : f));
+                      } else {
+                        setCollections(prev => prev.map(c => c.id === draggedEntity.id ? { ...c, folderId: null } : c));
+                      }
+
+                      fetch('/api/database/reorder', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ parentId: null, itemIds })
+                      }).then(res => {
+                        if (res.ok) fetchTree();
+                        else triggerToast('Failed to move item.', 'error');
+                      }).catch(() => triggerToast('Failed to move item.', 'error'));
                     }
                     setDraggedEntity(null);
                     setDragOverFolderId(null);
@@ -1913,7 +2098,31 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
                     e.preventDefault();
                     if (!draggedEntity) return;
                     if (isValidDropTarget(draggedEntity, 'virtual_my')) {
-                      executeMove(draggedEntity.type, draggedEntity.id, null, draggedEntity.parentId);
+                      const { folders: fList, collections: cList } = filteredTree;
+                      const destFolders = fList.filter(f => f.parentFolderId === null && f.visibility === 'private');
+                      const destCollections = cList.filter(c => c.folderId === null && c.visibility === 'private');
+                      let siblings = [
+                        ...destFolders.map(f => ({ id: f.id, type: 'folder' as const, orderIndex: f.orderIndex || 0 })),
+                        ...destCollections.map(c => ({ id: c.id, type: 'collection' as const, orderIndex: c.orderIndex || 0 }))
+                      ].sort((a, b) => a.orderIndex - b.orderIndex);
+                      siblings = siblings.filter(s => !(s.id === draggedEntity.id && s.type === draggedEntity.type));
+                      siblings.push({ id: draggedEntity.id, type: draggedEntity.type, orderIndex: 0 });
+                      const itemIds = siblings.map(s => ({ id: s.id, type: s.type }));
+
+                      if (draggedEntity.type === 'folder') {
+                        setFolders(prev => prev.map(f => f.id === draggedEntity.id ? { ...f, parentFolderId: null } : f));
+                      } else {
+                        setCollections(prev => prev.map(c => c.id === draggedEntity.id ? { ...c, folderId: null } : c));
+                      }
+
+                      fetch('/api/database/reorder', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ parentId: null, itemIds })
+                      }).then(res => {
+                        if (res.ok) fetchTree();
+                        else triggerToast('Failed to move item.', 'error');
+                      }).catch(() => triggerToast('Failed to move item.', 'error'));
                     }
                     setDraggedEntity(null);
                     setDragOverFolderId(null);
@@ -2164,8 +2373,28 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* Moves Tree side panel */}
+              <div className="viewer-moves-col">
+                <div className="moves-header">
+                  <HistoryIcon size={16} />
+                  <h3>Notation</h3>
+                </div>
+                <div className="moves-scroll-panel glass-panel">
+                  {nodes['root']?.comment && (
+                    <div className="move-comment" style={{ marginBottom: '8px' }}>
+                      {nodes['root'].comment}
+                    </div>
+                  )}
+                  {nodes['root']?.children.length === 0 ? (
+                    <p className="empty-state">No moves in this game.</p>
+                  ) : (
+                    renderMoveTree('root')
+                  )}
+                </div>
                 
-                <div className="annotations-wrapper" style={{ width: '100%', maxWidth: '600px', paddingBottom: '2rem', margin: '0 auto' }}>
+                <div className="annotations-wrapper" style={{ borderTop: '1px solid #eedcd0', padding: '1rem', background: 'transparent' }}>
                   <AnnotationsPanel 
                     currentNode={currentNode}
                     studyTags={activeGame?.headers || {}}
@@ -2189,26 +2418,6 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
                       setIsModified(true);
                     }}
                   />
-                </div>
-              </div>
-
-              {/* Moves Tree side panel */}
-              <div className="viewer-moves-col">
-                <div className="moves-header">
-                  <HistoryIcon size={16} />
-                  <h3>Notation</h3>
-                </div>
-                <div className="moves-scroll-panel glass-panel">
-                  {nodes['root']?.comment && (
-                    <div className="move-comment" style={{ marginBottom: '8px' }}>
-                      {nodes['root'].comment}
-                    </div>
-                  )}
-                  {nodes['root']?.children.length === 0 ? (
-                    <p className="empty-state">No moves in this game.</p>
-                  ) : (
-                    renderMoveTree('root')
-                  )}
                 </div>
               </div>
             </div>
@@ -2313,12 +2522,12 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
                   Cancel
                 </button>
                 {modalType === 'delete_folder' ? (
-                  <button type="button" className="btn btn-danger" onClick={handleDeleteFolder}>
-                    Delete
+                  <button type="button" className="btn btn-danger" onClick={handleDeleteFolder} disabled={submittingModal}>
+                    {submittingModal ? 'Deleting...' : 'Delete'}
                   </button>
                 ) : (
-                  <button type="submit" className="btn btn-primary">
-                    Confirm
+                  <button type="submit" className="btn btn-primary" disabled={submittingModal}>
+                    {submittingModal ? 'Processing...' : 'Confirm'}
                   </button>
                 )}
               </div>
@@ -2358,7 +2567,7 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
                 } else {
                   errorMsg = `Server error: ${res.status}`;
                 }
-                alert(errorMsg);
+                triggerToast(errorMsg, 'error');
               }
             } catch (err) {
               console.error(err);
@@ -2369,9 +2578,23 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
 
       {/* ── PREMIUM STYLING ── */}
       <style>{`
+        .tree-node-row.drag-over-top {
+          border-top: 2px solid #c8854a !important;
+        }
+        .tree-node-row.drag-over-bottom {
+          border-bottom: 2px solid #c8854a !important;
+        }
+        .tree-node-row.drag-over-middle {
+          background: rgba(200, 133, 74, 0.15) !important;
+          border: 1px dashed #c8854a !important;
+        }
+        .tree-scroll-area.drag-over-root {
+          background: rgba(200, 133, 74, 0.05) !important;
+        }
+
         .db-layout {
           display: flex;
-          height: calc(100vh - 64px); /* Subtract Top Navbar if applicable */
+          height: 100vh;
           background: #fdf0e4;
           color: #4a2018;
           font-family: inherit;
@@ -3377,6 +3600,27 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
           pointer-events: auto;
           border: 1px solid rgba(255, 255, 255, 0.1);
         }
+        .custom-toast.error {
+          border-left: 4px solid #ef4444;
+        }
+        .custom-toast.success {
+          border-left: 4px solid #10b981;
+        }
+        .custom-toast.info {
+          border-left: 4px solid #c8854a;
+        }
+        .toast-icon {
+          flex-shrink: 0;
+        }
+        .toast-icon.text-danger {
+          color: #ef4444;
+        }
+        .toast-icon.text-success {
+          color: #10b981;
+        }
+        .toast-icon.text-info {
+          color: #c8854a;
+        }
         .custom-toast.show {
           opacity: 1;
           transform: translateX(-50%) translateY(0);
@@ -3728,9 +3972,9 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
                         type="button" 
                         className="btn btn-primary btn-sm"
                         onClick={handleCreateFolderInline}
-                        disabled={!pickerNewFolderName.trim()}
+                        disabled={!pickerNewFolderName.trim() || isCreatingInline}
                       >
-                        Create
+                        {isCreatingInline ? 'Creating...' : 'Create'}
                       </button>
                       <button 
                         type="button" 
@@ -3814,13 +4058,18 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
       )}
 
       {toast && (
-        <div className={`custom-toast ${toast.visible ? 'show' : ''}`}>
+        <div className={`custom-toast ${toast.visible ? 'show' : ''} ${toast.type || ''}`}>
+          {toast.type === 'error' && <AlertCircle size={18} className="toast-icon text-danger" />}
+          {toast.type === 'success' && <CheckCircle size={18} className="toast-icon text-success" />}
+          {toast.type === 'info' && <Info size={18} className="toast-icon text-info" />}
           <span>{toast.message}</span>
           <div className="toast-actions">
-            <button className="toast-undo-btn" onClick={toast.onUndo}>
-              Undo
-            </button>
-            <button className="toast-close-btn" onClick={() => setToast(null)}>
+            {toast.onUndo && (
+              <button className="toast-undo-btn" onClick={toast.onUndo}>
+                Undo
+              </button>
+            )}
+            <button className="toast-close-btn" onClick={() => setToast(prev => prev ? { ...prev, visible: false } : null)}>
               <X size={14} />
             </button>
           </div>
@@ -3901,7 +4150,7 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
           display: flex;
           flex-direction: column;
         }
-        .context-menu-item {
+        .context-menu .context-menu-item {
           display: flex;
           align-items: center;
           gap: 10px;
@@ -3915,15 +4164,15 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
           text-align: left;
           width: 100%;
         }
-        .context-menu-item:hover:not(:disabled) {
+        .context-menu .context-menu-item:hover:not(:disabled) {
           background: rgba(200, 133, 74, 0.15);
           color: #c8854a;
         }
-        .context-menu-item.danger:hover:not(:disabled) {
+        .context-menu .context-menu-item.danger:hover:not(:disabled) {
           background: rgba(239, 68, 68, 0.15);
           color: #ef4444;
         }
-        .context-menu-item:disabled {
+        .context-menu .context-menu-item:disabled {
           color: rgba(255, 255, 255, 0.25);
           cursor: not-allowed;
         }

@@ -45,8 +45,9 @@ export class MastersExplorerProvider implements IOpeningExplorerProvider {
   name = 'masters';
 
   async fetchData(fen: string): Promise<ExplorerData> {
+    const cleanFen = fen.split('|')[0];
     const response = await fetch(
-      `https://explorer.lichess.org/masters?fen=${encodeURIComponent(fen)}&topGames=15`,
+      `https://explorer.lichess.org/masters?fen=${encodeURIComponent(cleanFen)}&topGames=15`,
       {
         headers: {
           'Authorization': `Bearer ${process.env.NEXT_PUBLIC_LICHESS_API_KEY}`
@@ -105,8 +106,9 @@ export class LichessExplorerProvider implements IOpeningExplorerProvider {
   name = 'lichess';
 
   async fetchData(fen: string, filters?: LichessFilters): Promise<ExplorerData> {
+    const cleanFen = fen.split('|')[0];
     const params = new URLSearchParams();
-    params.set('fen', fen);
+    params.set('fen', cleanFen);
     params.set('recentGames', '15');
 
     const speeds = filters?.speeds ?? [];
@@ -222,7 +224,8 @@ export class OpeningExplorerService {
   }
 
   private normalizeFen(fen: string): string {
-    const parts = fen.split(' ');
+    const cleanFen = fen.split('|')[0];
+    const parts = cleanFen.split(' ');
     // Strip move counters (halfmove and fullmove) to maximize transposition cache hits
     return parts.slice(0, 4).join(' ');
   }

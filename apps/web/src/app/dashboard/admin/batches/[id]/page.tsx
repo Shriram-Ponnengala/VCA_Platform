@@ -217,19 +217,26 @@ export default function BatchDetailPage() {
                   <div className={styles.studentList}>
                     {enrolledStudents.map(student => {
                       const initials = student.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
-                      const displayUsername = student.name.toLowerCase().replace(' ', '_');
                       return (
-                        <div key={student.id} className={styles.studentCard}>
+                        <div 
+                          key={student.id} 
+                          className={styles.studentCard}
+                          onClick={() => router.push(`/dashboard/admin/students/${student.id}`)}
+                          style={{ cursor: 'pointer' }}
+                        >
                           <div className={styles.studentInfo}>
                             <div className={styles.avatar}>{initials}</div>
                             <div className={styles.studentDetails}>
-                              <h4 className={styles.studentName}>{displayUsername}</h4>
+                              <h4 className={styles.studentName}>{student.name}</h4>
                               <p className={styles.studentAttendance}>11 / 12 attended</p>
                             </div>
                           </div>
                           <button 
                             className={styles.moreBtn} 
-                            onClick={() => handleRemoveStudent(student.id, student.name)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveStudent(student.id, student.name);
+                            }}
                             title="Remove Student"
                           >
                             <MoreHorizontal size={20} />

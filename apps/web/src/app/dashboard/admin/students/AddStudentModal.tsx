@@ -140,8 +140,6 @@ export function AddStudentModal({ isOpen, onClose, onSave, initialData }: AddStu
 
     if (!formData.parentFirstName.trim()) newErrors.parentFirstName = 'Required';
     if (!formData.parentLastName.trim()) newErrors.parentLastName = 'Required';
-    if (!formData.parentEmail.trim()) newErrors.parentEmail = 'Required';
-    if (!formData.parentMobile.trim()) newErrors.parentMobile = 'Required';
     
     if (hasSecondary) {
       if (!formData.secParentFirstName.trim()) newErrors.secParentFirstName = 'Required';
@@ -317,27 +315,6 @@ export function AddStudentModal({ isOpen, onClose, onSave, initialData }: AddStu
               </div>
             </div>
 
-            <div className={styles.row2}>
-              <div className={styles.fieldGroup}>
-                <label className={styles.label}>PARENT EMAIL ADDRESS *</label>
-                <input type="email" name="parentEmail" value={formData.parentEmail} onChange={handleChange} className={styles.input} />
-                {errors.parentEmail && <span className={styles.errorText}>{errors.parentEmail}</span>}
-              </div>
-              <div className={styles.fieldGroup}>
-                <label className={styles.label}>PARENT MOBILE NUMBER *</label>
-                <div className={styles.phoneGroup}>
-                  <select name="parentCountryCode" value={formData.parentCountryCode} onChange={handleChange} className={`${styles.select} ${styles.countryCode}`}>
-                    {COUNTRIES.map(c => (
-                      <option key={`parent-${c.code}-${c.dial_code}`} value={c.dial_code}>
-                        {c.code} {c.dial_code}
-                      </option>
-                    ))}
-                  </select>
-                  <input type="tel" name="parentMobile" value={formData.parentMobile} onChange={handleChange} placeholder="9876543210" className={styles.input} />
-                </div>
-                {errors.parentMobile && <span className={styles.errorText}>{errors.parentMobile}</span>}
-              </div>
-            </div>
 
             <label className={styles.checkboxGroup}>
               <input type="checkbox" checked={hasSecondary} onChange={e => setHasSecondary(e.target.checked)} className={styles.checkbox} />
