@@ -11,6 +11,7 @@ import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-r
 import 'chessground/assets/chessground.base.css';
 import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
+import '../../components/chess/chessground.css';
 
 import { useStudyStore } from '../../stores/useStudyStore';
 import { findNode } from '../../lib/treeUtils';
@@ -92,6 +93,19 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ isLocked = false }) => {
   const playMoveRef = useRef(playMove);
   const addArrowsRef = useRef(addArrows);
   const currentNodeIdRef = useRef(currentNodeId);
+  const lastMovedFenRef = useRef<string>('');
+  const prevFenRef = useRef<string>('');
+  const [animationKey, setAnimationKey] = useState(0);
+
+  useEffect(() => {
+    const handleBranding = () => {
+      setAnimationKey(prev => prev + 1);
+    };
+    window.addEventListener('vca-branding-updated', handleBranding);
+    return () => {
+      window.removeEventListener('vca-branding-updated', handleBranding);
+    };
+  }, []);
 
   useEffect(() => {
     isLockedRef.current = isLocked;
@@ -136,6 +150,10 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ isLocked = false }) => {
         });
         return;
       }
+      
+      // Simulate move to get resulting FEN
+      chess.move({ from: orig as any, to: dest as any });
+      lastMovedFenRef.current = chess.fen();
     } catch (e) {
       // Ignore
     }
@@ -147,6 +165,13 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ isLocked = false }) => {
     if (!promotionPending) return;
     const { from, to } = promotionPending;
     setPromotionPending(null);
+    try {
+      const chess = new Chess(fenRef.current);
+      chess.move({ from: from as any, to: to as any, promotion });
+      lastMovedFenRef.current = chess.fen();
+    } catch (e) {
+      // Ignore
+    }
     playMoveRef.current(from, to, promotion);
   };
 
@@ -201,8 +226,8 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ isLocked = false }) => {
           shapes: arrows as any,
         },
         animation: {
-          enabled: true,
-          duration: 200,
+          enabled: (typeof document !== 'undefined' ? document.documentElement.getAttribute('data-piece-animation') : 'standard') !== 'none' && (typeof document !== 'undefined' ? document.documentElement.getAttribute('data-piece-animation') : 'standard') !== 'teleport',
+          duration: (typeof document !== 'undefined' ? document.documentElement.getAttribute('data-piece-animation') : 'standard') === 'bounce' ? 300 : ((typeof document !== 'undefined' ? document.documentElement.getAttribute('data-piece-animation') : 'standard') === 'arcade' ? 250 : 200),
         },
       };
 
@@ -269,9 +294,15 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ isLocked = false }) => {
 
   useEffect(() => {
     if (cgRef.current) {
+      const fenChanged = fen !== prevFenRef.current;
+      prevFenRef.current = fen;
+
       const chess = new Chess(fen);
-      cgRef.current.set({
-        fen: fen,
+      const animStyle = typeof document !== 'undefined'
+        ? (document.documentElement.getAttribute('data-piece-animation') || 'standard')
+        : 'standard';
+
+      const config: any = {
         turnColor: chess.turn() === 'w' ? 'white' : 'black',
         movable: {
           color: chess.turn() === 'w' ? 'white' : 'black',
@@ -282,10 +313,137 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ isLocked = false }) => {
         },
         drawable: {
           shapes: arrows as any,
+        },
+        animation: {
+          enabled: animStyle !== 'none' && animStyle !== 'teleport',
+          duration: animStyle === 'bounce' ? 300 : (animStyle === 'arcade' ? 250 : 200),
         }
-      });
+      };
+
+      if (fen !== lastMovedFenRef.current) {
+        config.fen = fen;
+      } else {
+        lastMovedFenRef.current = '';
+      }
+
+      let vanishEl: HTMLElement | null = null;
+      let trailEl: HTMLElement | null = null;
+      const fromSq = currentNode?.from;
+      const dest = lastMoveDest;
+
+      // a. On move (BEFORE redrawing Chessground): clone the origin piece
+      if (fenChanged && lastMoveDest && animStyle === 'teleport' && containerRef.current && fromSq && dest) {
+        const originPiece = findPieceAtSquare(containerRef.current, fromSq, 'white');
+        console.log(`[Study ChessBoard] Teleport: Origin piece found at ${fromSq}:`, originPiece);
+        if (originPiece) {
+          const bgImage = window.getComputedStyle(originPiece).backgroundImage;
+          const boardInner = containerRef.current.querySelector('.board-inner-playing-area') || containerRef.current;
+
+          const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+          const fromCol = files.indexOf(fromSq[0]); // study board is always white orientation
+          const fromRow = 8 - parseInt(fromSq[1]);
+          
+          const toCol = files.indexOf(dest[0]);
+          const toRow = 8 - parseInt(dest[1]);
+
+          const dx = toCol - fromCol;
+          const dy = toRow - fromRow;
+          const len = Math.hypot(dx, dy);
+          const ux = len > 0 ? dx / len : 0;
+          const uy = len > 0 ? dy / len : 0;
+
+          const boardRect = containerRef.current.getBoundingClientRect();
+          const squareSize = boardRect.width / 8;
+          const tx = ux * (squareSize * 0.4);
+          const ty = uy * (squareSize * 0.4);
+
+          // Create temporary vanish element at origin
+          vanishEl = document.createElement('div');
+          vanishEl.className = 'vca-teleport-vanish';
+          vanishEl.style.backgroundImage = bgImage;
+          vanishEl.style.left = `${fromCol * 12.5}%`;
+          vanishEl.style.top = `${fromRow * 12.5}%`;
+          vanishEl.style.width = '12.5%';
+          vanishEl.style.height = '12.5%';
+
+          // Create temporary directional trail element at origin
+          trailEl = document.createElement('div');
+          trailEl.className = 'vca-teleport-trail';
+          trailEl.style.backgroundImage = bgImage;
+          trailEl.style.left = `${fromCol * 12.5}%`;
+          trailEl.style.top = `${fromRow * 12.5}%`;
+          trailEl.style.width = '12.5%';
+          trailEl.style.height = '12.5%';
+          trailEl.style.setProperty('--tx', `${tx}px`);
+          trailEl.style.setProperty('--ty', `${ty}px`);
+
+          boardInner.appendChild(vanishEl);
+          boardInner.appendChild(trailEl);
+          console.log(`[Study ChessBoard] Teleport: Origin vanish and trail overlay created successfully.`);
+        }
+      }
+
+      // b. Call Chessground move with animation duration 0 (instant placement)
+      cgRef.current.set(config);
+
+      // c. On next frame, query the destination piece element and run pop-in
+      if (fenChanged && lastMoveDest && animStyle === 'teleport' && containerRef.current && dest) {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (!containerRef.current) return;
+            const pieceEl = findPieceAtSquare(containerRef.current, dest, 'white');
+            console.log(`[Study ChessBoard] Teleport: Destination piece found at ${dest} after redraw:`, pieceEl);
+            if (pieceEl) {
+              if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                console.log(`[Study ChessBoard] Teleport skipped due to prefers-reduced-motion`);
+                return;
+              }
+              pieceEl.classList.add('vca-teleport-piece');
+              console.log(`[Study ChessBoard] Added teleport class to destination piece. classes:`, pieceEl.className);
+
+              // d. Clean up overlays and classes
+              setTimeout(() => {
+                if (vanishEl) vanishEl.remove();
+                if (trailEl) trailEl.remove();
+                if (pieceEl) pieceEl.classList.remove('vca-teleport-piece');
+                console.log(`[Study ChessBoard] Teleport: Cleaned up overlays and classes.`);
+              }, 250);
+            } else {
+              console.warn(`[Study ChessBoard] Teleport: Destination piece at ${dest} not found!`);
+              setTimeout(() => {
+                if (vanishEl) vanishEl.remove();
+                if (trailEl) trailEl.remove();
+              }, 250);
+            }
+          });
+        });
+      }
+
+      // Trigger bounce if bounce animation is enabled
+      const lastMoveDestBounce = (currentNode?.from && currentNode?.to) ? currentNode.to : undefined;
+      if (fenChanged && lastMoveDestBounce && animStyle === 'bounce') {
+        console.log(`[Study ChessBoard] Bounce check: FEN Changed. dest: ${lastMoveDestBounce}`);
+        setTimeout(() => {
+          if (containerRef.current) {
+            const pieceEl = findPieceAtSquare(containerRef.current, lastMoveDestBounce, 'white');
+            console.log(`[Study ChessBoard] Bounce target piece element found:`, pieceEl);
+            if (pieceEl) {
+              if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                console.log(`[Study ChessBoard] Bounce skipped due to prefers-reduced-motion`);
+                return;
+              }
+              pieceEl.classList.add('vca-bouncing-piece');
+              console.log(`[Study ChessBoard] Added bouncing class to piece.`);
+              setTimeout(() => {
+                pieceEl.classList.remove('vca-bouncing-piece');
+                console.log(`[Study ChessBoard] Removed bouncing class from piece`);
+              }, 180);
+            }
+          }
+        }, 200); // Trigger after Chessground slide animation ends
+      }
     }
-  }, [fen, isLocked, arrows]);
+  }, [fen, isLocked, arrows, animationKey, currentNode]);
 
   return (
     <div className="chess-container" style={boardWidth ? { maxWidth: `${boardWidth}px` } : undefined}>
@@ -562,6 +720,39 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ isLocked = false }) => {
       `}</style>
     </div>
   );
+};
+
+const findPieceAtSquare = (boardEl: HTMLElement, square: string, orientation: 'white' | 'black') => {
+  const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+  const col = orientation === 'white' 
+    ? files.indexOf(square[0]) 
+    : 7 - files.indexOf(square[0]);
+  const row = orientation === 'white' 
+    ? 8 - parseInt(square[1]) 
+    : parseInt(square[1]) - 1;
+
+  const playingArea = boardEl.querySelector('.board-inner-playing-area') || boardEl;
+  const boardRect = playingArea.getBoundingClientRect();
+  const squareSize = boardRect.width / 8;
+  const expectedX = boardRect.left + col * squareSize + squareSize / 2;
+  const expectedY = boardRect.top + row * squareSize + squareSize / 2;
+
+  let closestPiece: HTMLElement | null = null;
+  let minDistance = Infinity;
+
+  const pieces = boardEl.querySelectorAll('piece');
+  pieces.forEach(p => {
+    const pRect = p.getBoundingClientRect();
+    const pCenterX = pRect.left + pRect.width / 2;
+    const pCenterY = pRect.top + pRect.height / 2;
+    const dist = Math.hypot(pCenterX - expectedX, pCenterY - expectedY);
+    if (dist < minDistance && dist < squareSize) {
+      minDistance = dist;
+      closestPiece = p as HTMLElement;
+    }
+  });
+
+  return closestPiece;
 };
 
 export default ChessBoard;

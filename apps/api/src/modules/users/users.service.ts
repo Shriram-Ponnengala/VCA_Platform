@@ -105,18 +105,93 @@ export class UsersService {
     });
 
     // Handle profile-specific data separately for nested creation
-    const { 
+    // Handle profile-specific data separately for nested creation
+    let { 
       parentFirstName, parentMiddleName, parentLastName,
       parentEmail, parentMobile,
       secParentFirstName, secParentMiddleName, secParentLastName,
       secParentEmail, secParentMobile,
-      specialization, bio
+      specialization, bio, siblingId
     } = data;
 
     // If it's a student, prepare the student relation
     if (data.role === 'STUDENT') {
+      let familyData: any;
+      
+      if (siblingId) {
+        const sibling = await prisma.student.findUnique({
+          where: { id: siblingId },
+          include: { user: true }
+        });
+        
+        if (sibling) {
+          let targetFamilyId = sibling.familyId;
+          
+          if (!targetFamilyId) {
+            const newFamily = await prisma.family.create({
+              data: {
+                parentFirstName: sibling.parentFirstName || '',
+                parentMiddleName: sibling.parentMiddleName || '',
+                parentLastName: sibling.parentLastName || '',
+                parentEmail: sibling.parentEmail || '',
+                parentMobile: sibling.parentMobile || '',
+                secParentFirstName: sibling.secParentFirstName || '',
+                secParentMiddleName: sibling.secParentMiddleName || '',
+                secParentLastName: sibling.secParentLastName || '',
+                secParentEmail: sibling.secParentEmail || '',
+                secParentMobile: sibling.secParentMobile || '',
+                country: sibling.user?.country || '',
+                city: sibling.user?.city || ''
+              }
+            });
+            await prisma.student.update({
+              where: { id: sibling.id },
+              data: { familyId: newFamily.id }
+            });
+            targetFamilyId = newFamily.id;
+          }
+          
+          familyData = { connect: { id: targetFamilyId } };
+          
+          // Sync legacy fields
+          parentFirstName = sibling.parentFirstName;
+          parentMiddleName = sibling.parentMiddleName;
+          parentLastName = sibling.parentLastName;
+          parentEmail = sibling.parentEmail;
+          parentMobile = sibling.parentMobile;
+          secParentFirstName = sibling.secParentFirstName;
+          secParentMiddleName = sibling.secParentMiddleName;
+          secParentLastName = sibling.secParentLastName;
+          secParentEmail = sibling.secParentEmail;
+          secParentMobile = sibling.secParentMobile;
+          
+          createData.country = sibling.user?.country || '';
+          createData.city = sibling.user?.city || '';
+        }
+      }
+
+      if (!familyData) {
+        familyData = {
+          create: {
+            parentFirstName: parentFirstName || '',
+            parentMiddleName: parentMiddleName || '',
+            parentLastName: parentLastName || '',
+            parentEmail: parentEmail || '',
+            parentMobile: parentMobile || '',
+            secParentFirstName: secParentFirstName || '',
+            secParentMiddleName: secParentMiddleName || '',
+            secParentLastName: secParentLastName || '',
+            secParentEmail: secParentEmail || '',
+            secParentMobile: secParentMobile || '',
+            country: createData.country || '',
+            city: createData.city || ''
+          }
+        };
+      }
+
       createData.student = {
         create: {
+          family: familyData,
           parentFirstName: parentFirstName || '',
           parentMiddleName: parentMiddleName || '',
           parentLastName: parentLastName || '',

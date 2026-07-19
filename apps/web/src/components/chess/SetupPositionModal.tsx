@@ -305,1118 +305,677 @@ export default function SetupPositionModal({ isOpen, onClose, onSave, initialFen
     }
   }
 
+  // Theme filter for targets
+  const [targetTheme, setTargetTheme] = React.useState<'all'|'food'|'toys'|'animals'|'rewards'|'emoji'>('all');
+  const THEME_FILTER: Record<string, string[]|null> = {
+    all: null,
+    food: ['ch','ap','do','bu','st','co','pz','ca'],
+    toys: ['tb','bl','ki','tr'],
+    animals: ['dg','ct','rbt','pnd','fx','frg','brd'],
+    rewards: ['str','trphy','mdl','gm','crn','gft'],
+    emoji: ['em_smile','em_heart','em_party','em_rocket','em_unicorn','em_dino','em_ghost','em_alien'],
+  };
+
+  const filteredTargets = Object.entries(GAMIFIED_ITEMS).filter(([code, item]) => {
+    if (item.type !== 'target') return false;
+    const allowed = THEME_FILTER[targetTheme];
+    if (!allowed) return true;
+    return allowed.includes(code);
+  });
+
+  const allBlocks = Object.entries(GAMIFIED_ITEMS).filter(([, item]) => item.type === 'block');
+
+  const PIECES = ['K','Q','R','B','N','P'] as const;
+  const PIECE_CLASS: Record<string,string> = { K:'king',Q:'queen',R:'rook',B:'bishop',N:'knight',P:'pawn' };
+  const PIECE_LABEL: Record<string,string> = { K:'King',Q:'Queen',R:'Rook',B:'Bishop',N:'Knight',P:'Pawn' };
+
   if (!isOpen || !mounted) return null;
 
   return createPortal(
-    <div className="setup-modal-overlay">
-      <div className="setup-modal-card glass-panel">
-        <header className="setup-modal-header">
-          <h2>Setup Position</h2>
-          <button className="close-btn" onClick={onClose}>
-            <X size={20} />
-          </button>
+    <div className="spm-overlay">
+      <div className="spm-card">
+
+        {/* ── Header ── */}
+        <header className="spm-header">
+          <div>
+            <h2 className="spm-title">Setup Position</h2>
+            <p className="spm-subtitle">Create any position by adding or removing pieces, or load a position using FEN.</p>
+          </div>
+          <button className="spm-close" onClick={onClose}><X size={20} /></button>
         </header>
 
-        <main className="setup-modal-body">
-          <div className="setup-tabs">
-            <button 
-              className={`setup-tab-btn ${activeTab === 'general' ? 'active' : ''}`}
-              onClick={() => {
-                setActiveTab('general');
-                setActivePiece('hand');
-              }}
-            >
-              General (Standard Pieces)
-            </button>
-            <button 
-              className={`setup-tab-btn ${activeTab === 'gamified' ? 'active' : ''}`}
-              onClick={() => {
-                setActiveTab('gamified');
-                setActivePiece('hand');
-              }}
-            >
-              Gamified Board
-            </button>
-          </div>
+        {/* ── Tabs ── */}
+        <div className="spm-tabs">
+          <button 
+            className={`spm-tab ${activeTab === 'general' ? 'spm-tab-active' : ''}`}
+            onClick={() => setActiveTab('general')}
+          >
+            General (Standard Pieces)
+          </button>
+          <button 
+            className={`spm-tab ${activeTab === 'gamified' ? 'spm-tab-active' : ''}`}
+            onClick={() => setActiveTab('gamified')}
+          >
+            Gamified Board
+          </button>
+        </div>
 
-          <div className={`setup-grid ${activeTab === 'gamified' ? 'gamified-layout' : ''}`}>
-            
-            {activeTab === 'general' ? (
-              <div className="palette-column">
-                <span className="palette-label">White</span>
-                <button 
-                  onClick={() => setActivePiece('wK')} 
-                  className={`palette-item ${activePiece === 'wK' ? 'active' : ''}`}
-                  title="White King"
-                >
-                  <div className="setup-piece king white" style={{ width: '100%', height: '100%', display: 'block' }} />
-                </button>
-                <button 
-                  onClick={() => setActivePiece('wQ')} 
-                  className={`palette-item ${activePiece === 'wQ' ? 'active' : ''}`}
-                  title="White Queen"
-                >
-                  <div className="setup-piece queen white" style={{ width: '100%', height: '100%', display: 'block' }} />
-                </button>
-                <button 
-                  onClick={() => setActivePiece('wR')} 
-                  className={`palette-item ${activePiece === 'wR' ? 'active' : ''}`}
-                  title="White Rook"
-                >
-                  <div className="setup-piece rook white" style={{ width: '100%', height: '100%', display: 'block' }} />
-                </button>
-                <button 
-                  onClick={() => setActivePiece('wB')} 
-                  className={`palette-item ${activePiece === 'wB' ? 'active' : ''}`}
-                  title="White Bishop"
-                >
-                  <div className="setup-piece bishop white" style={{ width: '100%', height: '100%', display: 'block' }} />
-                </button>
-                <button 
-                  onClick={() => setActivePiece('wN')} 
-                  className={`palette-item ${activePiece === 'wN' ? 'active' : ''}`}
-                  title="White Knight"
-                >
-                  <div className="setup-piece knight white" style={{ width: '100%', height: '100%', display: 'block' }} />
-                </button>
-                <button 
-                  onClick={() => setActivePiece('wP')} 
-                  className={`palette-item ${activePiece === 'wP' ? 'active' : ''}`}
-                  title="White Pawn"
-                >
-                  <div className="setup-piece pawn white" style={{ width: '100%', height: '100%', display: 'block' }} />
-                </button>
-                
-                <button 
-                  onClick={() => setActivePiece('hand')} 
-                  className={`palette-item ${activePiece === 'hand' ? 'active' : ''}`}
-                  title="Move pieces (Hand tool)"
-                >
-                  <Hand size={20} />
-                </button>
-                
-                <button 
-                  onClick={() => setActivePiece(null)} 
-                  className={`palette-item eraser-btn ${activePiece === null ? 'active' : ''}`}
-                  title="Eraser (Remove pieces)"
-                >
-                  <X size={20} className="text-danger" />
-                </button>
+        {/* ── 3-column body ── */}
+        <div className="spm-body">
+
+          {/* ──────── LEFT: Palette ──────── */}
+          <aside className="spm-left">
+
+            {/* PIECES */}
+            <div className="spm-section">
+              <div className="spm-sec-label">PIECES</div>
+              {/* White row */}
+              <div className="spm-pieces-row">
+                {PIECES.map(p => {
+                  const code = 'w'+p;
+                  return (
+                    <button
+                      key={code}
+                      title={`White ${PIECE_LABEL[p]}`}
+                      onClick={() => setActivePiece(code)}
+                      className={`spm-piece-btn ${activePiece === code ? 'spm-active' : ''}`}
+                    >
+                      <div className={`setup-piece ${PIECE_CLASS[p]} white`} />
+                    </button>
+                  );
+                })}
               </div>
-            ) : (
-              <div className="gamified-palette-column">
-                <div className="gamified-palette-section">
-                  <span className="palette-label">Standard Pieces</span>
-                  <div className="standard-toggle-buttons">
+              {/* Black row */}
+              <div className="spm-pieces-row">
+                {PIECES.map(p => {
+                  const code = 'b'+p;
+                  return (
                     <button
-                      onClick={() => {
-                        setStandardColor('w');
-                        if (activePiece && activePiece.length === 2 && ['K','Q','R','B','N','P'].includes(activePiece[1])) {
-                          setActivePiece('w' + activePiece[1]);
-                        }
-                      }}
-                      className={`toggle-btn ${standardColor === 'w' ? 'active' : ''}`}
+                      key={code}
+                      title={`Black ${PIECE_LABEL[p]}`}
+                      onClick={() => setActivePiece(code)}
+                      className={`spm-piece-btn ${activePiece === code ? 'spm-active' : ''}`}
                     >
-                      White
+                      <div className={`setup-piece ${PIECE_CLASS[p]} black`} />
                     </button>
-                    <button
-                      onClick={() => {
-                        setStandardColor('b');
-                        if (activePiece && activePiece.length === 2 && ['K','Q','R','B','N','P'].includes(activePiece[1])) {
-                          setActivePiece('b' + activePiece[1]);
-                        }
-                      }}
-                      className={`toggle-btn ${standardColor === 'b' ? 'active' : ''}`}
-                    >
-                      Black
-                    </button>
-                  </div>
-                  <div className="gamified-pieces-grid">
-                    {(['K', 'Q', 'R', 'B', 'N', 'P'] as const).map(p => {
-                      const code = standardColor + p;
-                      const nameMap: Record<string, string> = { K: 'King', Q: 'Queen', R: 'Rook', B: 'Bishop', N: 'Knight', P: 'Pawn' };
-                      const classNameMap: Record<string, string> = { K: 'king', Q: 'queen', R: 'rook', B: 'bishop', N: 'knight', P: 'pawn' };
-                      return (
-                        <button
-                          key={code}
-                          onClick={() => setActivePiece(code)}
-                          className={`palette-item ${activePiece === code ? 'active' : ''}`}
-                          title={`${standardColor === 'w' ? 'White' : 'Black'} ${nameMap[p]}`}
-                        >
-                          <div className={`setup-piece ${classNameMap[p]} ${standardColor === 'w' ? 'white' : 'black'}`} />
-                        </button>
-                      );
-                    })}
-                  </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ADD BY THEME */}
+            {activeTab === 'gamified' && (
+              <div className="spm-section">
+              <div className="spm-sec-label">ADD BY THEME</div>
+              <div className="spm-theme-chips">
+                {(['all','food','toys','animals','rewards','emoji'] as const).map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setTargetTheme(t)}
+                    className={`spm-chip ${targetTheme === t ? 'spm-chip-active' : ''}`}
+                  >
+                    {t === 'all' ? 'All' : t.charAt(0).toUpperCase() + t.slice(1)}
+                  </button>
+                ))}
+              </div>
+              <div className="spm-icon-grid">
+                {filteredTargets.map(([code, item]) => (
+                  <button
+                    key={code}
+                    title={item.name}
+                    onClick={() => setActivePiece(code)}
+                    className={`spm-icon-btn ${activePiece === code ? 'spm-active' : ''}`}
+                  >
+                    <span className="spm-emoji">{item.emoji}</span>
+                  </button>
+                ))}
                 </div>
-
-                <div className="gamified-palette-section">
-                  <span className="palette-label">Targets (Capturable)</span>
-                  <div className="target-category-tabs">
-                    {(['Food', 'Toys', 'Animals', 'Rewards', 'Emoji'] as const).map(cat => (
-                      <button
-                        key={cat}
-                        onClick={() => setTargetCategory(cat)}
-                        className={`cat-tab-btn ${targetCategory === cat ? 'active' : ''}`}
-                      >
-                        {cat}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="gamified-items-grid">
-                    {Object.entries(GAMIFIED_ITEMS)
-                      .filter(([_, item]) => item.type === 'target' && item.category === targetCategory)
-                      .map(([code, item]) => (
-                        <button
-                          key={code}
-                          onClick={() => setActivePiece(code)}
-                          className={`palette-item gamified-item-btn ${activePiece === code ? 'active' : ''}`}
-                          title={item.name}
-                        >
-                          <span className="emoji-display">{item.emoji}</span>
-                        </button>
-                      ))}
-                  </div>
-                </div>
-
-                <div className="gamified-palette-section">
-                  <span className="palette-label">Blocks (Impassable)</span>
-                  <div className="gamified-items-grid">
-                    {Object.entries(GAMIFIED_ITEMS)
-                      .filter(([_, item]) => item.type === 'block')
-                      .map(([code, item]) => (
-                        <button
-                          key={code}
-                          onClick={() => setActivePiece(code)}
-                          className={`palette-item gamified-item-btn ${activePiece === code ? 'active' : ''}`}
-                          title={item.name}
-                        >
-                          <span className="emoji-display">{item.emoji}</span>
-                        </button>
-                      ))}
-                  </div>
-                </div>
-
-                <button 
-                  onClick={() => setActivePiece('hand')} 
-                  className={`palette-item full-width ${activePiece === 'hand' ? 'active' : ''}`}
-                  title="Move pieces (Hand tool)"
-                  style={{ marginBottom: '8px' }}
-                >
-                  <Hand size={18} style={{ marginRight: '6px' }} />
-                  <span>Hand (Move)</span>
-                </button>
-
-                <button 
-                  onClick={() => setActivePiece(null)} 
-                  className={`palette-item eraser-btn full-width ${activePiece === null ? 'active' : ''}`}
-                  title="Eraser (Remove items)"
-                >
-                  <X size={18} className="text-danger" style={{ marginRight: '6px' }} />
-                  <span>Eraser</span>
-                </button>
               </div>
             )}
 
-            {/* Center Column: Chessboard */}
-            <div className="board-column-wrapper">
-              <div 
-                className="board-wrapper cburnett brown" 
-                onClick={handleBoardClick}
-                style={{ cursor: activePiece === null ? 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23ef4444\' stroke-width=\'3\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cline x1=\'18\' y1=\'6\' x2=\'6\' y2=\'18\'%3E%3C/line%3E%3Cline x1=\'6\' y1=\'6\' x2=\'18\' y2=\'18\'%3E%3C/line%3E%3C/svg%3E") 8 8, auto' : activePiece === 'hand' ? 'grab' : 'crosshair' }}
-              >
-                {/* Outer frame: handles all theme styling, padding, and borders */}
-                <div className="board-outer-frame board-clip" style={{ display: 'flex', width: '100%', height: '100%', boxSizing: 'border-box', position: 'relative' }}>
-                  {/* Custom Frame Coordinates */}
-                  <div 
-                    className="custom-frame-coords ranks" 
-                    style={{ flexDirection: orientation === 'white' ? 'column-reverse' : 'column' }}
+            {/* BLOCKS */}
+            {activeTab === 'gamified' && (
+              <div className="spm-section">
+              <div className="spm-sec-label">BLOCKS</div>
+              <div className="spm-icon-grid">
+                {allBlocks.map(([code, item]) => (
+                  <button
+                    key={code}
+                    title={item.name}
+                    onClick={() => setActivePiece(code)}
+                    className={`spm-icon-btn ${activePiece === code ? 'spm-active' : ''}`}
                   >
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map(rank => (
-                      <div key={rank} className="coord-label">{rank}</div>
-                    ))}
-                  </div>
-                  <div 
-                    className="custom-frame-coords files" 
-                    style={{ flexDirection: orientation === 'white' ? 'row' : 'row-reverse' }}
-                  >
-                    {['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map(file => (
-                      <div key={file} className="coord-label">{file}</div>
-                    ))}
-                  </div>
-                  {/* Inner element: STRICTLY the 8x8 playing area. No padding, no border, no margin. */}
-                  <div 
-                    className="board-inner-playing-area" 
-                    style={{ width: '100%', height: '100%', padding: 0, margin: 0, border: 'none', position: 'relative' }} 
-                  >
-                    {/* Custom Background Grid for custom board themes */}
-                    <div 
-                      className="custom-board-grid-background" 
-                      style={{ 
-                        position: 'absolute', 
-                        top: 0, 
-                        left: 0, 
-                        width: '100%', 
-                        height: '100%', 
-                        display: 'grid', 
-                        gridTemplateColumns: 'repeat(8, 1fr)', 
-                        gridTemplateRows: 'repeat(8, 1fr)', 
-                        pointerEvents: 'none', 
-                        zIndex: 0 
-                      }}
-                    >
-                      {Array.from({ length: 64 }).map((_, idx) => {
-                        const fileIdx = idx % 8;
-                        const rankIdx = Math.floor(idx / 8);
-                        const isWhite = (fileIdx + rankIdx) % 2 === 0;
-                        return (
-                          <div 
-                            key={idx} 
-                            className={isWhite ? 'custom-square-white' : 'custom-square-black'}
-                            style={{
-                              background: isWhite ? 'var(--board-square-light)' : 'var(--board-square-dark)'
-                            }}
-                          />
-                        );
-                      })}
-                    </div>
-
-                    {/* Chessground Mount Container */}
-                    <div 
-                      ref={boardRef} 
-                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1 }} 
-                    />
-
-                    {/* Targets and Blocks overlays */}
-                    {Object.entries(targets).map(([sq, code]) => {
-                      const file = sq[0];
-                      const rank = parseInt(sq[1], 10);
-                      const colIdx = file.charCodeAt(0) - 97;
-                      const rowIdx = 8 - rank;
-                      const col = orientation === 'white' ? colIdx : 7 - colIdx;
-                      const row = orientation === 'white' ? rowIdx : 7 - rowIdx;
-                      const left = col * 12.5;
-                      const top = row * 12.5;
-                      const item = GAMIFIED_ITEMS[code];
-                      if (!item) return null;
-                      return (
-                        <div
-                          key={sq}
-                          className="gamified-item target-item"
-                          style={{
-                            position: 'absolute',
-                            left: `${left}%`,
-                            top: `${top}%`,
-                            width: '12.5%',
-                            height: '12.5%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '2rem',
-                            zIndex: 2,
-                            pointerEvents: 'none',
-                            userSelect: 'none'
-                          }}
-                          title={item.name}
-                        >
-                          {item.emoji}
-                        </div>
-                      );
-                    })}
-                    {Object.entries(blocks).map(([sq, code]) => {
-                      const file = sq[0];
-                      const rank = parseInt(sq[1], 10);
-                      const colIdx = file.charCodeAt(0) - 97;
-                      const rowIdx = 8 - rank;
-                      const col = orientation === 'white' ? colIdx : 7 - colIdx;
-                      const row = orientation === 'white' ? rowIdx : 7 - rowIdx;
-                      const left = col * 12.5;
-                      const top = row * 12.5;
-                      const item = GAMIFIED_ITEMS[code];
-                      if (!item) return null;
-                      return (
-                        <div
-                          key={sq}
-                          className="gamified-item block-item"
-                          style={{
-                            position: 'absolute',
-                            left: `${left}%`,
-                            top: `${top}%`,
-                            width: '12.5%',
-                            height: '12.5%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '2rem',
-                            zIndex: 2,
-                            pointerEvents: 'none',
-                            userSelect: 'none'
-                          }}
-                          title={item.name}
-                        >
-                          {item.emoji}
-                        </div>
-                      );
-                    })}
-                  </div>
+                    <span className="spm-emoji">{item.emoji}</span>
+                  </button>
+                ))}
                 </div>
+              </div>
+            )}
+
+            {/* TOOLS */}
+            <div className="spm-section">
+              <div className="spm-sec-label">TOOLS</div>
+              <div className="spm-tools-row">
+                <button
+                  title="Move pieces"
+                  onClick={() => setActivePiece('hand')}
+                  className={`spm-tool-btn ${activePiece === 'hand' ? 'spm-tool-active' : ''}`}
+                >
+                  <Hand size={14} /> Move
+                </button>
+                <button
+                  title="Erase piece"
+                  onClick={() => setActivePiece(null)}
+                  className={`spm-tool-btn spm-tool-erase ${activePiece === null ? 'spm-tool-active spm-tool-erase-active' : ''}`}
+                >
+                  <X size={14} /> Erase
+                </button>
+                <button
+                  title="Clear all pieces"
+                  onClick={() => { setFen(EMPTY_FEN); setTargets({}); setBlocks({}); }}
+                  className="spm-tool-btn spm-tool-clear"
+                >
+                  Clear Board
+                </button>
               </div>
             </div>
 
-            {activeTab === 'general' ? (
-              <div className="palette-column black-palette">
-                <span className="palette-label">Black</span>
-                <button 
-                  onClick={() => setActivePiece('bK')} 
-                  className={`palette-item ${activePiece === 'bK' ? 'active' : ''}`}
-                  title="Black King"
-                >
-                  <div className="setup-piece king black" style={{ width: '100%', height: '100%', display: 'block' }} />
+            {/* How to use */}
+            <div className="spm-help">
+              <div className="spm-help-title">ⓘ How to use</div>
+              <ul className="spm-help-list">
+                <li>Click a piece to add it to the board</li>
+                <li>Click on the board to place the piece</li>
+                <li>Use Erase or Right-click to remove</li>
+                <li>Use Clear Board to start over</li>
+              </ul>
+            </div>
+
+          </aside>
+
+          {/* ──────── CENTER: Board ──────── */}
+          <div className="spm-center">
+            <div
+              className="spm-board-wrapper cburnett brown"
+              onClick={handleBoardClick}
+              style={{ cursor: activePiece === null
+                ? 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23ef4444\' stroke-width=\'3\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cline x1=\'18\' y1=\'6\' x2=\'6\' y2=\'18\'%3E%3C/line%3E%3Cline x1=\'6\' y1=\'6\' x2=\'18\' y2=\'18\'%3E%3C/line%3E%3C/svg%3E") 8 8, auto'
+                : activePiece === 'hand' ? 'grab' : 'crosshair'
+              }}
+            >
+              <div className="board-outer-frame board-clip" style={{ display:'flex', width:'100%', height:'100%', boxSizing:'border-box', position:'relative' }}>
+                <div className="custom-frame-coords ranks" style={{ flexDirection: orientation === 'white' ? 'column-reverse' : 'column' }}>
+                  {[1,2,3,4,5,6,7,8].map(rank => (
+                    <div key={rank} className="coord-label">{rank}</div>
+                  ))}
+                </div>
+                <div className="custom-frame-coords files" style={{ flexDirection: orientation === 'white' ? 'row' : 'row-reverse' }}>
+                  {['a','b','c','d','e','f','g','h'].map(file => (
+                    <div key={file} className="coord-label">{file}</div>
+                  ))}
+                </div>
+                <div className="board-inner-playing-area" style={{ width:'100%', height:'100%', padding:0, margin:0, border:'none', position:'relative' }}>
+                  {/* Board grid background */}
+                  <div className="custom-board-grid-background" style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', display:'grid', gridTemplateColumns:'repeat(8,1fr)', gridTemplateRows:'repeat(8,1fr)', pointerEvents:'none', zIndex:0 }}>
+                    {Array.from({length:64}).map((_,idx) => {
+                      const fi = idx%8, ri = Math.floor(idx/8);
+                      return <div key={idx} className={(fi+ri)%2===0?'custom-square-white':'custom-square-black'} style={{ background:(fi+ri)%2===0?'var(--board-square-light)':'var(--board-square-dark)' }} />;
+                    })}
+                  </div>
+                  {/* Chessground mount */}
+                  <div ref={boardRef} style={{ position:'absolute', top:0, left:0, width:'100%', height:'100%', zIndex:1 }} />
+                  {/* Target overlays */}
+                  {Object.entries(targets).map(([sq,code]) => {
+                    const fi2 = sq.charCodeAt(0)-97, rk = parseInt(sq[1],10);
+                    const col = orientation==='white'?fi2:7-fi2, row = orientation==='white'?8-rk:rk-1;
+                    const item = GAMIFIED_ITEMS[code]; if(!item) return null;
+                    return (
+                      <div key={sq} style={{ position:'absolute', left:`${col*12.5}%`, top:`${row*12.5}%`, width:'12.5%', height:'12.5%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'2rem', zIndex:2, pointerEvents:'none', userSelect:'none' }} title={item.name}>
+                        {item.emoji}
+                      </div>
+                    );
+                  })}
+                  {/* Block overlays */}
+                  {Object.entries(blocks).map(([sq,code]) => {
+                    const fi2 = sq.charCodeAt(0)-97, rk = parseInt(sq[1],10);
+                    const col = orientation==='white'?fi2:7-fi2, row = orientation==='white'?8-rk:rk-1;
+                    const item = GAMIFIED_ITEMS[code]; if(!item) return null;
+                    return (
+                      <div key={sq} style={{ position:'absolute', left:`${col*12.5}%`, top:`${row*12.5}%`, width:'12.5%', height:'12.5%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'2rem', zIndex:2, pointerEvents:'none', userSelect:'none' }} title={item.name}>
+                        {item.emoji}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ──────── RIGHT: Options ──────── */}
+          <aside className="spm-right">
+
+            {/* CASTLING */}
+            <div className="spm-section">
+              <div className="spm-sec-label">CASTLING</div>
+              <div className="spm-checks">
+                {([['wK','White O-O'],['wQ','White O-O-O'],['bK','Black O-O'],['bQ','Black O-O-O']] as const).map(([key,label]) => (
+                  <label key={key} className="spm-check-label">
+                    <input type="checkbox" checked={castling[key]} onChange={() => handleCastlingToggle(key)} className="spm-checkbox" />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* PRESETS */}
+            <div className="spm-section">
+              <div className="spm-sec-label">PRESETS</div>
+              <div className="spm-presets">
+                <button onClick={() => { setFen(initialFen || START_FEN); setTargets({}); setBlocks({}); }} className="spm-preset-btn">
+                  Current Position
                 </button>
-                <button 
-                  onClick={() => setActivePiece('bQ')} 
-                  className={`palette-item ${activePiece === 'bQ' ? 'active' : ''}`}
-                  title="Black Queen"
-                >
-                  <div className="setup-piece queen black" style={{ width: '100%', height: '100%', display: 'block' }} />
+                <button onClick={() => { setFen(EMPTY_FEN); setTargets({}); setBlocks({}); }} className="spm-preset-btn">
+                  Empty Board
                 </button>
-                <button 
-                  onClick={() => setActivePiece('bR')} 
-                  className={`palette-item ${activePiece === 'bR' ? 'active' : ''}`}
-                  title="Black Rook"
-                >
-                  <div className="setup-piece rook black" style={{ width: '100%', height: '100%', display: 'block' }} />
-                </button>
-                <button 
-                  onClick={() => setActivePiece('bB')} 
-                  className={`palette-item ${activePiece === 'bB' ? 'active' : ''}`}
-                  title="Black Bishop"
-                >
-                  <div className="setup-piece bishop black" style={{ width: '100%', height: '100%', display: 'block' }} />
-                </button>
-                <button 
-                  onClick={() => setActivePiece('bN')} 
-                  className={`palette-item ${activePiece === 'bN' ? 'active' : ''}`}
-                  title="Black Knight"
-                >
-                  <div className="setup-piece knight black" style={{ width: '100%', height: '100%', display: 'block' }} />
-                </button>
-                <button 
-                  onClick={() => setActivePiece('bP')} 
-                  className={`palette-item ${activePiece === 'bP' ? 'active' : ''}`}
-                  title="Black Pawn"
-                >
-                  <div className="setup-piece pawn black" style={{ width: '100%', height: '100%', display: 'block' }} />
+                <button onClick={() => { setFen(START_FEN); setTargets({}); setBlocks({}); }} className="spm-preset-btn">
+                  Starting Position
                 </button>
               </div>
-            ) : null}
+            </div>
 
-            {/* Right Panel: Settings & Presets */}
-            <div className="settings-panel">
-              <div className="section-title">Castling</div>
-              <div className="checkbox-group">
-                <label className="checkbox-label">
-                  <input 
-                    type="checkbox" 
-                    checked={castling.wK} 
-                    onChange={() => handleCastlingToggle('wK')} 
-                  />
-                  <span>White O-O</span>
-                </label>
-                <label className="checkbox-label">
-                  <input 
-                    type="checkbox" 
-                    checked={castling.wQ} 
-                    onChange={() => handleCastlingToggle('wQ')} 
-                  />
-                  <span>White O-O-O</span>
-                </label>
-                <label className="checkbox-label">
-                  <input 
-                    type="checkbox" 
-                    checked={castling.bK} 
-                    onChange={() => handleCastlingToggle('bK')} 
-                  />
-                  <span>Black O-O</span>
-                </label>
-                <label className="checkbox-label">
-                  <input 
-                    type="checkbox" 
-                    checked={castling.bQ} 
-                    onChange={() => handleCastlingToggle('bQ')} 
-                  />
-                  <span>Black O-O-O</span>
-                </label>
-              </div>
-
-              <div className="section-title">Presets</div>
-              <div className="preset-buttons">
-                <button onClick={() => setFen(initialFen || START_FEN)} className="preset-btn secondary-btn">
-                  Reset
-                </button>
-                <button 
-                  onClick={() => {
-                    setFen(EMPTY_FEN);
-                    setTargets({});
-                    setBlocks({});
-                  }} 
-                  className="preset-btn secondary-btn"
-                >
-                  Clear
-                </button>
-                <button 
-                  onClick={() => {
-                    setFen(START_FEN);
-                    setTargets({});
-                    setBlocks({});
-                  }} 
-                  className="preset-btn secondary-btn"
-                >
-                  Initial
-                </button>
-              </div>
-
-              <div className="section-title">To Play</div>
-              <select 
-                value={toPlay} 
-                onChange={(e) => handleTurnChange(e.target.value as 'w' | 'b')}
-                className="to-play-select"
-              >
+            {/* SIDE TO MOVE */}
+            <div className="spm-section">
+              <div className="spm-sec-label">SIDE TO MOVE</div>
+              <select value={toPlay} onChange={e => handleTurnChange(e.target.value as 'w'|'b')} className="spm-select">
                 <option value="w">White</option>
                 <option value="b">Black</option>
               </select>
-
-              <div className="section-title" style={{ marginTop: '4px' }}>FEN String</div>
-              <div className="fen-row">
-                <div className="fen-input-wrapper">
-                  <input 
-                    type="text" 
-                    value={inputFen} 
-                    onChange={(e) => setInputFen(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        loadCustomFen(inputFen);
-                      }
-                    }}
-                    placeholder="Paste FEN string here"
-                    className="fen-input"
-                  />
-                  <button onClick={() => loadCustomFen(inputFen)} className="load-btn">
-                    Load FEN
-                  </button>
-                </div>
-                {errorMsg && <div className="error-message">{errorMsg}</div>}
-              </div>
             </div>
 
-          </div>
-        </main>
+            {/* FEN */}
+            <div className="spm-section spm-fen-section">
+              <div className="spm-sec-label">FEN (Optional)</div>
+              <input
+                type="text"
+                value={inputFen}
+                onChange={e => setInputFen(e.target.value)}
+                onKeyDown={e => { if(e.key==='Enter') loadCustomFen(inputFen); }}
+                placeholder="Enter FEN string"
+                className="spm-fen-input"
+              />
+              {errorMsg && <div className="spm-error">{errorMsg}</div>}
+              <button onClick={() => loadCustomFen(inputFen)} className="spm-load-btn">
+                Load FEN
+              </button>
+            </div>
 
-        <footer className="setup-modal-footer">
-          <button onClick={onClose} className="footer-btn cancel-btn">
-            Cancel
-          </button>
-          <button onClick={() => { onSave(fen); onClose(); }} className="footer-btn save-btn">
-            OK
-          </button>
+          </aside>
+        </div>
+
+        {/* ── Footer ── */}
+        <footer className="spm-footer">
+          <button onClick={onClose} className="spm-btn-cancel">Cancel</button>
+          <button onClick={() => { onSave(fen); onClose(); }} className="spm-btn-ok">OK</button>
         </footer>
       </div>
 
       <style>{`
-        .setup-piece {
-          width: 100%;
-          height: 100%;
-          display: block;
-          background-size: contain;
-          background-position: center;
-          background-repeat: no-repeat;
-        }
-        .setup-piece.pawn.white {
-          background-image: var(--piece-wp, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wP.svg'));
-        }
-        .setup-piece.bishop.white {
-          background-image: var(--piece-wb, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wB.svg'));
-        }
-        .setup-piece.knight.white {
-          background-image: var(--piece-wn, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wN.svg'));
-        }
-        .setup-piece.rook.white {
-          background-image: var(--piece-wr, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wR.svg'));
-        }
-        .setup-piece.queen.white {
-          background-image: var(--piece-wq, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wQ.svg'));
-        }
-        .setup-piece.king.white {
-          background-image: var(--piece-wk, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wK.svg'));
-        }
-        .setup-piece.pawn.black {
-          background-image: var(--piece-bp, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bP.svg'));
-        }
-        .setup-piece.bishop.black {
-          background-image: var(--piece-bb, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bB.svg'));
-        }
-        .setup-piece.knight.black {
-          background-image: var(--piece-bn, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bN.svg'));
-        }
-        .setup-piece.rook.black {
-          background-image: var(--piece-br, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bR.svg'));
-        }
-        .setup-piece.queen.black {
-          background-image: var(--piece-bq, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bQ.svg'));
-        }
-        .setup-piece.king.black {
-          background-image: var(--piece-bk, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bK.svg'));
-        }
-        .setup-modal-overlay {
+        /* ─── Piece SVGs (unchanged) ─── */
+        .setup-piece { width:100%; height:100%; display:block; background-size:contain; background-position:center; background-repeat:no-repeat; }
+        .setup-piece.pawn.white   { background-image: var(--piece-wp,  url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wP.svg')); }
+        .setup-piece.bishop.white { background-image: var(--piece-wb,  url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wB.svg')); }
+        .setup-piece.knight.white { background-image: var(--piece-wn,  url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wN.svg')); }
+        .setup-piece.rook.white   { background-image: var(--piece-wr,  url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wR.svg')); }
+        .setup-piece.queen.white  { background-image: var(--piece-wq,  url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wQ.svg')); }
+        .setup-piece.king.white   { background-image: var(--piece-wk,  url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/wK.svg')); }
+        .setup-piece.pawn.black   { background-image: var(--piece-bp,  url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bP.svg')); }
+        .setup-piece.bishop.black { background-image: var(--piece-bb,  url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bB.svg')); }
+        .setup-piece.knight.black { background-image: var(--piece-bn,  url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bN.svg')); }
+        .setup-piece.rook.black   { background-image: var(--piece-br,  url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bR.svg')); }
+        .setup-piece.queen.black  { background-image: var(--piece-bq,  url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bQ.svg')); }
+        .setup-piece.king.black   { background-image: var(--piece-bk,  url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bK.svg')); }
+
+        /* ─── Modal shell ─── */
+        .spm-overlay {
           position: fixed;
           inset: 0;
-          background: rgba(74, 32, 24, 0.4);
-          backdrop-filter: blur(8px);
+          background: rgba(30, 15, 8, 0.55);
+          backdrop-filter: blur(6px);
           z-index: 1000;
           display: flex;
           align-items: center;
           justify-content: center;
-          animation: fadeIn 0.2s ease-out;
+          animation: spmFadeIn 0.18s ease-out;
         }
-
-        .setup-modal-card {
+        .spm-card {
           width: 98%;
-          max-width: 1200px;
-          background: #fdf5ea;
-          border: 1px solid #eedcd0;
+          max-width: 1160px;
+          height: 90vh;
+          max-height: 90vh;
+          background: #fdf6ec;
+          border: 1px solid #e4cdb7;
           border-radius: 16px;
-          box-shadow: 0 20px 40px -15px rgba(74, 32, 24, 0.2);
+          box-shadow: 0 24px 60px -10px rgba(74,32,18,0.25);
           display: flex;
           flex-direction: column;
-          max-height: 98vh;
           overflow: hidden;
-          animation: slideUp 0.2s ease-out;
+          animation: spmSlideUp 0.18s ease-out;
         }
 
-        .setup-modal-header {
-          padding: 0.5rem 1rem;
-          border-bottom: 1px solid #eedcd0;
+        /* ─── Header ─── */
+        .spm-header {
+          padding: 14px 20px 10px;
+          border-bottom: 1px solid #e4cdb7;
           display: flex;
           justify-content: space-between;
-          align-items: center;
+          align-items: flex-start;
+          flex-shrink: 0;
         }
-
-        .setup-modal-header h2 {
-          margin: 0;
-          font-size: 1.25rem;
-          font-weight: 600;
-          color: #4a2018;
+        .spm-title { margin:0; font-size:1.2rem; font-weight:700; color:#3b1c0c; }
+        .spm-subtitle { margin:2px 0 0; font-size:0.78rem; color:#9a6040; }
+        .spm-close {
+          background: transparent; border: none; color: #7a4020; cursor: pointer;
+          padding: 4px; border-radius: 6px; transition: all 0.15s; display:flex; align-items:center;
         }
+        .spm-close:hover { background: rgba(200,133,74,0.12); color: #c8854a; }
 
-        .close-btn {
-          background: transparent;
-          border: none;
-          color: #4a2018;
-          cursor: pointer;
-          transition: all 0.15s;
+        /* ─── Tabs ─── */
+        .spm-tabs {
           display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 4px;
-          border-radius: 6px;
+          gap: 6px;
+          padding: 8px 20px 0;
+          border-bottom: 1px solid #e4cdb7;
+          background: #fdf6ec;
+          flex-shrink: 0;
         }
-
-        .close-btn:hover {
-          color: #c8854a;
-          background: rgba(45, 74, 107, 0.05);
-        }
-
-        .setup-modal-body {
-          padding: 0.5rem 1rem;
-          overflow-y: auto;
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
-        }
-
-        .setup-tabs {
-          display: flex;
-          gap: 8px;
-          border-bottom: 2px solid #eedcd0;
-          padding-bottom: 8px;
-          margin-bottom: 8px;
-        }
-
-        .setup-tab-btn {
+        .spm-tab {
           padding: 8px 16px;
-          border: none;
-          background: transparent;
-          font-size: 0.9rem;
+          font-size: 0.85rem;
           font-weight: 600;
-          color: #8b5a36;
+          color: #9a6040;
+          background: transparent;
+          border: none;
+          border-bottom: 2px solid transparent;
           cursor: pointer;
-          border-radius: 8px;
           transition: all 0.15s;
+          margin-bottom: -1px;
         }
+        .spm-tab:hover { color: #7a4020; }
+        .spm-tab-active { color: #3b1c0c; border-bottom-color: #c8854a; }
 
-        .setup-tab-btn:hover {
-          background: rgba(200, 133, 74, 0.05);
-          color: #c8854a;
-        }
-
-        .setup-tab-btn.active {
-          background: #c8854a;
-          color: #ffffff;
-        }
-
-        .setup-grid {
+        /* ─── 3-column body ─── */
+        .spm-body {
           display: grid;
-          grid-template-columns: auto 1fr auto 200px;
-          gap: 1rem;
-          align-items: start;
+          grid-template-columns: 256px 1fr 210px;
+          gap: 10px;
+          padding: 10px 14px;
+          flex: 1;
+          min-height: 0;
+          overflow: hidden;
         }
 
-        .setup-grid.gamified-layout {
-          grid-template-columns: 280px 1fr 200px;
-        }
-
-        .gamified-palette-column {
+        /* ─── Left/Right panels ─── */
+        .spm-left, .spm-right {
           display: flex;
           flex-direction: column;
-          gap: 12px;
-          background: #fdf0e4;
-          border: 1px solid #eedcd0;
-          border-radius: 12px;
-          padding: 10px;
-          max-height: none;
-          overflow-y: visible;
+          gap: 8px;
+          overflow-y: auto;
+          padding-right: 2px;
         }
+        .spm-left::-webkit-scrollbar, .spm-right::-webkit-scrollbar { width: 4px; }
+        .spm-left::-webkit-scrollbar-thumb, .spm-right::-webkit-scrollbar-thumb { background: #e4cdb7; border-radius: 2px; }
 
-        .gamified-palette-column::-webkit-scrollbar {
-          width: 6px;
-        }
-
-        .gamified-palette-column::-webkit-scrollbar-thumb {
-          background-color: #eedcd0;
-          border-radius: 3px;
-        }
-
-        .gamified-palette-section {
+        /* ─── Section ─── */
+        .spm-section {
+          background: #faeee0;
+          border: 1px solid #e4cdb7;
+          border-radius: 10px;
+          padding: 8px 10px;
           display: flex;
           flex-direction: column;
           gap: 6px;
-          border-bottom: 1px solid #eedcd0;
-          padding-bottom: 8px;
+        }
+        .spm-sec-label {
+          font-size: 0.65rem;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          color: #c8854a;
+          margin-bottom: 1px;
         }
 
-        .gamified-palette-section:last-of-type {
-          border-bottom: none;
-        }
-
-        .standard-toggle-buttons {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 4px;
-        }
-
-        .standard-toggle-buttons .toggle-btn {
-          padding: 4px;
-          font-size: 0.75rem;
-          font-weight: 600;
-          background: #ffffff;
-          border: 1px solid #eedcd0;
-          border-radius: 6px;
-          cursor: pointer;
-          color: #4a2018;
-          transition: all 0.15s;
-        }
-
-        .standard-toggle-buttons .toggle-btn:hover {
-          background: rgba(200, 133, 74, 0.05);
-        }
-
-        .standard-toggle-buttons .toggle-btn.active {
-          background: #c8854a;
-          color: #ffffff;
-          border-color: #c8854a;
-        }
-
-        .gamified-pieces-grid {
+        /* ─── Pieces ─── */
+        .spm-pieces-row {
           display: grid;
           grid-template-columns: repeat(6, 1fr);
           gap: 4px;
         }
-
-        .gamified-pieces-grid .palette-item {
-          width: 32px;
-          height: 32px;
-          padding: 2px;
+        .spm-piece-btn {
+          aspect-ratio: 1/1;
+          background: #fff;
+          border: 1.5px solid #e4cdb7;
+          border-radius: 7px;
+          cursor: pointer;
+          padding: 3px;
+          transition: all 0.12s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
+        .spm-piece-btn:hover { border-color: #c8854a; background: rgba(200,133,74,0.06); }
+        .spm-piece-btn.spm-active { border-color: #c8854a; background: rgba(200,133,74,0.12); box-shadow: 0 0 0 2px rgba(200,133,74,0.25); }
 
-        .target-category-tabs {
+        /* ─── Theme chips ─── */
+        .spm-theme-chips {
           display: flex;
           flex-wrap: wrap;
           gap: 4px;
         }
-
-        .target-category-tabs .cat-tab-btn {
-          padding: 3px 6px;
+        .spm-chip {
+          padding: 3px 8px;
           font-size: 0.7rem;
           font-weight: 600;
-          background: #ffffff;
-          border: 1px solid #eedcd0;
-          border-radius: 6px;
+          border: 1px solid #e4cdb7;
+          border-radius: 20px;
+          background: #fff;
+          color: #7a4020;
           cursor: pointer;
-          color: #8b5a36;
-          transition: all 0.15s;
+          transition: all 0.12s;
         }
+        .spm-chip:hover { background: rgba(200,133,74,0.08); border-color: #c8854a; }
+        .spm-chip.spm-chip-active { background: #7a4020; color: #fff; border-color: #7a4020; }
 
-        .target-category-tabs .cat-tab-btn:hover {
-          background: rgba(200, 133, 74, 0.05);
-        }
-
-        .target-category-tabs .cat-tab-btn.active {
-          background: #8b5a36;
-          color: #ffffff;
-          border-color: #8b5a36;
-        }
-
-        .gamified-items-grid {
+        /* ─── Icon grids (targets / blocks) ─── */
+        .spm-icon-grid {
           display: grid;
           grid-template-columns: repeat(6, 1fr);
           gap: 4px;
-          max-height: 160px;
-          overflow-y: auto;
-          background: #ffffff;
-          border: 1px solid #eedcd0;
-          border-radius: 8px;
-          padding: 4px;
         }
-
-        .gamified-items-grid::-webkit-scrollbar {
-          width: 4px;
-        }
-
-        .gamified-items-grid::-webkit-scrollbar-thumb {
-          background-color: #eedcd0;
-          border-radius: 2px;
-        }
-
-        .gamified-item-btn {
-          width: 32px !important;
-          height: 32px !important;
-          padding: 0 !important;
-          border-radius: 6px !important;
-        }
-
-        .emoji-display {
-          font-size: 1.25rem;
-          line-height: 1;
-        }
-
-        .palette-item.eraser-btn.full-width {
-          width: 100%;
-          height: 36px;
+        .spm-icon-btn {
+          aspect-ratio: 1/1;
+          background: #fff;
+          border: 1.5px solid #e4cdb7;
+          border-radius: 7px;
+          cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 6px;
-          margin-top: 4px;
-          font-weight: 600;
-          font-size: 0.85rem;
-          color: #dc2626;
+          transition: all 0.12s;
+          padding: 0;
         }
+        .spm-icon-btn:hover { border-color: #c8854a; background: rgba(200,133,74,0.06); }
+        .spm-icon-btn.spm-active { border-color: #c8854a; background: rgba(200,133,74,0.12); box-shadow: 0 0 0 2px rgba(200,133,74,0.25); }
+        .spm-emoji { font-size: 1.1rem; line-height: 1; }
 
-
-        .palette-column {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 6px;
-          align-items: start;
-          background: #fdf0e4;
-          border: 1px solid #eedcd0;
-          border-radius: 12px;
-          padding: 10px;
+        /* ─── Tools ─── */
+        .spm-tools-row {
+          display: flex;
+          gap: 5px;
         }
-
-        .palette-label {
-          grid-column: 1 / -1;
+        .spm-tool-btn {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
+          padding: 6px 4px;
           font-size: 0.75rem;
           font-weight: 600;
-          text-transform: uppercase;
-          color: #c8854a;
-          margin-bottom: 2px;
-          text-align: center;
-        }
-
-        .palette-item {
-          width: 44px;
-          height: 44px;
-          background: #ffffff;
-          border: 1.5px solid #eedcd0;
-          border-radius: 8px;
+          border: 1.5px solid #e4cdb7;
+          border-radius: 7px;
+          background: #fff;
+          color: #3b1c0c;
           cursor: pointer;
-          transition: all 0.15s;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 3px;
+          transition: all 0.12s;
         }
+        .spm-tool-btn:hover { border-color: #c8854a; background: rgba(200,133,74,0.08); }
+        .spm-tool-btn.spm-tool-active { background: #c8854a; color: #fff; border-color: #c8854a; }
+        .spm-tool-erase { color: #c0392b; }
+        .spm-tool-erase:hover { border-color: #e74c3c; background: rgba(231,76,60,0.06); }
+        .spm-tool-erase.spm-tool-erase-active { background: #e74c3c; color: #fff; border-color: #e74c3c; }
+        .spm-tool-clear { color: #7a4020; }
 
-        .palette-item:hover {
-          background: rgba(200, 133, 74, 0.05);
-          border-color: #c8854a;
-        }
-
-        .palette-item.active {
-          background: rgba(200, 133, 74, 0.08);
-          border-color: #c8854a;
-          box-shadow: 0 0 8px rgba(200, 133, 74, 0.4);
-        }
-
-        .black-palette .palette-item {
-          background: #ffffff;
-          border-color: #eedcd0;
-        }
-
-        .black-palette .palette-item:hover {
-          background: rgba(200, 133, 74, 0.05);
-          border-color: #c8854a;
-        }
-
-        .black-palette .palette-item.active {
-          background: rgba(200, 133, 74, 0.08);
-          border-color: #c8854a;
-          box-shadow: 0 0 10px rgba(200, 133, 74, 0.6);
-        }
-
-        .eraser-btn {
-          grid-column: 1 / -1;
-          width: 100%;
-          margin-top: 4px;
-          border-color: rgba(220, 38, 38, 0.2);
-        }
-
-        .eraser-btn.active {
-          background: rgba(220, 38, 38, 0.08);
-          border-color: #dc2626;
-          box-shadow: 0 0 8px rgba(220, 38, 38, 0.3);
-        }
-
-        .board-column-wrapper {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          min-width: 0;
-          min-height: 434px;
-        }
-
-        .board-wrapper {
-          width: 434px;
-          max-width: 100%;
-          aspect-ratio: 1 / 1;
+        /* ─── Help box ─── */
+        .spm-help {
+          background: rgba(200,133,74,0.06);
+          border: 1px solid #e4cdb7;
           border-radius: 8px;
+          padding: 8px 10px;
+          margin-top: auto;
+        }
+        .spm-help-title { font-size: 0.72rem; font-weight: 700; color: #7a4020; margin-bottom: 4px; }
+        .spm-help-list { margin: 0; padding-left: 14px; display: flex; flex-direction: column; gap: 2px; }
+        .spm-help-list li { font-size: 0.68rem; color: #9a6040; }
+
+        /* ─── Center board ─── */
+        .spm-center {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 0;
+          min-width: 0;
+        }
+        .spm-board-wrapper {
+          height: 100%;
+          max-height: 100%;
+          aspect-ratio: 1/1;
+          width: auto;
+          max-width: 100%;
+          border-radius: 6px;
           overflow: hidden;
-          box-shadow: 0 10px 15px -3px rgba(74, 32, 24, 0.1);
-          border: 3px solid #eedcd0;
+          box-shadow: 0 8px 24px -4px rgba(74,32,18,0.15);
+          border: 3px solid #c8a882;
           padding: 8px;
           box-sizing: border-box;
           background: transparent;
         }
 
-        .settings-panel {
-          background: #fdf0e4;
-          border: 1px solid #eedcd0;
-          border-radius: 12px;
-          padding: 0.75rem;
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
-        }
+        /* ─── Right: options ─── */
+        .spm-right { justify-content: space-between; }
+        .spm-checks { display: flex; flex-direction: column; gap: 5px; }
+        .spm-check-label { display:flex; align-items:center; gap:7px; font-size:0.82rem; color:#3b1c0c; cursor:pointer; user-select:none; }
+        .spm-checkbox { accent-color: #c8854a; width:14px; height:14px; cursor:pointer; }
 
-        .section-title {
-          font-size: 0.8rem;
-          font-weight: 700;
-          text-transform: uppercase;
-          color: #c8854a;
-          border-bottom: 1px solid #eedcd0;
-          padding-bottom: 4px;
-          margin-bottom: 2px;
-        }
-
-        .checkbox-group {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-
-        .checkbox-label {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 0.85rem;
-          color: #4a2018;
-          cursor: pointer;
-          user-select: none;
-        }
-
-        .checkbox-label input[type="checkbox"] {
-          accent-color: #c8854a;
-          cursor: pointer;
-          width: 15px;
-          height: 15px;
-        }
-
-        .preset-buttons {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 4px;
-        }
-
-        .preset-btn {
-          padding: 5px 3px;
+        .spm-presets { display:flex; flex-direction:column; gap:4px; }
+        .spm-preset-btn {
+          width: 100%;
+          padding: 6px 8px;
           font-size: 0.8rem;
           font-weight: 500;
-          border-radius: 6px;
+          background: #fff;
+          border: 1px solid #e4cdb7;
+          border-radius: 7px;
+          color: #3b1c0c;
           cursor: pointer;
-          border: 1px solid #eedcd0;
-          background: #ffffff;
-          color: #4a2018;
-          transition: all 0.15s;
+          transition: all 0.12s;
+          text-align: left;
         }
+        .spm-preset-btn:hover { background: rgba(200,133,74,0.08); border-color: #c8854a; color: #7a4020; }
 
-        .preset-btn:hover {
-          background: rgba(200, 133, 74, 0.08);
-          border-color: #c8854a;
-          color: #c8854a;
-        }
-
-        .to-play-select {
-          background: #ffffff;
-          border: 1px solid #eedcd0;
-          border-radius: 6px;
-          color: #4a2018;
-          padding: 5px 8px;
-          font-size: 0.85rem;
+        .spm-select {
+          width: 100%;
+          padding: 6px 8px;
+          font-size: 0.82rem;
           font-family: inherit;
+          background: #fff;
+          border: 1px solid #e4cdb7;
+          border-radius: 7px;
+          color: #3b1c0c;
           cursor: pointer;
           outline: none;
         }
+        .spm-select:focus { border-color: #c8854a; }
 
-        .to-play-select:focus {
-          border-color: #c8854a;
-        }
-
-        .fen-row {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-
-        .fen-input-wrapper {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-
-        .fen-input {
+        .spm-fen-section { gap: 5px; }
+        .spm-fen-input {
           width: 100%;
-          background: #ffffff;
-          border: 1px solid #eedcd0;
-          border-radius: 6px;
-          outline: none;
-          color: #4a2018;
-          font-size: 0.75rem;
-          font-family: monospace;
-          padding: 6px;
           box-sizing: border-box;
+          padding: 6px 8px;
+          font-size: 0.72rem;
+          font-family: monospace;
+          background: #fff;
+          border: 1px solid #e4cdb7;
+          border-radius: 7px;
+          color: #3b1c0c;
+          outline: none;
         }
-
-        .load-btn {
+        .spm-fen-input:focus { border-color: #c8854a; }
+        .spm-error { font-size: 0.72rem; color: #c0392b; }
+        .spm-load-btn {
           width: 100%;
-          background: #2d4a6b;
+          padding: 7px;
+          font-size: 0.82rem;
+          font-weight: 700;
+          background: #7a4020;
           color: #fff;
           border: none;
-          border-radius: 6px;
-          padding: 6px 10px;
-          font-size: 0.8rem;
-          font-weight: 600;
+          border-radius: 7px;
           cursor: pointer;
           transition: background 0.15s;
         }
+        .spm-load-btn:hover { background: #5e3018; }
 
-        .load-btn:hover {
-          background: #1d334d;
-        }
-
-        .error-message {
-          color: #dc2626;
-          font-size: 0.8rem;
-          padding-left: 4px;
-        }
-
-        .setup-modal-footer {
-          padding: 0.75rem 1.25rem;
-          border-top: 1px solid #eedcd0;
+        /* ─── Footer ─── */
+        .spm-footer {
+          padding: 10px 18px;
+          border-top: 1px solid #e4cdb7;
           display: flex;
           justify-content: flex-end;
-          gap: 12px;
+          gap: 10px;
+          flex-shrink: 0;
         }
-
-        .footer-btn {
-          padding: 8px 16px;
-          border-radius: 8px;
-          font-size: 0.875rem;
+        .spm-btn-cancel {
+          padding: 7px 18px;
+          font-size: 0.85rem;
           font-weight: 600;
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-
-        .cancel-btn {
           background: transparent;
-          border: 1px solid #eedcd0;
-          color: #4a2018;
+          border: 1px solid #e4cdb7;
+          border-radius: 8px;
+          color: #3b1c0c;
+          cursor: pointer;
+          transition: all 0.12s;
         }
-
-        .cancel-btn:hover {
-          background: rgba(45, 74, 107, 0.05);
-          border-color: #c8854a;
-          color: #4a2018;
-        }
-
-        .save-btn {
+        .spm-btn-cancel:hover { background: rgba(200,133,74,0.08); border-color: #c8854a; }
+        .spm-btn-ok {
+          padding: 7px 22px;
+          font-size: 0.85rem;
+          font-weight: 700;
           background: #c8854a;
-          border: none;
           color: #fff;
-          box-shadow: 0 4px 10px rgba(200, 133, 74, 0.2);
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          box-shadow: 0 3px 10px rgba(200,133,74,0.3);
+          transition: all 0.12s;
         }
+        .spm-btn-ok:hover { background: #a66b38; box-shadow: 0 4px 14px rgba(200,133,74,0.4); }
 
-        .save-btn:hover {
-          background: #b3643b;
-          box-shadow: 0 4px 14px rgba(200, 133, 74, 0.35);
-        }
+        /* ─── Animations ─── */
+        @keyframes spmFadeIn { from { opacity:0; } to { opacity:1; } }
+        @keyframes spmSlideUp { from { transform:translateY(16px); opacity:0; } to { transform:translateY(0); opacity:1; } }
 
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-
-        @keyframes slideUp {
-          from { transform: translateY(20px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
-        }
-
-        @media (max-width: 768px) {
-          .setup-grid {
-            grid-template-columns: 1fr;
-            gap: 1rem;
-          }
-          .palette-column {
-            flex-direction: row;
-            flex-wrap: wrap;
-            justify-content: center;
-          }
-        }
-
-        /* Ensure coordinates do not occupy layout space */
-        .cg-wrap coords {
-          position: absolute !important;
-        }
+        /* ─── Board coordinate helpers (unchanged) ─── */
+        .cg-wrap coords { position: absolute !important; }
       `}</style>
     </div>,
     document.body

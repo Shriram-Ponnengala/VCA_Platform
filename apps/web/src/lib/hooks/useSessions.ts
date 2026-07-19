@@ -23,7 +23,12 @@ export function useSessions(batchId: string | null) {
   const [isLoaded, setIsLoaded] = useState(false);
 
   const fetchSessions = useCallback(async () => {
-    if (!batchId) return;
+    if (!batchId) {
+      // batchId not ready yet — mark as not loaded so callers wait
+      setIsLoaded(false);
+      return;
+    }
+    setIsLoaded(false);
     try {
       const res = await fetch(`/api/sessions/batch/${batchId}`);
       if (res.ok) {

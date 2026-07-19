@@ -177,3 +177,32 @@ coords.files {
 coord {
   flex: 1 1 auto;
 }
+
+/* --- Academy-wide Settings Overrides --- */
+
+/* Highlight Last Move Toggle */
+:root[data-highlight-last-move="false"] square.last-move {
+  background-color: transparent !important;
+}
+
+/* Piece Animations */
+:root[data-piece-animation="none"] piece.anim {
+  transition: none !important;
+}
+
+/* Arcade: subtle comet trail using multi-layer drop shadow and linear motion blur */
+:root[data-piece-animation="arcade"] piece.anim,
+:root[data-piece-animation="arcade"] piece.dragging {
+  filter: drop-shadow(0px 0px 4px rgba(220, 230, 255, 0.8)) drop-shadow(0px 0px 10px rgba(100, 150, 255, 0.6)) blur(0.5px) !important;
+}
+
+:root[data-piece-animation="arcade"] piece.anim {
+  transition: transform 200ms linear !important;
+}
+
+/* Fallbacks for prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  :root[data-piece-animation="arcade"] piece.anim {
+    filter: none !important;
+  }
+}

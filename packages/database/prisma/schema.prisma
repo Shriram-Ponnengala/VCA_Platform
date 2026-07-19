@@ -40,11 +40,36 @@ model User {
   markedAttendanceRecords AttendanceRecord[]
 }
 
+model Family {
+  id                  String    @id @default(uuid())
+  parentFirstName     String
+  parentMiddleName    String?
+  parentLastName      String
+  parentEmail         String?
+  parentMobile        String
+  parentCountryCode   String?
+  secParentFirstName  String?
+  secParentMiddleName String?
+  secParentLastName   String?
+  secParentEmail      String?
+  secParentMobile     String?
+  secParentCountryCode String?
+  
+  country             String
+  city                String
+
+  students            Student[]
+}
+
 model Student {
   id           String       @id @default(uuid())
   userId       String       @unique
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   
+  familyId     String?
+  family       Family?      @relation(fields: [familyId], references: [id], onDelete: SetNull)
+
+  // Legacy fields retained for migration
   parentFirstName    String?
   parentMiddleName   String?
   parentLastName     String?

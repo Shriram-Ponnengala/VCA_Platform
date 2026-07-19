@@ -228,6 +228,7 @@ export class ClassroomController {
       return res.json({
         allowed: true,
         role: userRole,
+        userId: payload.id,
         classroomId: classroom.id,
         token: token
       });

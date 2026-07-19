@@ -17,7 +17,10 @@ export default function AdminSessionDetailPage() {
   const { students: allStudents, isLoaded: studentsLoaded } = useStudents();
 
   const rawBatchId = decodeURIComponent(params.id as string);
-  const batchId = extractBatchId(rawBatchId, batches);
+  // Only resolve the slug after batches have fully loaded, otherwise
+  // extractBatchId falls back to the slug string (e.g. 'p10-batch') because
+  // allBatches is still [] — causing useSessions to fetch with a wrong ID.
+  const batchId = batchesLoaded ? extractBatchId(rawBatchId, batches) : null;
   const sessionId = params.sessionId as string;
 
   const { sessions, isLoaded: sessionsLoaded, refetch: refetchSessions } = useSessions(batchId);
@@ -50,7 +53,11 @@ export default function AdminSessionDetailPage() {
     fetchAttendance();
   }, [sessionId]);
 
-  if (!batchesLoaded || !studentsLoaded || !sessionsLoaded) {
+  if (!batchesLoaded || !studentsLoaded) {
+    return <div className={styles.container}>Loading Session...</div>;
+  }
+
+  if (!sessionsLoaded) {
     return <div className={styles.container}>Loading Session...</div>;
   }
 
@@ -147,25 +154,27 @@ export default function AdminSessionDetailPage() {
       {/* Main Header Card */}
       <div className={styles.headerCard}>
         <div className={styles.sessionTitleBlock}>
-          <div className={styles.calendarIconBlockOrange}>
-            <span className={styles.calMonth}>{monthStr}</span>
-            <span className={styles.calDay}>{dayNum}</span>
-            <span className={styles.calWeekday}>{weekdayStr}</span>
-          </div>
-          <div className={styles.titleArea}>
-            <div className={styles.titleRow}>
-              <h1 className={styles.title}>{session.title}</h1>
-              <span className={styles.badgeUpcoming}>Upcoming</span>
+          <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+            <div className={styles.calendarIconBlockOrange}>
+              <span className={styles.calMonth}>{monthStr}</span>
+              <span className={styles.calDay}>{dayNum}</span>
+              <span className={styles.calWeekday}>{weekdayStr}</span>
             </div>
-            <div className={styles.metaRow}>
-              <div className={styles.metaItem}>
-                <CalendarIcon size={14} /> {fullDateStr}
+            <div className={styles.titleArea}>
+              <div className={styles.titleRow}>
+                <h1 className={styles.title}>{session.title}</h1>
+                <span className={styles.badgeUpcoming}>Upcoming</span>
               </div>
-              <div className={styles.metaItem}>
-                <ClockIcon size={14} /> {session.startTime} - {session.endTime} ({session.duration} mins)
-              </div>
-              <div className={styles.metaItem}>
-                <VideoIcon size={14} /> {session.platform}
+              <div className={styles.metaRow}>
+                <div className={styles.metaItem}>
+                  <CalendarIcon size={14} /> {fullDateStr}
+                </div>
+                <div className={styles.metaItem}>
+                  <ClockIcon size={14} /> {session.startTime} - {session.endTime} ({session.duration} mins)
+                </div>
+                <div className={styles.metaItem}>
+                  <VideoIcon size={14} /> {session.platform}
+                </div>
               </div>
             </div>
           </div>

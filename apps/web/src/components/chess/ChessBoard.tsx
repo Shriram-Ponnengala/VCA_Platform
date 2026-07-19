@@ -4,18 +4,21 @@ import { Chess, Move, parseGamifiedFen, GAMIFIED_ITEMS } from '@vca/chess';
 import type { Api } from 'chessground/api';
 import type { Config } from 'chessground/config';
 import type { Key } from 'chessground/types';
-import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, RefreshCw, Eraser, RotateCcw, MoreHorizontal, Lock, Clock, LayoutGrid, Copy, FileText, Eye, ArrowUpRight, Square, Pen, Wrench, ChevronDown, Upload, ArrowUpDown, Database, SkipBack, SkipForward, Smile, PlusSquare, Check } from 'lucide-react';
+import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, RefreshCw, Eraser, RotateCcw, MoreHorizontal, Lock, Clock, LayoutGrid, Copy, FileText, Eye, ArrowUpRight, Square, Pen, Wrench, ChevronDown, Upload, ArrowUpDown, Database, SkipBack, SkipForward, Smile, PlusSquare, Check, Play, Pause, Hourglass, Lightbulb } from 'lucide-react';
 import type { ArrowData, MoveNode } from '@vca/types';
 import { VariationData } from './VariationChooser';
 import { NagBadge } from './NagBadge';
 import SetupPositionModal from './SetupPositionModal';
 import UploadPgnModal from './UploadPgnModal';
 import { EmojiReactions } from './EmojiReactions';
+import { CoachTimerRing } from './CoachTimerRing';
 import { NagReactionOverlay } from './NagReactionOverlay';
+import { buildPgnFromMoveTree } from '@/features/database/pgnUtils';
 
 import 'chessground/assets/chessground.base.css';
 import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
+import './chessground.css';
 
 interface ChessBoardProps {
   fen: string;
@@ -57,6 +60,51 @@ interface ChessBoardProps {
   onToggleLock?: (locked: boolean) => void;
   hideSocialFeatures?: boolean;
   moveRejectedAt?: number;
+  role?: 'admin' | 'coach' | 'student' | null;
+  userId?: string;
+}
+
+interface TimerAppearance {
+  opacity: number; // 40-100, glass surface alpha
+  accentColor: string | null; // null = default two-tone look (orange ring / green play)
+  glassTint: string | null; // null = default white glass
+  size: 'small' | 'medium' | 'large';
+}
+
+// Reproduces the existing hardcoded glassy look exactly, so a coach who never opens
+// "Style" sees no visual change at all.
+const TIMER_APPEARANCE_DEFAULTS: TimerAppearance = {
+  opacity: 55,
+  accentColor: null,
+  glassTint: null,
+  size: 'medium',
+};
+
+// "medium" values match today's hardcoded ring/button pixel sizes exactly.
+const TIMER_SIZE_PRESETS = {
+  small: { ring: 44, stroke: 4, btn: 28, play: 40, icon: 11, playIcon: 14 },
+  medium: { ring: 52, stroke: 5, btn: 32, play: 46, icon: 13, playIcon: 16 },
+  large: { ring: 62, stroke: 6, btn: 38, play: 54, icon: 15, playIcon: 19 },
+} as const;
+
+const TIMER_ACCENT_PRESETS = ['#c8854a', '#16a34a', '#2563eb', '#7c3aed', '#e11d48'];
+const TIMER_TINT_PRESETS = ['#ffffff', '#fdf0e4', '#e0f2fe', '#dcfce7', '#f3e8ff'];
+
+function hexToRgbTriplet(hex: string): string {
+  const clean = hex.replace('#', '');
+  const full = clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean;
+  const bigint = parseInt(full, 16) || 0xffffff;
+  return `${(bigint >> 16) & 255}, ${(bigint >> 8) & 255}, ${bigint & 255}`;
+}
+
+function lightenHex(hex: string, amount: number): string {
+  const clean = hex.replace('#', '');
+  const full = clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean;
+  const bigint = parseInt(full, 16) || 0;
+  const r = Math.min(255, ((bigint >> 16) & 255) + amount);
+  const g = Math.min(255, ((bigint >> 8) & 255) + amount);
+  const b = Math.min(255, (bigint & 255) + amount);
+  return `rgb(${r}, ${g}, ${b})`;
 }
 
 const ChessBoard: React.FC<ChessBoardProps> = ({
@@ -81,6 +129,8 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
   onToggleLock,
   hideSocialFeatures = false,
   moveRejectedAt = 0,
+  role = null,
+  userId,
 }) => {
   const [orientation, setOrientation] = useState<'white' | 'black'>('white');
   const [showToolsMenu, setShowToolsMenu] = useState(false);
@@ -93,6 +143,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
   }, [fen]);
   const [copiedAction, setCopiedAction] = useState<'pgn' | 'fen' | null>(null);
   const [showCoordinates, setShowCoordinates] = useState(true);
+  const [showLastMove, setShowLastMove] = useState(true);
   const [isHighlightMode, setIsHighlightMode] = useState(false);
   const [isArrowMode, setIsArrowMode] = useState(false);
   const [showSetupModal, setShowSetupModal] = useState(false);
@@ -101,6 +152,360 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
   const [isEmojiMode, setIsEmojiMode] = useState(false);
   const [shakeClass, setShakeClass] = useState<'heavy' | 'medium' | 'light' | 'none'>('none');
   const [userShowClocks, setUserShowClocks] = useState(true);
+  const [animationKey, setAnimationKey] = useState(0);
+
+  // Coach-only timer states & logic
+  const isCoachOrAdmin = role !== 'student';
+  const [showTimerWidget, setShowTimerWidget] = useState(false);
+  const [timerMode, setTimerMode] = useState<'countdown' | 'countup'>('countdown');
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [timerStartTimestamp, setTimerStartTimestamp] = useState<number>(0);
+  const [timerElapsedMs, setTimerElapsedMs] = useState<number>(0);
+  const [countdownTotalMs, setCountdownTotalMs] = useState<number>(60000); // 1 minute default
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [isTimeUpFlash, setIsTimeUpFlash] = useState(false);
+  const [showCustomFields, setShowCustomFields] = useState(false);
+  const [customMinutes, setCustomMinutes] = useState('1');
+  const [customSeconds, setCustomSeconds] = useState('00');
+  const [displayMs, setDisplayMs] = useState(60000);
+  // The pill (ring + play/pause/reset/sound/close) is always visible once the widget is
+  // shown. "Expanded" only toggles a separate mode+duration popover anchored beside it —
+  // running always closes that popover so it never lingers over the board mid-countdown.
+  const [isTimerExpanded, setIsTimerExpanded] = useState(false);
+  const [timerPanelPos, setTimerPanelPos] = useState<{ top: number; left: number } | null>(null);
+  const timerPillRef = useRef<HTMLDivElement>(null);
+  const timerPanelRef = useRef<HTMLDivElement>(null);
+
+  // Drag offset is ephemeral, session-only state — it's never written anywhere persistent,
+  // and gets reset to {0,0} every time the widget is (re)shown, so the default top-left
+  // CSS position (see .vca-coach-timer-widget) is always what a fresh open lands on.
+  const [timerDragOffset, setTimerDragOffset] = useState({ x: 0, y: 0 });
+  const [isDraggingTimer, setIsDraggingTimer] = useState(false);
+  const timerDragStartRef = useRef<{
+    startClientX: number;
+    startClientY: number;
+    startOffsetX: number;
+    startOffsetY: number;
+    defaultLeft: number;
+    defaultTop: number;
+    minLeftBound: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (timerRunning) setIsTimerExpanded(false);
+  }, [timerRunning]);
+
+  useEffect(() => {
+    if (showTimerWidget) setTimerDragOffset({ x: 0, y: 0 });
+  }, [showTimerWidget]);
+
+  // Per-coach appearance customization (opacity/accent/tint/size). Device-local only —
+  // there's no per-user backend preference store in this app, so this persists to
+  // localStorage keyed by userId rather than syncing across devices.
+  const timerAppearanceStorageKey = `vca_timer_appearance_${userId || 'anon'}`;
+  const [timerAppearance, setTimerAppearance] = useState<TimerAppearance>(() => {
+    if (typeof window === 'undefined') return TIMER_APPEARANCE_DEFAULTS;
+    try {
+      const saved = window.localStorage.getItem(timerAppearanceStorageKey);
+      return saved ? { ...TIMER_APPEARANCE_DEFAULTS, ...JSON.parse(saved) } : TIMER_APPEARANCE_DEFAULTS;
+    } catch {
+      return TIMER_APPEARANCE_DEFAULTS;
+    }
+  });
+  const [timerPanelTab, setTimerPanelTab] = useState<'timer' | 'style'>('timer');
+
+  // userId often resolves asynchronously (after a join/auth fetch) later than this
+  // component's first render, so re-load once the real key is known.
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(timerAppearanceStorageKey);
+      setTimerAppearance(saved ? { ...TIMER_APPEARANCE_DEFAULTS, ...JSON.parse(saved) } : TIMER_APPEARANCE_DEFAULTS);
+    } catch {
+      setTimerAppearance(TIMER_APPEARANCE_DEFAULTS);
+    }
+  }, [timerAppearanceStorageKey]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(timerAppearanceStorageKey, JSON.stringify(timerAppearance));
+    } catch {
+      // best-effort; a private/full storage just means this session's tweaks don't persist
+    }
+  }, [timerAppearance, timerAppearanceStorageKey]);
+
+  const timerSizePreset = TIMER_SIZE_PRESETS[timerAppearance.size];
+  const timerGlassBackground = `rgba(${timerAppearance.glassTint ? hexToRgbTriplet(timerAppearance.glassTint) : '255, 255, 255'}, ${timerAppearance.opacity / 100})`;
+  const timerPlayBtnStyle: React.CSSProperties = {
+    width: timerSizePreset.play,
+    height: timerSizePreset.play,
+    ...(timerAppearance.accentColor
+      ? { background: `linear-gradient(135deg, ${lightenHex(timerAppearance.accentColor, 28)}, ${timerAppearance.accentColor})` }
+      : {}),
+  };
+  const timerMoreBtnStyle: React.CSSProperties = {
+    width: timerSizePreset.btn,
+    height: timerSizePreset.btn,
+    ...(isTimerExpanded && timerAppearance.accentColor
+      ? { background: timerAppearance.accentColor, borderColor: timerAppearance.accentColor }
+      : {}),
+  };
+  const timerResetBtnStyle: React.CSSProperties = { width: timerSizePreset.btn, height: timerSizePreset.btn };
+
+  const TIMER_PANEL_WIDTH = 216;
+  const TIMER_PANEL_GAP = 10;
+
+  // Same idea as the codebase's other flip-positioning context menus (see
+  // DatabasePanel's contextmenu handler): measure the anchor, prefer one side,
+  // flip to the other if it doesn't fit, then clamp fully on-screen. Here the
+  // anchor is the pill (which itself sits just outside the board, near the
+  // sidebar) rather than a click point, and we only ever consider right/below —
+  // left would put the panel behind the sidebar.
+  const computeTimerPanelPosition = useCallback(() => {
+    const pillEl = timerPillRef.current;
+    if (!pillEl) return null;
+    const rect = pillEl.getBoundingClientRect();
+    const estimatedHeight = timerMode === 'countdown' ? (showCustomFields ? 220 : 172) : 96;
+
+    let left = rect.right + TIMER_PANEL_GAP; // preferred: open to the right, toward the board
+    let top = rect.top;
+
+    const fitsRight = left + TIMER_PANEL_WIDTH <= window.innerWidth - TIMER_PANEL_GAP;
+    if (!fitsRight) {
+      // flip downward instead of ever falling back to the left (sidebar side)
+      left = rect.left;
+      top = rect.bottom + TIMER_PANEL_GAP;
+    }
+
+    left = Math.max(left, rect.left); // never drift left of the pill itself
+    if (left + TIMER_PANEL_WIDTH > window.innerWidth - TIMER_PANEL_GAP) {
+      left = window.innerWidth - TIMER_PANEL_WIDTH - TIMER_PANEL_GAP;
+    }
+    top = Math.max(TIMER_PANEL_GAP, Math.min(top, window.innerHeight - estimatedHeight - TIMER_PANEL_GAP));
+
+    return { top, left };
+  }, [timerMode, showCustomFields]);
+
+  const handleToggleTimerPanel = () => {
+    setIsTimerExpanded(prev => {
+      const next = !prev;
+      if (next) setTimerPanelPos(computeTimerPanelPosition());
+      return next;
+    });
+  };
+
+  const handleTimerDragMove = useCallback((e: MouseEvent | TouchEvent) => {
+    const start = timerDragStartRef.current;
+    const pillEl = timerPillRef.current;
+    if (!start || !pillEl) return;
+    if ('touches' in e) e.preventDefault();
+
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    const deltaX = clientX - start.startClientX;
+    const deltaY = clientY - start.startClientY;
+
+    const EDGE_MARGIN = 8;
+    const pillWidth = pillEl.offsetWidth;
+    const pillHeight = pillEl.offsetHeight;
+
+    // Clamp in absolute screen space: never left of the actual sidebar edge (measured at
+    // drag-start, not assumed from the pill's own default spot — the default position can
+    // sit well clear of the sidebar, and that shouldn't artificially cap how far left the
+    // pill is allowed to travel) and never past the other three viewport edges.
+    const minLeft = start.minLeftBound;
+    const maxLeft = Math.max(minLeft, window.innerWidth - pillWidth - EDGE_MARGIN);
+    const minTop = EDGE_MARGIN;
+    const maxTop = Math.max(minTop, window.innerHeight - pillHeight - EDGE_MARGIN);
+
+    const proposedLeft = Math.min(Math.max(start.defaultLeft + start.startOffsetX + deltaX, minLeft), maxLeft);
+    const proposedTop = Math.min(Math.max(start.defaultTop + start.startOffsetY + deltaY, minTop), maxTop);
+
+    setTimerDragOffset({
+      x: proposedLeft - start.defaultLeft,
+      y: proposedTop - start.defaultTop,
+    });
+  }, []);
+
+  const handleTimerDragEnd = useCallback(() => {
+    timerDragStartRef.current = null;
+    setIsDraggingTimer(false);
+    document.removeEventListener('mousemove', handleTimerDragMove);
+    document.removeEventListener('mouseup', handleTimerDragEnd);
+    document.removeEventListener('touchmove', handleTimerDragMove);
+    document.removeEventListener('touchend', handleTimerDragEnd);
+    // The panel doesn't track the pill live mid-drag; snap it to the new spot once the drag settles.
+    setIsTimerExpanded(current => {
+      if (current) setTimerPanelPos(computeTimerPanelPosition());
+      return current;
+    });
+  }, [handleTimerDragMove, computeTimerPanelPosition]);
+
+  const handleTimerDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button')) return; // let button clicks (play/reset/more) behave normally
+    const pillEl = timerPillRef.current;
+    if (!pillEl) return;
+
+    const rect = pillEl.getBoundingClientRect();
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+
+    // Real sidebar edge, not the pill's own default position — the default resting spot can
+    // sit further right than strictly necessary (e.g. aligned to a board rank), which would
+    // otherwise cap leftward dragging well before it actually reaches the sidebar.
+    const sidebarEl = document.querySelector('[data-app-sidebar]') as HTMLElement | null;
+    const minLeftBound = (sidebarEl ? sidebarEl.getBoundingClientRect().right : 0) + 8;
+
+    timerDragStartRef.current = {
+      startClientX: clientX,
+      startClientY: clientY,
+      startOffsetX: timerDragOffset.x,
+      startOffsetY: timerDragOffset.y,
+      defaultLeft: rect.left - timerDragOffset.x,
+      defaultTop: rect.top - timerDragOffset.y,
+      minLeftBound,
+    };
+    setIsDraggingTimer(true);
+
+    document.addEventListener('mousemove', handleTimerDragMove);
+    document.addEventListener('mouseup', handleTimerDragEnd);
+    document.addEventListener('touchmove', handleTimerDragMove, { passive: false });
+    document.addEventListener('touchend', handleTimerDragEnd);
+  }, [timerDragOffset, handleTimerDragMove, handleTimerDragEnd]);
+
+  useEffect(() => {
+    if (!isTimerExpanded) return;
+    const recalc = () => setTimerPanelPos(computeTimerPanelPosition());
+    recalc();
+    window.addEventListener('resize', recalc);
+    return () => window.removeEventListener('resize', recalc);
+  }, [isTimerExpanded, computeTimerPanelPosition]);
+
+  useEffect(() => {
+    if (!isTimerExpanded) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (timerPanelRef.current?.contains(target)) return;
+      if (timerPillRef.current?.contains(target)) return;
+      setIsTimerExpanded(false);
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [isTimerExpanded]);
+
+  // Precise drift-free interval timer logic
+  useEffect(() => {
+    let intervalId: any = null;
+
+    if (timerRunning) {
+      intervalId = setInterval(() => {
+        const currentElapsed = timerElapsedMs + (Date.now() - timerStartTimestamp);
+
+        if (timerMode === 'countdown') {
+          const remaining = Math.max(0, countdownTotalMs - currentElapsed);
+          setDisplayMs(remaining);
+
+          if (remaining <= 0) {
+            setTimerRunning(false);
+            setTimerElapsedMs(countdownTotalMs);
+            setIsTimeUpFlash(true);
+
+            // Play synthesized audio bells on countdown expiration via Web Audio API
+            if (soundEnabled) {
+              try {
+                const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                const now = ctx.currentTime;
+
+                // High pitch chime A5 (880Hz)
+                const osc1 = ctx.createOscillator();
+                const gain1 = ctx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(880, now);
+                gain1.gain.setValueAtTime(0.15, now);
+                gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                osc1.connect(gain1);
+                gain1.connect(ctx.destination);
+                osc1.start(now);
+                osc1.stop(now + 0.5);
+
+                // Harmony chime C#6 (1109.73Hz)
+                const osc2 = ctx.createOscillator();
+                const gain2 = ctx.createGain();
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(1109.73, now + 0.15);
+                gain2.gain.setValueAtTime(0.15, now + 0.15);
+                gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+                osc2.connect(gain2);
+                gain2.connect(ctx.destination);
+                osc2.start(now + 0.15);
+                osc2.stop(now + 0.65);
+              } catch (e) {
+                console.error('AudioContext warning chimes failed to play:', e);
+              }
+            }
+          }
+        } else {
+          // Count up stopwatch
+          setDisplayMs(currentElapsed);
+        }
+      }, 50); // 50ms tick frequency for high accuracy and response
+    } else {
+      if (timerMode === 'countdown') {
+        setDisplayMs(Math.max(0, countdownTotalMs - timerElapsedMs));
+      } else {
+        setDisplayMs(timerElapsedMs);
+      }
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [timerRunning, timerStartTimestamp, timerElapsedMs, timerMode, countdownTotalMs, soundEnabled]);
+
+  const handleStartTimer = () => {
+    if (!timerRunning) {
+      setIsTimeUpFlash(false);
+      setTimerStartTimestamp(Date.now());
+      setTimerRunning(true);
+    }
+  };
+
+  const handlePauseTimer = () => {
+    if (timerRunning) {
+      const sessionElapsed = Date.now() - timerStartTimestamp;
+      setTimerElapsedMs(prev => prev + sessionElapsed);
+      setTimerRunning(false);
+    }
+  };
+
+  const handleResetTimer = () => {
+    setTimerRunning(false);
+    setTimerElapsedMs(0);
+    setIsTimeUpFlash(false);
+    if (timerMode === 'countdown') {
+      setDisplayMs(countdownTotalMs);
+    } else {
+      setDisplayMs(0);
+    }
+  };
+
+  const handleSetPresetMs = (ms: number) => {
+    setTimerRunning(false);
+    setTimerElapsedMs(0);
+    setCountdownTotalMs(ms);
+    setDisplayMs(ms);
+    setIsTimeUpFlash(false);
+  };
+
+  const handleSetCustomTime = () => {
+    const mins = Math.max(0, parseInt(customMinutes) || 0);
+    const secs = Math.max(0, Math.min(59, parseInt(customSeconds) || 0));
+    const totalMs = (mins * 60 + secs) * 1000;
+    if (totalMs > 0) {
+      handleSetPresetMs(totalMs);
+      setShowCustomFields(false);
+    }
+  };
 
   useEffect(() => {
     if (isFreehand) {
@@ -108,8 +513,35 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
     }
   }, [isFreehand]);
 
+  useEffect(() => {
+    const handleBranding = () => {
+      setAnimationKey(prev => prev + 1);
+    };
+    window.addEventListener('vca-branding-updated', handleBranding);
+    return () => {
+      window.removeEventListener('vca-branding-updated', handleBranding);
+    };
+  }, []);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const cgRef = useRef<Api | null>(null);
+  const lastMovedFenRef = useRef<string>('');
+  const prevFenRef = useRef<string>('');
+
+  // Chessground caches the board's bounding rect for click/drag hit-testing and only
+  // re-measures when told to. Layout can still be settling (fonts, CSS transitions,
+  // branding CSS vars applied post-mount) when a single redrawAll() fires, leaving it
+  // with a stale rect that quietly maps clicks to the wrong square. Chaining through
+  // two animation frames ensures we re-measure only after the browser has actually
+  // finished painting the current layout.
+  const scheduleRedraw = useCallback(() => {
+    requestAnimationFrame(() => {
+      cgRef.current?.redrawAll();
+      requestAnimationFrame(() => {
+        cgRef.current?.redrawAll();
+      });
+    });
+  }, []);
 
   const [boardWidth, setBoardWidth] = useState<number | null>(null);
   const resizeStartRef = useRef<{ x: number; width: number } | null>(null);
@@ -124,10 +556,8 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
   }, []);
 
   useEffect(() => {
-    if (cgRef.current) {
-      cgRef.current.redrawAll();
-    }
-  }, [boardWidth]);
+    scheduleRedraw();
+  }, [boardWidth, scheduleRedraw]);
 
   const handleResizeEnd = useCallback(() => {
     resizeStartRef.current = null;
@@ -165,6 +595,9 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
     if (!boardEl) return;
 
     const handleWheel = (e: WheelEvent) => {
+      if ((e.target as Element)?.closest('[data-emoji-panel="true"]')) {
+        return;
+      }
       e.preventDefault();
       if (e.deltaY > 0) {
         // scroll down → next move
@@ -262,10 +695,12 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
     }
     
     if (move && chess) {
+      lastMovedFenRef.current = chess.fen();
       onMoveRef.current(move, currentIndexRef.current, chess.fen());
     } else if (isFreehandRef.current) {
       const freehandResult = movePieceInFen(currentFen, orig as string, dest as string);
       if (freehandResult) {
+        lastMovedFenRef.current = freehandResult.fen;
         onMoveRef.current({
           from: orig,
           to: dest,
@@ -293,6 +728,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
     }
     
     if (move && chess) {
+      lastMovedFenRef.current = chess.fen();
       onMoveRef.current(move, currentIndexRef.current, chess.fen());
     }
   };
@@ -359,12 +795,16 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
         ? [currentNode.from as Key, currentNode.to as Key]
         : undefined;
 
+      const animStyle = typeof document !== 'undefined'
+        ? (document.documentElement.getAttribute('data-piece-animation') || 'standard')
+        : 'standard';
+
       const config: Config = {
         fen: cleanFen,
         orientation: orientation,
         coordinates: false, // Disabled native coords, rendering our own in the frame
         turnColor: turnColor,
-        lastMove: lastMove,
+        lastMove: showLastMove ? lastMove : undefined,
         movable: {
           color: (isLockedRef.current || isHighlightMode || isArrowMode || isEmojiMode) ? undefined : (isFreehandRef.current ? 'both' : turnColor),
           free: isFreehandRef.current && !(isHighlightMode || isArrowMode || isEmojiMode),
@@ -381,8 +821,8 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           shapes: arrows as any,
         },
         animation: {
-          enabled: true,
-          duration: 200,
+          enabled: animStyle !== 'none' && animStyle !== 'teleport',
+          duration: animStyle === 'bounce' ? 300 : (animStyle === 'arcade' ? 250 : 200),
         },
       };
 
@@ -393,26 +833,30 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
     let observer: ResizeObserver | null = null;
     if (containerRef.current) {
       observer = new ResizeObserver(() => {
-        if (cgRef.current) {
-          cgRef.current.redrawAll();
-        }
+        scheduleRedraw();
       });
       observer.observe(containerRef.current);
     }
 
     // Set up window resize listener
     const handleResize = () => {
-      if (cgRef.current) {
-        cgRef.current.redrawAll();
-      }
+      scheduleRedraw();
     };
     window.addEventListener('resize', handleResize);
+    window.addEventListener('scroll', handleResize, { passive: true });
+
+    // Re-measure once web fonts finish loading — swapping fonts can reflow the
+    // board frame after chessground already cached its bounds.
+    document.fonts?.ready?.then(() => scheduleRedraw());
+
+    // Re-measure if the frame padding CSS var changes (e.g. branding settings
+    // applying `--board-frame-padding` on :root after this board has mounted).
+    const rootStyleObserver = new MutationObserver(() => scheduleRedraw());
+    rootStyleObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] });
 
     // Initial delay recalculation to handle any mounting shifts/transitions
     const mountTimer = setTimeout(() => {
-      if (cgRef.current) {
-        cgRef.current.redrawAll();
-      }
+      scheduleRedraw();
     }, 150);
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -450,15 +894,48 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
       }
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleResize);
       if (observer) {
         observer.disconnect();
       }
+      rootStyleObserver.disconnect();
       clearTimeout(mountTimer);
     };
-  }, [orientation, showCoordinates, isHighlightMode, isArrowMode]);
+  }, [orientation, showCoordinates, isHighlightMode, isArrowMode, scheduleRedraw]);
+
+  // Watchdog: ResizeObserver only reacts to width/height changes, not position.
+  // Anything that shifts the board on the page without resizing it (a sidebar
+  // owned by some unrelated ancestor, a reflow from content this component has
+  // no visibility into, etc.) leaves chessground's cached bounds stale with no
+  // event to hook into. Poll the container's actual rect and force a re-measure
+  // whenever it drifts from what we last saw — cheap, and catches drift from any
+  // cause instead of chasing individual triggers one at a time.
+  useEffect(() => {
+    const lastRect = { top: 0, left: 0, width: 0, height: 0 };
+    const interval = setInterval(() => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      if (
+        rect.top !== lastRect.top ||
+        rect.left !== lastRect.left ||
+        rect.width !== lastRect.width ||
+        rect.height !== lastRect.height
+      ) {
+        lastRect.top = rect.top;
+        lastRect.left = rect.left;
+        lastRect.width = rect.width;
+        lastRect.height = rect.height;
+        cgRef.current?.redrawAll();
+      }
+    }, 400);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (cgRef.current) {
+      const fenChanged = cleanFen !== prevFenRef.current;
+      prevFenRef.current = cleanFen;
+
       let turnColor: 'white' | 'black' = 'white';
       let dests: any = undefined;
       try {
@@ -477,12 +954,15 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
         ? [currentNode.from as Key, currentNode.to as Key]
         : undefined;
 
-      cgRef.current.set({
-        fen: cleanFen,
+      const animStyle = typeof document !== 'undefined'
+        ? (document.documentElement.getAttribute('data-piece-animation') || 'standard')
+        : 'standard';
+
+      const config: any = {
         orientation: orientation,
         coordinates: false, // Disabled native coords, rendering our own in the frame
         turnColor: turnColor,
-        lastMove: lastMove,
+        lastMove: showLastMove ? lastMove : undefined,
         movable: {
           color: (isLocked || isHighlightMode || isArrowMode || isEmojiMode) ? undefined : (isFreehand ? 'both' : turnColor),
           free: isFreehand && !(isHighlightMode || isArrowMode || isEmojiMode),
@@ -493,10 +973,144 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
         },
         drawable: {
           shapes: arrows as any,
+        },
+        animation: {
+          enabled: animStyle !== 'none' && animStyle !== 'teleport',
+          duration: animStyle === 'bounce' ? 300 : (animStyle === 'arcade' ? 250 : 200),
         }
-      });
+      };
+
+      if (cleanFen !== lastMovedFenRef.current) {
+        config.fen = cleanFen;
+      } else {
+        // Reset the ref since we matched it once
+        lastMovedFenRef.current = '';
+      }
+
+      let vanishEl: HTMLElement | null = null;
+      let trailEl: HTMLElement | null = null;
+      const fromSq = currentNode?.from;
+      const dest = lastMove?.[1];
+
+      // a. On move (BEFORE redrawing Chessground): clone the origin piece
+      if (fenChanged && lastMove && animStyle === 'teleport' && containerRef.current && fromSq && dest) {
+        const originPiece = findPieceAtSquare(containerRef.current, fromSq, orientation);
+        console.log(`[ChessBoard] Teleport: Origin piece found at ${fromSq}:`, originPiece);
+        if (originPiece) {
+          const bgImage = window.getComputedStyle(originPiece).backgroundImage;
+          const boardInner = containerRef.current.querySelector('.board-inner-playing-area') || containerRef.current;
+
+          const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+          const fromCol = orientation === 'white' ? files.indexOf(fromSq[0]) : 7 - files.indexOf(fromSq[0]);
+          const fromRow = orientation === 'white' ? 8 - parseInt(fromSq[1]) : parseInt(fromSq[1]) - 1;
+          
+          const toCol = orientation === 'white' ? files.indexOf(dest[0]) : 7 - files.indexOf(dest[0]);
+          const toRow = orientation === 'white' ? 8 - parseInt(dest[1]) : parseInt(dest[1]) - 1;
+
+          const dx = toCol - fromCol;
+          const dy = toRow - fromRow;
+          const len = Math.hypot(dx, dy);
+          const ux = len > 0 ? dx / len : 0;
+          const uy = len > 0 ? dy / len : 0;
+
+          const boardRect = containerRef.current.getBoundingClientRect();
+          const squareSize = boardRect.width / 8;
+          const tx = ux * (squareSize * 0.4);
+          const ty = uy * (squareSize * 0.4);
+
+          // Create temporary vanish element at origin
+          vanishEl = document.createElement('div');
+          vanishEl.className = 'vca-teleport-vanish';
+          vanishEl.style.backgroundImage = bgImage;
+          vanishEl.style.left = `${fromCol * 12.5}%`;
+          vanishEl.style.top = `${fromRow * 12.5}%`;
+          vanishEl.style.width = '12.5%';
+          vanishEl.style.height = '12.5%';
+
+          // Create temporary directional trail element at origin
+          trailEl = document.createElement('div');
+          trailEl.className = 'vca-teleport-trail';
+          trailEl.style.backgroundImage = bgImage;
+          trailEl.style.left = `${fromCol * 12.5}%`;
+          trailEl.style.top = `${fromRow * 12.5}%`;
+          trailEl.style.width = '12.5%';
+          trailEl.style.height = '12.5%';
+          trailEl.style.setProperty('--tx', `${tx}px`);
+          trailEl.style.setProperty('--ty', `${ty}px`);
+
+          boardInner.appendChild(vanishEl);
+          boardInner.appendChild(trailEl);
+          console.log(`[ChessBoard] Teleport: Origin vanish and trail overlay created successfully.`);
+        }
+      }
+
+      // b. Call Chessground move with animation duration 0 (instant placement)
+      cgRef.current.set(config);
+
+      // c. On next frame, query the destination piece element and run pop-in
+      if (fenChanged && lastMove && animStyle === 'teleport' && containerRef.current && dest) {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (!containerRef.current) return;
+            const pieceEl = findPieceAtSquare(containerRef.current, dest, orientation);
+            console.log(`[ChessBoard] Teleport: Destination piece found at ${dest} after redraw:`, pieceEl);
+            if (pieceEl) {
+              if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                console.log(`[ChessBoard] Teleport skipped due to prefers-reduced-motion`);
+                return;
+              }
+              pieceEl.classList.add('vca-teleport-piece');
+              console.log(`[ChessBoard] Added teleport class to destination piece. classes:`, pieceEl.className);
+
+              // d. Clean up overlays and classes
+              setTimeout(() => {
+                if (vanishEl) vanishEl.remove();
+                if (trailEl) trailEl.remove();
+                if (pieceEl) pieceEl.classList.remove('vca-teleport-piece');
+                console.log(`[ChessBoard] Teleport: Cleaned up overlays and classes.`);
+              }, 250);
+            } else {
+              console.warn(`[ChessBoard] Teleport: Destination piece at ${dest} not found!`);
+              setTimeout(() => {
+                if (vanishEl) vanishEl.remove();
+                if (trailEl) trailEl.remove();
+              }, 250);
+            }
+          });
+        });
+      }
+
+      // Trigger bounce if bounce animation is enabled
+      if (fenChanged && lastMove && animStyle === 'bounce') {
+        const destSq = lastMove[1];
+        console.log(`[ChessBoard] Bounce check: cleanFen Changed. dest: ${destSq}, orientation: ${orientation}`);
+        setTimeout(() => {
+          if (containerRef.current) {
+            const pieceEl = findPieceAtSquare(containerRef.current, destSq, orientation);
+            console.log(`[ChessBoard] Bounce target piece element found:`, pieceEl);
+            if (pieceEl) {
+              if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                console.log(`[ChessBoard] Bounce skipped due to prefers-reduced-motion`);
+                return;
+              }
+              // Ensure we don't clobber layout/transform. Adding a class that animates margin-top is additive.
+              pieceEl.classList.add('vca-bouncing-piece');
+              console.log(`[ChessBoard] Added bouncing class to piece. style:`, pieceEl.getAttribute('style'));
+              setTimeout(() => {
+                pieceEl.classList.remove('vca-bouncing-piece');
+                console.log(`[ChessBoard] Removed bouncing class from piece`);
+              }, 180);
+            }
+          }
+        }, 200); // Trigger after Chessground slide animation ends
+      }
+      // A move can change the height of sibling UI (move list, clock display,
+      // NAG badge, branch chooser) and shift the board's position on the page
+      // without resizing the board itself — ResizeObserver only reacts to size
+      // changes, not position, so it misses this. Force a re-measure here too.
+      scheduleRedraw();
     }
-  }, [fen, currentIndex, isLocked, arrows, orientation, showCoordinates, isFreehand, isHighlightMode, isArrowMode, isEmojiMode, currentNode, moveRejectedAt]);
+  }, [fen, currentIndex, isLocked, arrows, orientation, showCoordinates, showLastMove, isFreehand, isHighlightMode, isArrowMode, isEmojiMode, currentNode, moveRejectedAt, scheduleRedraw, animationKey]);
 
   // ── Clock logic ─────────────────────────────────────────────────────────
   const [whiteClock, setWhiteClock] = useState<string | null>(null);
@@ -725,6 +1339,35 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
     };
   }, [isHighlightMode, isArrowMode, orientation]);
 
+  const generatePgn = useCallback(() => {
+    try {
+      if (nodes && currentNode) {
+        let rootNodeId: string | null = null;
+        let curr = currentNode;
+        while (curr.parentId && nodes[curr.parentId]) {
+          curr = nodes[curr.parentId];
+        }
+        rootNodeId = curr.id;
+
+        if (rootNodeId && nodes[rootNodeId]) {
+          const rootFen = nodes[rootNodeId].fen?.split('|')[0] || "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+          const tags: Record<string, string> = {};
+          if (rootFen !== "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1") {
+            tags['SetUp'] = '1';
+            tags['FEN'] = rootFen;
+          }
+          const pgnString = buildPgnFromMoveTree(nodes, rootNodeId, tags);
+          if (pgnString) return pgnString;
+        }
+      }
+      
+      return history ? history.slice(0, currentIndex + 1).join('\n') : '';
+    } catch(e) {
+      console.error('Error generating PGN:', e);
+      return history ? history.slice(0, currentIndex + 1).join('\n') : '';
+    }
+  }, [nodes, currentNode, history, currentIndex]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Do not trigger shortcuts if user is typing in an input or textarea
@@ -743,13 +1386,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           const selection = window.getSelection()?.toString();
           if (!selection) {
             e.preventDefault();
-            try {
-              const chess = new Chess();
-              history.slice(0, currentIndex + 1).forEach(san => { try { chess.move(san); } catch(err){} });
-              navigator.clipboard.writeText(chess.pgn());
-            } catch(err) {
-              navigator.clipboard.writeText(history.slice(0, currentIndex + 1).join(' '));
-            }
+            navigator.clipboard.writeText(generatePgn());
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
           }
@@ -837,6 +1474,13 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
   const activeColor = fenParts.length > 1 ? fenParts[1] : 'w';
   const toPlay = activeColor === 'b' ? 'black' : 'white';
 
+  const timerTimeLabel = (() => {
+    const totalSecs = Math.ceil(displayMs / 1000);
+    const m = Math.floor(totalSecs / 60);
+    const s = totalSecs % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  })();
+
   return (
     <div className="chess-container" style={boardWidth ? { maxWidth: `${boardWidth}px` } : undefined}>
       <div 
@@ -844,12 +1488,244 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           shakeClass === 'heavy' ? 'shake-heavy' :
           shakeClass === 'medium' ? 'shake-medium' :
           shakeClass === 'light' ? 'shake-light' : ''
-        }`} 
+        } ${isTimeUpFlash ? 'vca-board-flash' : ''}`} 
         style={{ 
           position: 'relative',
           width: boardWidth ? `${boardWidth}px` : undefined
         }}
       >
+        {showTimerWidget && isCoachOrAdmin && (
+          <div
+            className={`vca-coach-timer-widget vca-timer-pill-collapsed ${isDraggingTimer ? 'vca-timer-dragging' : ''}`}
+            ref={timerPillRef}
+            style={{
+              background: timerGlassBackground,
+              transform: (timerDragOffset.x || timerDragOffset.y)
+                ? `translate(${timerDragOffset.x}px, ${timerDragOffset.y}px)`
+                : undefined
+            }}
+            onMouseDown={handleTimerDragStart}
+            onTouchStart={handleTimerDragStart}
+          >
+            <button
+              className={`vca-timer-btn vca-timer-pill-btn ${isTimerExpanded ? 'vca-timer-pill-btn-active' : ''}`}
+              style={timerMoreBtnStyle}
+              onClick={handleToggleTimerPanel}
+              title={isTimerExpanded ? "Close setup" : "Mode & duration"}
+            >
+              <MoreHorizontal size={timerSizePreset.icon} />
+            </button>
+
+            <CoachTimerRing
+              mode={timerMode}
+              displayMs={displayMs}
+              totalMs={countdownTotalMs}
+              timeLabel={timerTimeLabel}
+              size={timerSizePreset.ring}
+              strokeWidth={timerSizePreset.stroke}
+              accentColor={timerAppearance.accentColor || undefined}
+            />
+
+            {timerRunning ? (
+              <button className="vca-timer-btn vca-timer-pill-btn vca-timer-play-btn" style={timerPlayBtnStyle} onClick={handlePauseTimer} title="Pause">
+                <Pause size={timerSizePreset.playIcon} />
+              </button>
+            ) : (
+              <button className="vca-timer-btn vca-timer-pill-btn vca-timer-play-btn" style={timerPlayBtnStyle} onClick={handleStartTimer} title="Start" disabled={timerMode === 'countdown' && displayMs <= 0}>
+                <Play size={timerSizePreset.playIcon} />
+              </button>
+            )}
+
+            <button className="vca-timer-btn vca-timer-pill-btn" style={timerResetBtnStyle} onClick={handleResetTimer} title="Reset">
+              <RotateCcw size={timerSizePreset.icon} />
+            </button>
+          </div>
+        )}
+
+        {showTimerWidget && isCoachOrAdmin && isTimerExpanded && timerPanelPos && (
+          <div
+            className="vca-timer-settings-popover"
+            ref={timerPanelRef}
+            style={{ position: 'fixed', top: timerPanelPos.top, left: timerPanelPos.left, width: TIMER_PANEL_WIDTH, background: timerGlassBackground }}
+          >
+            <div className="vca-timer-panel-tabs">
+              <button
+                className={`vca-timer-panel-tab ${timerPanelTab === 'timer' ? 'active' : ''}`}
+                onClick={() => setTimerPanelTab('timer')}
+              >
+                Timer
+              </button>
+              <button
+                className={`vca-timer-panel-tab ${timerPanelTab === 'style' ? 'active' : ''}`}
+                onClick={() => setTimerPanelTab('style')}
+              >
+                Style
+              </button>
+            </div>
+
+            {timerPanelTab === 'timer' && (
+              <>
+                <div className="vca-timer-mode-selector">
+                  <button
+                    className={`vca-timer-mode-btn ${timerMode === 'countdown' ? 'active' : ''}`}
+                    onClick={() => { setTimerMode('countdown'); handleResetTimer(); }}
+                  >
+                    Countdown
+                  </button>
+                  <button
+                    className={`vca-timer-mode-btn ${timerMode === 'countup' ? 'active' : ''}`}
+                    onClick={() => { setTimerMode('countup'); handleResetTimer(); }}
+                  >
+                    Stopwatch
+                  </button>
+                </div>
+
+                {timerMode === 'countdown' && (
+                  <>
+                    <span className="vca-timer-popover-label">Duration</span>
+
+                    <div className="vca-timer-presets">
+                      {[
+                        { label: '30s', ms: 30000 },
+                        { label: '1m', ms: 60000 },
+                        { label: '2m', ms: 120000 },
+                        { label: '5m', ms: 300000 },
+                      ].map(({ label, ms }) => (
+                        <span
+                          key={ms}
+                          className={`vca-timer-preset-tag ${!showCustomFields && countdownTotalMs === ms ? 'active' : ''}`}
+                          onClick={() => { handleSetPresetMs(ms); setShowCustomFields(false); }}
+                        >
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+
+                    <span
+                      className={`vca-timer-custom-toggle ${showCustomFields ? 'active' : ''}`}
+                      onClick={() => setShowCustomFields(prev => !prev)}
+                    >
+                      Custom…
+                    </span>
+
+                    {showCustomFields && (
+                      <div className="vca-timer-custom-row">
+                        <input
+                          type="text"
+                          pattern="[0-9]*"
+                          value={customMinutes}
+                          onChange={(e) => setCustomMinutes(e.target.value.replace(/\D/g, '').slice(0, 3))}
+                          className="vca-timer-custom-input"
+                          placeholder="Min"
+                        />
+                        <span>m</span>
+                        <input
+                          type="text"
+                          pattern="[0-9]*"
+                          value={customSeconds}
+                          onChange={(e) => setCustomSeconds(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                          className="vca-timer-custom-input"
+                          placeholder="Sec"
+                        />
+                        <span>s</span>
+                        <button className="vca-timer-btn vca-timer-btn-primary" style={{ marginLeft: 'auto', padding: '4px 10px' }} onClick={handleSetCustomTime}>
+                          Set
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+
+            {timerPanelTab === 'style' && (
+              <div className="vca-timer-style-section">
+                <div className="vca-timer-style-row">
+                  <span className="vca-timer-popover-label">Opacity</span>
+                  <span className="vca-timer-style-value">{timerAppearance.opacity}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={40}
+                  max={100}
+                  value={timerAppearance.opacity}
+                  onChange={(e) => setTimerAppearance(prev => ({ ...prev, opacity: Number(e.target.value) }))}
+                  className="vca-timer-slider"
+                />
+
+                <span className="vca-timer-popover-label">Accent Color</span>
+                <div className="vca-timer-swatch-row">
+                  <button
+                    className={`vca-timer-swatch vca-timer-swatch-default ${!timerAppearance.accentColor ? 'active' : ''}`}
+                    onClick={() => setTimerAppearance(prev => ({ ...prev, accentColor: null }))}
+                    title="Default"
+                  />
+                  {TIMER_ACCENT_PRESETS.map(color => (
+                    <button
+                      key={color}
+                      className={`vca-timer-swatch ${timerAppearance.accentColor === color ? 'active' : ''}`}
+                      style={{ background: color }}
+                      onClick={() => setTimerAppearance(prev => ({ ...prev, accentColor: color }))}
+                      title={color}
+                    />
+                  ))}
+                  <input
+                    type="color"
+                    className="vca-timer-color-input"
+                    value={timerAppearance.accentColor || '#c8854a'}
+                    onChange={(e) => setTimerAppearance(prev => ({ ...prev, accentColor: e.target.value }))}
+                    title="Custom color"
+                  />
+                </div>
+
+                <span className="vca-timer-popover-label">Glass Tint</span>
+                <div className="vca-timer-swatch-row">
+                  <button
+                    className={`vca-timer-swatch vca-timer-swatch-default ${!timerAppearance.glassTint ? 'active' : ''}`}
+                    onClick={() => setTimerAppearance(prev => ({ ...prev, glassTint: null }))}
+                    title="Default"
+                  />
+                  {TIMER_TINT_PRESETS.map(color => (
+                    <button
+                      key={color}
+                      className={`vca-timer-swatch ${timerAppearance.glassTint === color ? 'active' : ''}`}
+                      style={{ background: color }}
+                      onClick={() => setTimerAppearance(prev => ({ ...prev, glassTint: color }))}
+                      title={color}
+                    />
+                  ))}
+                  <input
+                    type="color"
+                    className="vca-timer-color-input"
+                    value={timerAppearance.glassTint || '#ffffff'}
+                    onChange={(e) => setTimerAppearance(prev => ({ ...prev, glassTint: e.target.value }))}
+                    title="Custom color"
+                  />
+                </div>
+
+                <span className="vca-timer-popover-label">Size</span>
+                <div className="vca-timer-mode-selector">
+                  {(['small', 'medium', 'large'] as const).map(sizeOption => (
+                    <button
+                      key={sizeOption}
+                      className={`vca-timer-mode-btn ${timerAppearance.size === sizeOption ? 'active' : ''}`}
+                      onClick={() => setTimerAppearance(prev => ({ ...prev, size: sizeOption }))}
+                    >
+                      {sizeOption[0].toUpperCase() + sizeOption.slice(1)}
+                    </button>
+                  ))}
+                </div>
+
+                <span
+                  className="vca-timer-custom-toggle"
+                  onClick={() => setTimerAppearance(TIMER_APPEARANCE_DEFAULTS)}
+                >
+                  Reset to default
+                </span>
+              </div>
+            )}
+          </div>
+        )}
         {/* Outer frame: handles all theme styling, padding, and borders */}
         <div className="board-outer-frame board-clip" style={{ display: 'flex', width: '100%', height: '100%', boxSizing: 'border-box', position: 'relative' }}>
           {/* Custom Frame Coordinates */}
@@ -1080,6 +1956,32 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           )}
         </div>
 
+        {/* Time's up banner overlay */}
+        {isTimeUpFlash && (
+          <div className="vca-time-up-overlay" style={{
+            position: 'absolute',
+            inset: 'var(--board-frame-padding, 0)',
+            backgroundColor: 'rgba(0, 0, 0, 0.45)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 900,
+            animation: 'fadeIn 0.2s ease-out',
+            pointerEvents: 'none'
+          }}>
+            <div className="vca-time-up-text" style={{
+              color: '#ffffff',
+              fontSize: 'clamp(2rem, 8vw, 3.5rem)',
+              fontWeight: 800,
+              fontFamily: 'inherit',
+              textShadow: '0 4px 12px rgba(0,0,0,0.6)',
+              animation: 'scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
+            }}>
+              Time's Up!
+            </div>
+          </div>
+        )}
+
         <div 
           className="resize-handle" 
           onMouseDown={handleResizeStart}
@@ -1094,9 +1996,21 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
               <div className="tools-menu-header">Tools</div>
 
               <div className="tools-grid-container">
-                {/* BOARD */}
+                {/* Column 1 */}
                 <div className="tools-grid-column">
+                  {/* SECTION 1: BOARD */}
                   <div className="tools-section-label">BOARD</div>
+                  <div className="tools-section-divider" style={{ margin: '4px 16px 8px 16px' }} />
+                  
+                  {onSetupPosition && (
+                    <button
+                      className="tools-menu-row tools-row-btn"
+                      onClick={() => { setShowSetupModal(true); setShowToolsMenu(false); }}
+                    >
+                      <span className="tools-row-icon"><LayoutGrid size={15} /></span>
+                      <span className="tools-row-label">Setup Position</span>
+                    </button>
+                  )}
                   {onMoreTools && (
                     <div className="tools-menu-row tools-menu-row-clickable" onClick={() => { onMoreTools(); }}>
                       <span className="tools-row-icon"><Lock size={15} /></span>
@@ -1110,62 +2024,16 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
                       </button>
                     </div>
                   )}
-                  <div className="tools-menu-row tools-menu-row-clickable" onClick={() => setUserShowClocks(prev => !prev)}>
-                    <span className="tools-row-icon"><Clock size={15} /></span>
-                    <span className="tools-row-label">Show Clocks</span>
-                    <button
-                      className={`tools-toggle ${userShowClocks ? 'tools-toggle-on' : ''}`}
-                      onClick={(e) => { e.stopPropagation(); setUserShowClocks(prev => !prev); }}
-                      aria-label="Toggle Clocks"
-                    >
-                      <span className="tools-toggle-knob" />
-                    </button>
-                  </div>
-                  {onSetupPosition && (
-                    <button
-                      className="tools-menu-row tools-row-btn"
-                      onClick={() => { setShowSetupModal(true); setShowToolsMenu(false); }}
-                    >
-                      <span className="tools-row-icon"><LayoutGrid size={15} /></span>
-                      <span className="tools-row-label">Setup Position</span>
-                    </button>
-                  )}
-                  {onUploadPgn && (
-                    <button
-                      className="tools-menu-row tools-row-btn"
-                      onClick={() => { setShowUploadPgnModal(true); setShowToolsMenu(false); }}
-                    >
-                      <span className="tools-row-icon"><Upload size={15} /></span>
-                      <span className="tools-row-label">Upload PGN</span>
-                    </button>
-                  )}
-                  {onUpdatePgn && (
-                    <button
-                      className="tools-menu-row tools-row-btn"
-                      onClick={() => { onUpdatePgn(); setShowToolsMenu(false); }}
-                    >
-                      <span className="tools-row-icon"><Check size={15} /></span>
-                      <span className="tools-row-label">Save Changes</span>
-                    </button>
-                  )}
-                  {onSaveToDb && (
-                    <button
-                      className="tools-menu-row tools-row-btn"
-                      onClick={() => { onSaveToDb(); setShowToolsMenu(false); }}
-                    >
-                      <span className="tools-row-icon"><Database size={15} /></span>
-                      <span className="tools-row-label">Save As New Game</span>
-                    </button>
-                  )}
-                  {onCreateNewPgn && (
-                    <button
-                      className="tools-menu-row tools-row-btn"
-                      onClick={() => { onCreateNewPgn(); setShowToolsMenu(false); }}
-                    >
-                      <span className="tools-row-icon"><PlusSquare size={15} /></span>
-                      <span className="tools-row-label">New PGN (Clear)</span>
-                    </button>
-                  )}
+                  <button
+                    className="tools-menu-row tools-row-btn"
+                    onClick={() => {
+                      setOrientation(o => o === 'white' ? 'black' : 'white');
+                      setShowToolsMenu(false);
+                    }}
+                  >
+                    <span className="tools-row-icon"><ArrowUpDown size={15} /></span>
+                    <span className="tools-row-label">Flip Board</span>
+                  </button>
                   {onNullMove && (
                     <button
                       className="tools-menu-row tools-row-btn"
@@ -1175,67 +2043,13 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
                       <span className="tools-row-label">Null Move (Pass)</span>
                     </button>
                   )}
-                </div>
 
-                {/* COPY */}
-                <div className="tools-grid-column">
-                  <div className="tools-section-label">COPY</div>
-                  <button
-                    className="tools-menu-row tools-row-btn"
-                    onClick={() => {
-                      try {
-                        const chess = new Chess();
-                        const moves = history ? history.slice(0, currentIndex + 1) : [];
-                        moves.forEach(san => { try { chess.move(san); } catch(e){} });
-                        const pgnString = chess.pgn();
-                        if (pgnString) {
-                          navigator.clipboard.writeText(pgnString);
-                        } else {
-                          navigator.clipboard.writeText(moves.join(' '));
-                        }
-                      } catch(e) {
-                        const moves = history ? history.slice(0, currentIndex + 1) : [];
-                        navigator.clipboard.writeText(moves.join(' '));
-                      }
-                      setCopiedAction('pgn');
-                      setTimeout(() => setCopiedAction(null), 2000);
-                    }}
-                  >
-                    <span className="tools-row-icon"><FileText size={15} /></span>
-                    <span className="tools-row-label">{copiedAction === 'pgn' ? 'Copied!' : 'Copy PGN'}</span>
-                  </button>
-                  <button
-                    className="tools-menu-row tools-row-btn"
-                    onClick={() => {
-                      navigator.clipboard.writeText(fen);
-                      setCopiedAction('fen');
-                      setTimeout(() => setCopiedAction(null), 2000);
-                    }}
-                  >
-                    <span className="tools-row-icon"><Copy size={15} /></span>
-                    <span className="tools-row-label">{copiedAction === 'fen' ? 'Copied!' : 'Copy FEN'}</span>
-                  </button>
-                </div>
+                  <div style={{ height: '16px' }} />
 
-                {/* VIEW */}
-                <div className="tools-grid-column">
-                  <div className="tools-section-label">VIEW</div>
-                  <div className="tools-menu-row tools-menu-row-clickable" onClick={() => setShowCoordinates(prev => !prev)}>
-                    <span className="tools-row-icon"><Eye size={15} /></span>
-                    <span className="tools-row-label">Show Coordinates</span>
-                    <button
-                      className={`tools-toggle ${showCoordinates ? 'tools-toggle-on' : ''}`}
-                      onClick={(e) => { e.stopPropagation(); setShowCoordinates(prev => !prev); }}
-                      aria-label="Toggle Coordinates"
-                    >
-                      <span className="tools-toggle-knob" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* ANNOTATION TOOLS */}
-                <div className="tools-grid-column">
+                  {/* SECTION 3: ANNOTATION TOOLS */}
                   <div className="tools-section-label">ANNOTATION TOOLS</div>
+                  <div className="tools-section-divider" style={{ margin: '4px 16px 8px 16px' }} />
+                  
                   <div className="tools-menu-row tools-menu-row-clickable" onClick={() => {
                       setIsArrowMode(prev => {
                         const next = !prev;
@@ -1317,6 +2131,125 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
                       <span className="tools-row-label">Clear Annotations</span>
                     </button>
                   )}
+                </div>
+
+                {/* Column 2 */}
+                <div className="tools-grid-column">
+                  {/* SECTION 2: DISPLAY */}
+                  <div className="tools-section-label">DISPLAY</div>
+                  <div className="tools-section-divider" style={{ margin: '4px 16px 8px 16px' }} />
+                  
+                  <div className="tools-menu-row tools-menu-row-clickable" onClick={() => setShowCoordinates(prev => !prev)}>
+                    <span className="tools-row-icon"><Eye size={15} /></span>
+                    <span className="tools-row-label">Show Coordinates</span>
+                    <button
+                      className={`tools-toggle ${showCoordinates ? 'tools-toggle-on' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); setShowCoordinates(prev => !prev); }}
+                      aria-label="Toggle Coordinates"
+                    >
+                      <span className="tools-toggle-knob" />
+                    </button>
+                  </div>
+                  <div className="tools-menu-row tools-menu-row-clickable" onClick={() => setUserShowClocks(prev => !prev)}>
+                    <span className="tools-row-icon"><Clock size={15} /></span>
+                    <span className="tools-row-label">Show Clocks</span>
+                    <button
+                      className={`tools-toggle ${userShowClocks ? 'tools-toggle-on' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); setUserShowClocks(prev => !prev); }}
+                      aria-label="Toggle Clocks"
+                    >
+                      <span className="tools-toggle-knob" />
+                    </button>
+                  </div>
+                  {isCoachOrAdmin && (
+                    <div className="tools-menu-row tools-menu-row-clickable" onClick={() => setShowTimerWidget(prev => !prev)}>
+                      <span className="tools-row-icon"><Hourglass size={15} /></span>
+                      <span className="tools-row-label">Coach Timer</span>
+                      <button
+                        className={`tools-toggle ${showTimerWidget ? 'tools-toggle-on' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); setShowTimerWidget(prev => !prev); }}
+                        aria-label="Toggle Coach Timer"
+                      >
+                        <span className="tools-toggle-knob" />
+                      </button>
+                    </div>
+                  )}
+                  <div className="tools-menu-row tools-menu-row-clickable" onClick={() => setShowLastMove(prev => !prev)}>
+                    <span className="tools-row-icon"><Lightbulb size={15} /></span>
+                    <span className="tools-row-label">Highlight Last Move</span>
+                    <button
+                      className={`tools-toggle ${showLastMove ? 'tools-toggle-on' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); setShowLastMove(prev => !prev); }}
+                      aria-label="Toggle Highlight Last Move"
+                    >
+                      <span className="tools-toggle-knob" />
+                    </button>
+                  </div>
+
+                  <div style={{ height: '16px' }} />
+
+                  {/* SECTION 4: FILE */}
+                  <div className="tools-section-label">FILE</div>
+                  <div className="tools-section-divider" style={{ margin: '4px 16px 8px 16px' }} />
+                  
+                  {onUploadPgn && (
+                    <button
+                      className="tools-menu-row tools-row-btn"
+                      onClick={() => { setShowUploadPgnModal(true); setShowToolsMenu(false); }}
+                    >
+                      <span className="tools-row-icon"><Upload size={15} /></span>
+                      <span className="tools-row-label">Upload PGN</span>
+                    </button>
+                  )}
+                  {onUpdatePgn && (
+                    <button
+                      className="tools-menu-row tools-row-btn"
+                      onClick={() => { onUpdatePgn(); setShowToolsMenu(false); }}
+                    >
+                      <span className="tools-row-icon"><Check size={15} /></span>
+                      <span className="tools-row-label">Save Changes</span>
+                    </button>
+                  )}
+                  {onSaveToDb && (
+                    <button
+                      className="tools-menu-row tools-row-btn"
+                      onClick={() => { onSaveToDb(); setShowToolsMenu(false); }}
+                    >
+                      <span className="tools-row-icon"><Database size={15} /></span>
+                      <span className="tools-row-label">Save As New Game</span>
+                    </button>
+                  )}
+                  {onCreateNewPgn && (
+                    <button
+                      className="tools-menu-row tools-row-btn"
+                      onClick={() => { onCreateNewPgn(); setShowToolsMenu(false); }}
+                    >
+                      <span className="tools-row-icon"><PlusSquare size={15} /></span>
+                      <span className="tools-row-label">New PGN (Clear)</span>
+                    </button>
+                  )}
+                  <button
+                    className="tools-menu-row tools-row-btn"
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatePgn());
+                      setCopiedAction('pgn');
+                      setTimeout(() => setCopiedAction(null), 2000);
+                    }}
+                  >
+                    <span className="tools-row-icon"><FileText size={15} /></span>
+                    <span className="tools-row-label">{copiedAction === 'pgn' ? 'Copied!' : 'Copy PGN'}</span>
+                  </button>
+                  <button
+                    className="tools-menu-row tools-row-btn"
+                    onClick={() => {
+                      navigator.clipboard.writeText(fen);
+                      setCopiedAction('fen');
+                      setTimeout(() => setCopiedAction(null), 2000);
+                    }}
+                  >
+                    <span className="tools-row-icon"><Copy size={15} /></span>
+                    <span className="tools-row-label">{copiedAction === 'fen' ? 'Copied!' : 'Copy FEN'}</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -2129,5 +3062,38 @@ function movePieceInFen(fen: string, from: string, to: string): { fen: string; s
     return null;
   }
 }
+
+const findPieceAtSquare = (boardEl: HTMLElement, square: string, orientation: 'white' | 'black') => {
+  const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+  const col = orientation === 'white' 
+    ? files.indexOf(square[0]) 
+    : 7 - files.indexOf(square[0]);
+  const row = orientation === 'white' 
+    ? 8 - parseInt(square[1]) 
+    : parseInt(square[1]) - 1;
+
+  const playingArea = boardEl.querySelector('.board-inner-playing-area') || boardEl;
+  const boardRect = playingArea.getBoundingClientRect();
+  const squareSize = boardRect.width / 8;
+  const expectedX = boardRect.left + col * squareSize + squareSize / 2;
+  const expectedY = boardRect.top + row * squareSize + squareSize / 2;
+
+  let closestPiece: HTMLElement | null = null;
+  let minDistance = Infinity;
+
+  const pieces = boardEl.querySelectorAll('piece');
+  pieces.forEach(p => {
+    const pRect = p.getBoundingClientRect();
+    const pCenterX = pRect.left + pRect.width / 2;
+    const pCenterY = pRect.top + pRect.height / 2;
+    const dist = Math.hypot(pCenterX - expectedX, pCenterY - expectedY);
+    if (dist < minDistance && dist < squareSize) {
+      minDistance = dist;
+      closestPiece = p as HTMLElement;
+    }
+  });
+
+  return closestPiece;
+};
 
 export default ChessBoard;

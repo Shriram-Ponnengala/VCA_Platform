@@ -27,6 +27,7 @@ function DynamicLabel({ path, defaultLabel, prevPath }: { path: string, defaultL
       if (prevPath === 'students') endpoint = `/api/students/${path}`;
       else if (prevPath === 'coaches') endpoint = `/api/coaches/${path}`;
       else if (prevPath === 'users') endpoint = `/api/users/${path}`;
+      // NOTE: 'sessions' is intentionally excluded — /api/sessions/:id doesn't exist
 
       if (endpoint) {
         fetch(endpoint)

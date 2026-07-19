@@ -1,19 +1,7 @@
+import Script from "next/script";
 import type { Metadata } from "next";
-import { Inter, Playfair_Display, DM_Sans, Montserrat, Poppins, Roboto, Open_Sans, Oleo_Script, Lato, Merriweather, Nunito } from "next/font/google";
 import "./globals.css";
 import BrandingProvider from "@/components/providers/BrandingProvider";
-
-const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
-const playfair = Playfair_Display({ variable: "--font-playfair", subsets: ["latin"] });
-const dmSans = DM_Sans({ variable: "--font-dm-sans", subsets: ["latin"] });
-const montserrat = Montserrat({ variable: "--font-montserrat", subsets: ["latin"] });
-const poppins = Poppins({ variable: "--font-poppins", weight: ["300", "400", "500", "600", "700"], subsets: ["latin"] });
-const roboto = Roboto({ variable: "--font-roboto", weight: ["300", "400", "500", "700"], subsets: ["latin"] });
-const openSans = Open_Sans({ variable: "--font-open-sans", subsets: ["latin"] });
-const oleoScript = Oleo_Script({ variable: "--font-oleo-script", weight: ["400", "700"], subsets: ["latin"] });
-const lato = Lato({ variable: "--font-lato", weight: ["300", "400", "700", "900"], subsets: ["latin"] });
-const merriweather = Merriweather({ variable: "--font-merriweather", weight: ["300", "400", "700", "900"], subsets: ["latin"] });
-const nunito = Nunito({ variable: "--font-nunito", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Venture Chess Academy | Management Portal",
@@ -26,9 +14,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${playfair.variable} ${dmSans.variable} ${montserrat.variable} ${poppins.variable} ${roboto.variable} ${openSans.variable} ${oleoScript.variable} ${lato.variable} ${merriweather.variable} ${nunito.variable}`}>
+    <html lang="en">
       <head>
-        <script
+        <Script
+          id="perf-silencer"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
@@ -46,6 +36,9 @@ export default function RootLayout({
             `
           }}
         />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Inter:wght@100..900&family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400;1,700;1,900&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Nunito:ital,wght@0,200..1000;1,200..1000&family=Oleo+Script:wght@400;700&family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet" />
         <link
           id="branding-css-link"
           rel="stylesheet"

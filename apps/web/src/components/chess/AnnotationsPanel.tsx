@@ -407,6 +407,7 @@ export const AnnotationsPanel: React.FC<AnnotationsPanelProps> = ({
         .ap-content {
           padding: 12px;
           flex: 1;
+          overflow-y: auto;
         }
 
         /* TAGS TAB */

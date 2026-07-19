@@ -157,6 +157,7 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
   });
   const [expandedCollections, setExpandedCollections] = useState<Record<string, boolean>>({});
   const [collectionPages, setCollectionPages] = useState<Record<string, number>>({});
+  const [collectionPageInputs, setCollectionPageInputs] = useState<Record<string, string>>({});
 
   // Selection state
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
@@ -1531,14 +1532,51 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                setCollectionPages(prev => ({ ...prev, [col.id]: currentPage - 1 }));
+                const next = currentPage - 1;
+                setCollectionPages(prev => ({ ...prev, [col.id]: next }));
+                setCollectionPageInputs(prev => ({ ...prev, [col.id]: String(next) }));
               }}
             >
-              Prev
+              ‹
             </button>
-            <span className="pagination-info">
-              {currentPage} / {totalPages}
-            </span>
+            <div className="pagination-jump-wrapper" onClick={(e) => e.stopPropagation()}>
+              <input
+                type="number"
+                className="pagination-jump-input"
+                min={1}
+                max={totalPages}
+                value={collectionPageInputs[col.id] ?? String(currentPage)}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  setCollectionPageInputs(prev => ({ ...prev, [col.id]: e.target.value }));
+                }}
+                onBlur={(e) => {
+                  e.stopPropagation();
+                  const val = parseInt(collectionPageInputs[col.id] || '', 10);
+                  if (!isNaN(val) && val >= 1 && val <= totalPages) {
+                    setCollectionPages(prev => ({ ...prev, [col.id]: val }));
+                    setCollectionPageInputs(prev => ({ ...prev, [col.id]: String(val) }));
+                  } else {
+                    setCollectionPageInputs(prev => ({ ...prev, [col.id]: String(currentPage) }));
+                  }
+                }}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === 'Enter') {
+                    const val = parseInt(collectionPageInputs[col.id] || '', 10);
+                    if (!isNaN(val) && val >= 1 && val <= totalPages) {
+                      setCollectionPages(prev => ({ ...prev, [col.id]: val }));
+                      setCollectionPageInputs(prev => ({ ...prev, [col.id]: String(val) }));
+                    } else {
+                      setCollectionPageInputs(prev => ({ ...prev, [col.id]: String(currentPage) }));
+                    }
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <span className="pagination-of">/ {totalPages}</span>
+            </div>
             <button
               type="button"
               className="pagination-btn"
@@ -1546,10 +1584,12 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                setCollectionPages(prev => ({ ...prev, [col.id]: currentPage + 1 }));
+                const next = currentPage + 1;
+                setCollectionPages(prev => ({ ...prev, [col.id]: next }));
+                setCollectionPageInputs(prev => ({ ...prev, [col.id]: String(next) }));
               }}
             >
-              Next
+              ›
             </button>
           </div>
         )}
@@ -3208,6 +3248,39 @@ export default function DatabaseModule({ role }: DatabaseModuleProps) {
           font-size: 0.75rem;
           font-weight: 600;
           color: #7a625d;
+        }
+        .pagination-jump-wrapper {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+        .pagination-jump-input {
+          width: 36px;
+          padding: 2px 4px;
+          border: 1px solid #eedcd0;
+          border-radius: 4px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: #4a2018;
+          text-align: center;
+          outline: none;
+          background: #ffffff;
+          -moz-appearance: textfield;
+        }
+        .pagination-jump-input::-webkit-inner-spin-button,
+        .pagination-jump-input::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        .pagination-jump-input:focus {
+          border-color: #c8854a;
+          box-shadow: 0 0 0 2px rgba(200,133,74,0.15);
+        }
+        .pagination-of {
+          font-size: 0.75rem;
+          color: #7a625d;
+          font-weight: 600;
+          white-space: nowrap;
         }
 
         /* Context Menu & Modals */

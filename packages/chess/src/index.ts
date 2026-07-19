@@ -195,9 +195,22 @@ function preprocessFen(fen: string): { cleanFen: string; addedKings: { white?: s
     board.push(boardRow);
   }
 
+  // Strip pawns from rank 8 (board row 0) and rank 1 (board row 7)
+  // chess.js rejects any FEN that has pawns on those rows
+  let removedIllegalPawns = false;
+  for (const edgeRow of [0, 7]) {
+    for (let c = 0; c < 8; c++) {
+      const piece = board[edgeRow][c];
+      if (piece === 'P' || piece === 'p') {
+        board[edgeRow][c] = '';
+        removedIllegalPawns = true;
+      }
+    }
+  }
+
   const addedKings: { white?: string; black?: string } = {};
 
-  if (hasWhiteKing && hasBlackKing) {
+  if (hasWhiteKing && hasBlackKing && !removedIllegalPawns) {
     return { cleanFen: fen, addedKings };
   }
 
@@ -250,6 +263,7 @@ function preprocessFen(fen: string): { cleanFen: string; addedKings: { white?: s
     addedKings
   };
 }
+
 
 function stripSquaresFromFen(cleanFen: string, squaresToStrip: string[]): string {
   const parts = cleanFen.split(' ');

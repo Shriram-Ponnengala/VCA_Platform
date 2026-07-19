@@ -1,52 +1,8 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Volume2, VolumeX, X } from 'lucide-react';
+import { Volume2, VolumeX, X, ChevronDown, ChevronUp, Pencil, Star, Undo2 } from 'lucide-react';
+import { useEmojiPreferences } from '../../lib/hooks/useEmojiPreferences';
 
-export interface EmojiConfig {
-  id: string;
-  glyph: string;
-  name: string;
-  shortcutKey: string; // '' means palette-only, no keyboard shortcut
-  animation: 'slam' | 'angry' | 'rise' | 'giggle' | 'droop' | 'wag' | 'bob' | 'spin' | 'zip';
-  shakeLevel: 'heavy' | 'medium' | 'light' | 'none';
-  shock: boolean;
-  burst: boolean;
-  flash: 'white' | 'red' | 'none';
-  sound: 'thud' | 'pop' | 'whoosh' | 'tone' | 'blips' | 'snore';
-  particles: {
-    glyphs: string[];
-    count: number;
-    mode: 'burst' | 'rain' | 'rise' | 'orbit';
-  };
-}
-
-export const EMOJIS: EmojiConfig[] = [
-  { id: 'angry', glyph: '😠', name: 'angry', shortcutKey: 'A', animation: 'angry', shakeLevel: 'heavy', shock: false, burst: false, flash: 'red', sound: 'thud', particles: { glyphs: ['💨', '♨️', '🔥', '😠'], count: 12, mode: 'rise' } },
-  { id: 'party', glyph: '🥳', name: 'party', shortcutKey: 'B', animation: 'giggle', shakeLevel: 'none', shock: false, burst: false, flash: 'none', sound: 'blips', particles: { glyphs: ['🎉', '🎊', '✨', '🎈', '🌟'], count: 20, mode: 'rise' } },
-  { id: 'crying', glyph: '😭', name: 'crying', shortcutKey: 'C', animation: 'droop', shakeLevel: 'none', shock: false, burst: false, flash: 'none', sound: 'tone', particles: { glyphs: ['💧', '💦', '😭', '😢'], count: 16, mode: 'rain' } },
-  { id: 'dizzy', glyph: '😵‍💫', name: 'dizzy', shortcutKey: 'D', animation: 'spin', shakeLevel: 'light', shock: false, burst: false, flash: 'none', sound: 'whoosh', particles: { glyphs: ['💫', '⭐', '✨', '🌀'], count: 12, mode: 'orbit' } },
-  { id: 'peeking', glyph: '🫣', name: 'peeking', shortcutKey: 'E', animation: 'rise', shakeLevel: 'none', shock: false, burst: false, flash: 'none', sound: 'tone', particles: { glyphs: ['✨', '💫'], count: 6, mode: 'rise' } },
-  { id: 'thinking', glyph: '🤔', name: 'thinking', shortcutKey: 'F', animation: 'bob', shakeLevel: 'none', shock: false, burst: false, flash: 'none', sound: 'tone', particles: { glyphs: ['❓', '💭', '✨'], count: 8, mode: 'rise' } },
-  { id: 'ok', glyph: '👌', name: 'ok', shortcutKey: 'G', animation: 'giggle', shakeLevel: 'none', shock: false, burst: false, flash: 'none', sound: 'pop', particles: { glyphs: ['✨', '⭐', '👌'], count: 10, mode: 'burst' } },
-  { id: 'happy', glyph: '😄', name: 'happy', shortcutKey: 'H', animation: 'giggle', shakeLevel: 'none', shock: false, burst: false, flash: 'none', sound: 'pop', particles: { glyphs: ['🎉', '✨', '⭐', '🎈', '😄'], count: 14, mode: 'rise' } },
-  { id: 'hii', glyph: '👋', name: 'hii', shortcutKey: 'I', animation: 'wag', shakeLevel: 'none', shock: false, burst: false, flash: 'none', sound: 'whoosh', particles: { glyphs: ['👋', '✨', '🌸', '💫'], count: 10, mode: 'orbit' } },
-  { id: 'clown', glyph: '🤡', name: 'clown', shortcutKey: 'J', animation: 'wag', shakeLevel: 'none', shock: false, burst: false, flash: 'none', sound: 'pop', particles: { glyphs: ['🎈', '✨', '🌸', '🎪'], count: 14, mode: 'rise' } },
-  { id: 'handshake', glyph: '🤝', name: 'handshake', shortcutKey: 'K', animation: 'slam', shakeLevel: 'heavy', shock: true, burst: true, flash: 'white', sound: 'thud', particles: { glyphs: ['💥', '🤝', '⭐', '✨'], count: 16, mode: 'burst' } },
-  { id: 'laughing', glyph: '😂', name: 'laughing', shortcutKey: 'L', animation: 'giggle', shakeLevel: 'light', shock: false, burst: false, flash: 'none', sound: 'blips', particles: { glyphs: ['😂', '😆', '😹'], count: 12, mode: 'burst' } },
-  { id: 'mindblown', glyph: '🤯', name: 'mindblown', shortcutKey: 'M', animation: 'slam', shakeLevel: 'heavy', shock: true, burst: true, flash: 'white', sound: 'thud', particles: { glyphs: ['💥', '🔥', '✨', '⭐', '💫'], count: 20, mode: 'burst' } },
-  { id: 'yawning', glyph: '🥱', name: 'yawning', shortcutKey: 'N', animation: 'bob', shakeLevel: 'none', shock: false, burst: false, flash: 'none', sound: 'snore', particles: { glyphs: ['💤', '🥱', 'z', 'Z'], count: 8, mode: 'rise' } },
-  { id: 'cool', glyph: '😎', name: 'cool', shortcutKey: 'O', animation: 'giggle', shakeLevel: 'none', shock: false, burst: false, flash: 'none', sound: 'pop', particles: { glyphs: ['✨', '😎', '⭐', '🕶️'], count: 12, mode: 'burst' } },
-  { id: 'punch', glyph: '👊', name: 'punch', shortcutKey: 'P', animation: 'slam', shakeLevel: 'heavy', shock: true, burst: true, flash: 'white', sound: 'thud', particles: { glyphs: ['💥', '✨', '⭐', '👊', '🔥'], count: 18, mode: 'burst' } },
-  { id: 'shush', glyph: '🤫', name: 'shush', shortcutKey: 'Q', animation: 'rise', shakeLevel: 'none', shock: false, burst: false, flash: 'none', sound: 'tone', particles: { glyphs: ['🤫', '💨', '✨'], count: 6, mode: 'rise' } },
-  { id: 'clap', glyph: '👏', name: 'clap', shortcutKey: 'R', animation: 'slam', shakeLevel: 'light', shock: false, burst: false, flash: 'none', sound: 'thud', particles: { glyphs: ['✨', '⭐', '👏'], count: 12, mode: 'burst' } },
-  { id: 'sad', glyph: '😢', name: 'sad', shortcutKey: 'S', animation: 'droop', shakeLevel: 'none', shock: false, burst: false, flash: 'none', sound: 'tone', particles: { glyphs: ['💧', '💦', '😢'], count: 12, mode: 'rain' } },
-  { id: 'teasing', glyph: '😜', name: 'teasing', shortcutKey: 'T', animation: 'wag', shakeLevel: 'none', shock: false, burst: false, flash: 'none', sound: 'whoosh', particles: { glyphs: ['⭐', '✨', '💫', '😜'], count: 10, mode: 'orbit' } },
-  { id: 'thumbsup', glyph: '👍', name: 'thumbsup', shortcutKey: 'U', animation: 'rise', shakeLevel: 'none', shock: false, burst: false, flash: 'none', sound: 'pop', particles: { glyphs: ['✨', '⭐', '👍'], count: 10, mode: 'rise' } },
-  { id: 'suspecting', glyph: '🤨', name: 'suspecting', shortcutKey: 'V', animation: 'wag', shakeLevel: 'none', shock: false, burst: false, flash: 'none', sound: 'blips', particles: { glyphs: ['🤨', '❓', '💨'], count: 8, mode: 'rise' } },
-  { id: 'winking', glyph: '😉', name: 'winking', shortcutKey: 'W', animation: 'giggle', shakeLevel: 'none', shock: false, burst: false, flash: 'none', sound: 'pop', particles: { glyphs: ['✨', '💛', '⭐', '💖', '😉'], count: 12, mode: 'rise' } },
-  { id: 'thumbsdown', glyph: '👎', name: 'thumbsdown', shortcutKey: 'X', animation: 'droop', shakeLevel: 'none', shock: false, burst: false, flash: 'none', sound: 'tone', particles: { glyphs: ['💨', '👎'], count: 8, mode: 'rain' } },
-  { id: 'yummy', glyph: '😋', name: 'yummy', shortcutKey: 'Y', animation: 'giggle', shakeLevel: 'none', shock: false, burst: false, flash: 'none', sound: 'pop', particles: { glyphs: ['🍕', '🧁', '🍓', '😋', '❤️'], count: 12, mode: 'rise' } },
-  { id: 'closingeyes', glyph: '😌', name: 'closing eyes', shortcutKey: 'Z', animation: 'droop', shakeLevel: 'none', shock: false, burst: false, flash: 'none', sound: 'snore', particles: { glyphs: ['✨', '😌', '💤'], count: 10, mode: 'rise' } }
-];
+import { EmojiConfig, EMOJIS } from './emojis';
 
 // Web Audio API Synthesizer
 let audioCtx: AudioContext | null = null;
@@ -203,6 +159,20 @@ export const EmojiReactions: React.FC<EmojiReactionsProps> = ({
   onRegisterFire,
   onClose
 }) => {
+  const {
+    preferences,
+    activeEmojis,
+    favouriteEmojis,
+    mostUsed,
+    incrementUsage,
+    updateFavourites,
+    updateShortcut,
+    resetToDefaults
+  } = useEmojiPreferences();
+
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  
   const [selectedEmoji, setSelectedEmoji] = useState<EmojiConfig>(EMOJIS[0]);
   const [isMuted, setIsMuted] = useState(false);
   const [reactions, setReactions] = useState<ActiveReaction[]>([]);
@@ -259,12 +229,37 @@ export const EmojiReactions: React.FC<EmojiReactionsProps> = ({
     document.addEventListener('mouseup', onUp);
   }, []);
 
-  // Reset panel position when emoji mode is turned off
+  // Reset panel position and state when emoji mode is turned off
   useEffect(() => {
     if (!isEmojiMode) {
       setPanelPos(null);
+      setIsExpanded(false);
+      setIsEditing(false);
     }
   }, [isEmojiMode]);
+
+  const toggleFavourite = (id: string) => {
+    if (preferences.favourites.includes(id)) {
+      updateFavourites(preferences.favourites.filter(fId => fId !== id));
+    } else {
+      if (preferences.favourites.length >= 5) {
+        updateFavourites([...preferences.favourites.slice(1, 5), id]);
+      } else {
+        updateFavourites([...preferences.favourites, id]);
+      }
+    }
+  };
+
+  const handleShortcutChange = (id: string, e: React.KeyboardEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const key = e.key.toUpperCase();
+    if (key.match(/^[A-Z0-9]$/)) {
+      updateShortcut(id, key);
+    } else if (e.key === 'Backspace' || e.key === 'Delete') {
+      updateShortcut(id, '');
+    }
+  };
 
   // ── Grid drag-to-scroll state ────────────────────────────────────────────
   const gridRef = useRef<HTMLDivElement>(null);
@@ -343,8 +338,9 @@ export const EmojiReactions: React.FC<EmojiReactionsProps> = ({
       setReactions((prev) => prev.filter((r) => r.id !== reactionId));
     }, reactionDuration);
 
-    // 2. Play sound
+    // 2. Play sound & update usage
     playSound(emoji.sound);
+    incrementUsage(emoji.id);
 
     // 3. Shake effect
     if (emoji.shakeLevel !== 'none') {
@@ -495,7 +491,7 @@ export const EmojiReactions: React.FC<EmojiReactionsProps> = ({
         const letter = e.key.toUpperCase();
         const codeLetter = e.code ? e.code.replace('Key', '').toUpperCase() : '';
         // Only match emojis that have a non-empty shortcutKey (single source of truth)
-        const matched = EMOJIS.find(
+        const matched = activeEmojis.find(
           (em) => em.shortcutKey !== '' && (em.shortcutKey === letter || em.shortcutKey === codeLetter)
         );
         if (matched) {
@@ -631,6 +627,7 @@ export const EmojiReactions: React.FC<EmojiReactionsProps> = ({
         <div
           ref={panelRef}
           className="emoji-floating-panel"
+          data-emoji-panel="true"
           onWheel={(e) => e.stopPropagation()}
           style={panelPos ? {
             position: 'fixed',
@@ -652,8 +649,38 @@ export const EmojiReactions: React.FC<EmojiReactionsProps> = ({
           {/* Header: [mute-spacer] | [centered title] | [header-actions] */}
           <div className="panel-header">
             <div className="mute-spacer" />
-            <span className="panel-title">SELECT EMOJI</span>
+            <span className="panel-title">{isExpanded ? (isEditing ? 'EDIT EMOJIS' : 'ALL EMOJIS') : 'EMOJI'}</span>
             <div className="header-actions">
+              {isExpanded && !isEditing && (
+                <button
+                  className="icon-btn"
+                  onClick={() => setIsEditing(true)}
+                  title="Edit Favourites & Shortcuts"
+                >
+                  <Pencil size={15} />
+                </button>
+              )}
+              {isExpanded && isEditing && (
+                <button
+                  className="icon-btn"
+                  onClick={() => {
+                    resetToDefaults();
+                    setIsEditing(false);
+                  }}
+                  title="Reset to Defaults"
+                >
+                  <Undo2 size={15} />
+                </button>
+              )}
+              {isExpanded ? (
+                <button className="icon-btn" onClick={() => { setIsExpanded(false); setIsEditing(false); }}>
+                  <ChevronUp size={15} />
+                </button>
+              ) : (
+                <button className="icon-btn" onClick={() => setIsExpanded(true)}>
+                  <ChevronDown size={15} />
+                </button>
+              )}
               <button 
                 className={`mute-btn ${isMuted ? 'muted' : ''}`}
                 onClick={() => setIsMuted(!isMuted)}
@@ -670,38 +697,96 @@ export const EmojiReactions: React.FC<EmojiReactionsProps> = ({
               </button>
             </div>
           </div>
-          <div
-            ref={gridRef}
-            className="emoji-grid"
-            onWheel={(e) => e.stopPropagation()}
-            onMouseDown={handleGridMouseDown}
-            onMouseMove={handleGridMouseMove}
-            onMouseUp={handleGridMouseUpOrLeave}
-            onMouseLeave={handleGridMouseUpOrLeave}
-          >
-            {EMOJIS.map((emoji) => (
-              <button
-                key={emoji.id}
-                className={`emoji-btn ${selectedEmoji.id === emoji.id ? 'active' : ''}`}
-                onClick={(e) => {
-                  if (isGridDraggedRef.current) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    return;
-                  }
-                  setSelectedEmoji(emoji);
-                  // Fire emoji at center of board
-                  fire(emoji);
-                }}
-                title={`${emoji.name}${emoji.shortcutKey ? ` (Shift+${emoji.shortcutKey})` : ''}`}
+
+          {!isExpanded ? (
+            <div className="emoji-collapsed-view">
+              <div className="emoji-row-group">
+                <span className="row-label">★ FAVOURITES</span>
+                <div className="emoji-row">
+                  {favouriteEmojis.map((emoji) => (
+                    <button
+                      key={emoji.id}
+                      className="emoji-btn"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); fire(emoji); }}
+                    >
+                      <span className="emoji-glyph">{emoji.glyph}</span>
+                      {emoji.shortcutKey && <span className="shortcut-badge">⇧{emoji.shortcutKey}</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="emoji-row-group">
+                <span className="row-label">⏱ MOST USED</span>
+                <div className="emoji-row">
+                  {mostUsed.map((emoji) => (
+                    <button
+                      key={emoji.id}
+                      className="emoji-btn"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); fire(emoji); }}
+                    >
+                      <span className="emoji-glyph">{emoji.glyph}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div
+                ref={gridRef}
+                className="emoji-grid"
+                onWheel={(e) => e.stopPropagation()}
+                onMouseDown={handleGridMouseDown}
+                onMouseMove={handleGridMouseMove}
+                onMouseUp={handleGridMouseUpOrLeave}
+                onMouseLeave={handleGridMouseUpOrLeave}
               >
-                <span className="emoji-glyph">{emoji.glyph}</span>
-                {emoji.shortcutKey && (
-                  <span className="shortcut-badge">⇧{emoji.shortcutKey}</span>
-                )}
-              </button>
-            ))}
-          </div>
+                {activeEmojis.map((emoji) => (
+                  <div key={emoji.id} className="emoji-grid-cell">
+                    <button
+                      className={`emoji-btn ${selectedEmoji.id === emoji.id ? 'active' : ''} ${isEditing ? 'editing' : ''}`}
+                      onClick={(e) => {
+                        if (isGridDraggedRef.current) return;
+                        if (isEditing) return; // Ignore click if editing
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setSelectedEmoji(emoji);
+                        fire(emoji);
+                      }}
+                      title={`${emoji.name}${emoji.shortcutKey ? ` (Shift+${emoji.shortcutKey})` : ''}`}
+                    >
+                      <span className="emoji-glyph">{emoji.glyph}</span>
+                      {isEditing ? (
+                        <input
+                          className="shortcut-input"
+                          value={emoji.shortcutKey}
+                          onChange={() => {}}
+                          onKeyDown={(e) => handleShortcutChange(emoji.id, e)}
+                          placeholder="-"
+                          maxLength={1}
+                        />
+                      ) : (
+                        emoji.shortcutKey && <span className="shortcut-badge">⇧{emoji.shortcutKey}</span>
+                      )}
+                    </button>
+                    {isEditing && (
+                      <button
+                        className={`star-btn ${preferences.favourites.includes(emoji.id) ? 'starred' : ''}`}
+                        onClick={() => toggleFavourite(emoji.id)}
+                      >
+                        <Star size={12} fill={preferences.favourites.includes(emoji.id) ? 'currentColor' : 'none'} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {isEditing && (
+                <div className="edit-mode-footer">
+                  <Pencil size={12} /> Edit mode: set favourites ★, remap shortcuts
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 
@@ -1087,15 +1172,123 @@ export const EmojiReactions: React.FC<EmojiReactionsProps> = ({
           color: #ef4444;
         }
 
+        .icon-btn {
+          background: transparent;
+          border: none;
+          color: rgba(255, 255, 255, 0.55);
+          cursor: pointer;
+          transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 4px;
+          border-radius: 50%;
+        }
+        .icon-btn:hover {
+          color: #eedcd0;
+          background: rgba(255, 255, 255, 0.1);
+        }
+
+        .emoji-collapsed-view {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          padding: 4px 8px 8px;
+        }
+
+        .emoji-row-group {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .row-label {
+          font-size: 0.6rem;
+          font-weight: 700;
+          color: rgba(255, 255, 255, 0.4);
+          letter-spacing: 0.05em;
+        }
+
+        .emoji-row {
+          display: grid;
+          grid-template-columns: repeat(5, 1fr);
+          gap: 6px;
+        }
+
         .emoji-grid {
           display: grid;
           grid-template-columns: repeat(7, 1fr);
           gap: 6px;
-          max-height: 110px;
+          max-height: 180px;
           overflow-y: auto;
           overflow-x: hidden;
           padding-right: 4px;
           scroll-behavior: smooth;
+        }
+
+        .emoji-grid-cell {
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .star-btn {
+          position: absolute;
+          top: -4px;
+          right: -4px;
+          background: #1e293b;
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 50%;
+          color: rgba(255, 255, 255, 0.3);
+          cursor: pointer;
+          width: 20px;
+          height: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 2;
+          padding: 0;
+        }
+        .star-btn:hover {
+          color: #eab308;
+          border-color: #eab308;
+        }
+        .star-btn.starred {
+          color: #eab308;
+          border-color: #eab308;
+        }
+        
+        .shortcut-input {
+          background: rgba(0,0,0,0.4);
+          border: 1px solid rgba(255,255,255,0.2);
+          border-radius: 4px;
+          color: #c8854a;
+          font-size: 0.6rem;
+          font-weight: 700;
+          text-align: center;
+          width: 24px;
+          height: 16px;
+          padding: 0;
+          margin-top: 2px;
+          text-transform: uppercase;
+        }
+        .shortcut-input:focus {
+          outline: none;
+          border-color: #c8854a;
+        }
+
+        .edit-mode-footer {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          justify-content: center;
+          background: rgba(0,0,0,0.2);
+          border-radius: 6px;
+          padding: 6px;
+          font-size: 0.65rem;
+          color: rgba(255,255,255,0.5);
+          margin-top: 4px;
         }
         
         /* Custom scrollbar for emoji list */
@@ -1127,10 +1320,14 @@ export const EmojiReactions: React.FC<EmojiReactionsProps> = ({
           align-items: center;
           justify-content: center;
           gap: 2px;
+          width: 100%;
         }
-        .emoji-btn:hover {
+        .emoji-btn:hover:not(.editing) {
           background: rgba(255, 255, 255, 0.15);
           transform: translateY(-2px);
+        }
+        .emoji-btn.editing {
+          cursor: default;
         }
         .emoji-btn.active {
           background: rgba(200, 133, 74, 0.25);

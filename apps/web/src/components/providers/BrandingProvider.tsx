@@ -297,6 +297,10 @@ export default function BrandingProvider() {
           document.documentElement.style.removeProperty('--classroom-bg-overlay');
         }
 
+        // Apply piece animations and last move highlight settings globally
+        document.documentElement.setAttribute('data-piece-animation', branding.pieceAnimation || 'standard');
+        document.documentElement.setAttribute('data-highlight-last-move', branding.highlightLastMove !== false ? 'true' : 'false');
+
       } catch (e) {
         console.error('Failed to apply branding settings', e);
       }

@@ -57,12 +57,16 @@ const ChessKnightIcon = ({ size = 18, className = '', style }: { size?: number; 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'personal' | 'account' | 'appearance' | 'administration' | 'academy'>('appearance');
   const [activeAppearanceSubTab, setActiveAppearanceSubTab] = useState<'branding' | 'classroom'>('branding');
+  const [activeClassroomNav, setActiveClassroomNav] = useState<'board' | 'panels' | 'background'>('board');
+  const [userSelectedCategory, setUserSelectedCategory] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [isDragOver, setIsDragOver] = useState(false);
-  const [activeLogoTab, setActiveLogoTab] = useState<'primary' | 'dark' | 'icon'>('primary');
-
   const [toastMessage, setToastMessage] = useState('');
+  
+  const isSavingRef = useRef(false);
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [activeLogoTab, setActiveLogoTab] = useState<'primary' | 'dark' | 'icon'>('primary');
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const [profile, setProfile] = useState({
     name: 'Venture Chess Academy',
@@ -122,6 +126,8 @@ export default function SettingsPage() {
       imageUpload: string;
       imageOverlay: boolean;
     };
+    pieceAnimation?: string;
+    highlightLastMove?: boolean;
   }>({
     headingFont: 'DM Sans (Default)',
     bodyFont: 'Inter (Default)',
@@ -138,9 +144,10 @@ export default function SettingsPage() {
     logoUpload: '',
     logoDarkUrl: '',
     logoDarkUpload: '',
-    iconUrl: '',
     iconUpload: '',
     customThemes: [],
+    pieceAnimation: 'standard',
+    highlightLastMove: true,
     classroomBackground: {
       type: 'solid',
       solidColor: '#fdf0e4',
@@ -219,6 +226,8 @@ export default function SettingsPage() {
               logoDarkUpload: data.logoDarkUpload || '',
               iconUrl: data.iconUrl || '',
               iconUpload: data.iconUpload || '',
+              pieceAnimation: data.pieceAnimation || 'standard',
+              highlightLastMove: data.highlightLastMove ?? true,
               customThemes: data.customThemes && data.customThemes.length > 0 ? data.customThemes : localCustomThemes,
               classroomBackground: data.classroomBackground || {
                 type: 'solid',
@@ -270,6 +279,8 @@ export default function SettingsPage() {
               logoDarkUpload: data.logoDarkUpload || '',
               iconUrl: data.iconUrl || '',
               iconUpload: data.iconUpload || '',
+              pieceAnimation: data.pieceAnimation || 'standard',
+              highlightLastMove: data.highlightLastMove ?? true,
               customThemes: data.customThemes && data.customThemes.length > 0 ? data.customThemes : localCustomThemes,
               classroomBackground: data.classroomBackground || {
                 type: 'solid',
@@ -307,6 +318,9 @@ export default function SettingsPage() {
   }, []);
 
   const handleSave = async () => {
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
+    
     try {
       localStorage.setItem('vca_settings_profile', JSON.stringify(profile));
       localStorage.setItem('vca_settings_account', JSON.stringify(account));
@@ -340,7 +354,16 @@ export default function SettingsPage() {
     
     setToastMessage('Settings saved successfully!');
     setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+    
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+    toastTimeoutRef.current = setTimeout(() => {
+      setShowToast(false);
+      toastTimeoutRef.current = null;
+    }, 3000);
+    
+    isSavingRef.current = false;
   };
 
   const handleResetToDefaults = () => {
@@ -373,7 +396,9 @@ export default function SettingsPage() {
         imageUrl: '',
         imageUpload: '',
         imageOverlay: false
-      }
+      },
+      pieceAnimation: 'standard',
+      highlightLastMove: true
     };
     
     setBranding(defaultBranding);
@@ -1337,100 +1362,130 @@ export default function SettingsPage() {
 
                 {/* BRANDING SUB-TAB CONTENT */}
                 {activeAppearanceSubTab === 'branding' && (
-                  <div className={styles.stickyPreviewGrid}>
-                    <div className={styles.brandingFormColumn}>
+                  <div className={styles.brandingFormColumn} style={{ width: '100%', maxWidth: '800px', margin: '0 auto' }}>
                       <div>
                         <h3 className={styles.sectionHeading} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px', fontSize: '1.25rem', color: 'var(--primary)' }}>
                           <ImageIcon size={20} /> Academy branding
                         </h3>
-                      <div className={styles.form}>
-                        <div className={styles.fieldGroup}>
-                          <label>Academy Logo</label>
-                          <div className={styles.logoUploadContainer}>
-                            <div className={styles.logoVariantTabs}>
-                              <button 
-                                type="button" 
-                                className={`${styles.logoVariantTab} ${activeLogoTab === 'primary' ? styles.logoVariantTabActive : ''}`}
-                                onClick={() => setActiveLogoTab('primary')}
-                              >
-                                Primary (Light)
-                              </button>
-                              <button 
-                                type="button" 
-                                className={`${styles.logoVariantTab} ${activeLogoTab === 'dark' ? styles.logoVariantTabActive : ''}`}
-                                onClick={() => setActiveLogoTab('dark')}
-                              >
-                                Dark Theme
-                              </button>
-                              <button 
-                                type="button" 
-                                className={`${styles.logoVariantTab} ${activeLogoTab === 'icon' ? styles.logoVariantTabActive : ''}`}
-                                onClick={() => setActiveLogoTab('icon')}
-                              >
-                                Collapsed Icon
-                              </button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                        
+                        {/* 1. LOGO SECTION */}
+                        <section style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                          <label style={{ fontWeight: 600, color: '#4a2018', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Academy Logo</label>
+                          
+                          <div className={styles.logoVariantTabs} style={{ marginBottom: 0 }}>
+                            <button 
+                              type="button" 
+                              className={`${styles.logoVariantTab} ${activeLogoTab === 'primary' ? styles.logoVariantTabActive : ''}`}
+                              onClick={() => setActiveLogoTab('primary')}
+                            >
+                              Primary (Light)
+                            </button>
+                            <button 
+                              type="button" 
+                              className={`${styles.logoVariantTab} ${activeLogoTab === 'dark' ? styles.logoVariantTabActive : ''}`}
+                              onClick={() => setActiveLogoTab('dark')}
+                            >
+                              Dark Theme
+                            </button>
+                            <button 
+                              type="button" 
+                              className={`${styles.logoVariantTab} ${activeLogoTab === 'icon' ? styles.logoVariantTabActive : ''}`}
+                              onClick={() => setActiveLogoTab('icon')}
+                            >
+                              Collapsed Icon
+                            </button>
+                          </div>
+                          
+                          <div style={{ display: 'flex', gap: '16px', alignItems: 'stretch' }}>
+                            {/* Logo Tile */}
+                            <div className={styles.currentLogoBox} style={{ width: '130px', flexShrink: 0, margin: 0, padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                              <div className={styles.currentLogoPreview} style={{ marginBottom: '12px' }}>
+                                {activeLogoTab === 'primary' && (
+                                  branding.logoUpload ? <img src={branding.logoUpload} alt="Primary Logo" style={{ objectFit: 'contain', width: '100%', height: '100%', padding: '4px' }} /> 
+                                  : branding.logoUrl ? <img src={branding.logoUrl} alt="Primary Logo" style={{ objectFit: 'contain', width: '100%', height: '100%', padding: '4px' }} /> 
+                                  : <img src="/vca_logo.png" alt="Default Logo" style={{ objectFit: 'contain', width: '100%', height: '100%', padding: '4px' }} />
+                                )}
+                                {activeLogoTab === 'dark' && (
+                                  branding.logoDarkUpload ? <img src={branding.logoDarkUpload} alt="Dark Logo" style={{ objectFit: 'contain', width: '100%', height: '100%', padding: '4px' }} /> 
+                                  : branding.logoDarkUrl ? <img src={branding.logoDarkUrl} alt="Dark Logo" style={{ objectFit: 'contain', width: '100%', height: '100%', padding: '4px' }} /> 
+                                  : <span style={{fontSize:'0.8rem', color:'#94a3b8'}}>No Dark Logo</span>
+                                )}
+                                {activeLogoTab === 'icon' && (
+                                  branding.iconUpload ? <img src={branding.iconUpload} alt="Icon Logo" style={{ objectFit: 'contain', width: '100%', height: '100%', padding: '4px' }} /> 
+                                  : branding.iconUrl ? <img src={branding.iconUrl} alt="Icon Logo" style={{ objectFit: 'contain', width: '100%', height: '100%', padding: '4px' }} /> 
+                                  : <span style={{fontSize:'0.8rem', color:'#94a3b8'}}>No Icon Logo</span>
+                                )}
+                              </div>
+                              <div className={styles.logoActionsRow} style={{ justifyContent: 'center' }}>
+                                <label className={styles.logoActionBtn}>
+                                  <RefreshCw size={14} /> Replace
+                                  <input 
+                                    type="file" 
+                                    accept="image/png, image/svg+xml" 
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        if (file.size > 2 * 1024 * 1024) { setToastMessage('Image must be under 2MB'); setShowToast(true); setTimeout(()=>setShowToast(false),3000); return; }
+                                        const reader = new FileReader();
+                                        reader.onloadend = () => {
+                                          if (activeLogoTab === 'primary') setBranding((prev:any) => ({...prev, logoUpload: reader.result, logoUrl: ''}));
+                                          if (activeLogoTab === 'dark') setBranding((prev:any) => ({...prev, logoDarkUpload: reader.result, logoDarkUrl: ''}));
+                                          if (activeLogoTab === 'icon') setBranding((prev:any) => ({...prev, iconUpload: reader.result, iconUrl: ''}));
+                                        };
+                                        reader.readAsDataURL(file);
+                                      }
+                                    }}
+                                    style={{display:'none'}}
+                                  />
+                                </label>
+                                <button type="button" className={`${styles.logoActionBtn} ${styles.danger}`} onClick={() => {
+                                  if (activeLogoTab === 'primary') setBranding((prev:any) => ({...prev, logoUpload: '', logoUrl: ''}));
+                                  if (activeLogoTab === 'dark') setBranding((prev:any) => ({...prev, logoDarkUpload: '', logoDarkUrl: ''}));
+                                  if (activeLogoTab === 'icon') setBranding((prev:any) => ({...prev, iconUpload: '', iconUrl: ''}));
+                                }}>
+                                  <Trash2 size={14} /> Remove
+                                </button>
+                              </div>
                             </div>
                             
-                            <div className={styles.logoUploadWorkspace}>
-                              <div className={styles.currentLogoBox}>
-                                <div className={styles.currentLogoPreview}>
-                                  {activeLogoTab === 'primary' && (
-                                    branding.logoUpload ? <img src={branding.logoUpload} alt="Primary Logo" /> 
-                                    : branding.logoUrl ? <img src={branding.logoUrl} alt="Primary Logo" /> 
-                                    : <img src="/vca_logo.png" alt="Default Logo" />
-                                  )}
-                                  {activeLogoTab === 'dark' && (
-                                    branding.logoDarkUpload ? <img src={branding.logoDarkUpload} alt="Dark Logo" /> 
-                                    : branding.logoDarkUrl ? <img src={branding.logoDarkUrl} alt="Dark Logo" /> 
-                                    : <span style={{fontSize:'0.8rem', color:'#94a3b8'}}>No Dark Logo</span>
-                                  )}
-                                  {activeLogoTab === 'icon' && (
-                                    branding.iconUpload ? <img src={branding.iconUpload} alt="Icon Logo" /> 
-                                    : branding.iconUrl ? <img src={branding.iconUrl} alt="Icon Logo" /> 
-                                    : <span style={{fontSize:'0.8rem', color:'#94a3b8'}}>No Icon Logo</span>
-                                  )}
-                                </div>
-                                
-                                <div className={styles.logoActionsRow}>
-                                  <label className={styles.logoActionBtn}>
-                                    <RefreshCw size={14} /> Replace
-                                    <input 
-                                      type="file" 
-                                      accept="image/png, image/svg+xml" 
-                                      onChange={(e) => {
-                                        const file = e.target.files?.[0];
-                                        if (file) {
-                                          if (file.size > 2 * 1024 * 1024) { setToastMessage('Image must be under 2MB'); setShowToast(true); setTimeout(()=>setShowToast(false),3000); return; }
-                                          const reader = new FileReader();
-                                          reader.onloadend = () => {
-                                            if (activeLogoTab === 'primary') setBranding((prev:any) => ({...prev, logoUpload: reader.result, logoUrl: ''}));
-                                            if (activeLogoTab === 'dark') setBranding((prev:any) => ({...prev, logoDarkUpload: reader.result, logoDarkUrl: ''}));
-                                            if (activeLogoTab === 'icon') setBranding((prev:any) => ({...prev, iconUpload: reader.result, iconUrl: ''}));
-                                          };
-                                          reader.readAsDataURL(file);
-                                        }
-                                      }}
-                                      style={{display:'none'}}
-                                    />
-                                  </label>
-                                  <button type="button" className={`${styles.logoActionBtn} ${styles.danger}`} onClick={() => {
-                                    if (activeLogoTab === 'primary') setBranding((prev:any) => ({...prev, logoUpload: '', logoUrl: ''}));
-                                    if (activeLogoTab === 'dark') setBranding((prev:any) => ({...prev, logoDarkUpload: '', logoDarkUrl: ''}));
-                                    if (activeLogoTab === 'icon') setBranding((prev:any) => ({...prev, iconUpload: '', iconUrl: ''}));
-                                  }}>
-                                    <Trash2 size={14} /> Remove
-                                  </button>
-                                </div>
+                            {/* Compact Upload Zone */}
+                            <label 
+                              className={`${styles.uploadDropzone} ${isDragOver ? styles.uploadDropzoneActive : ''}`}
+                              onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                              onDragLeave={(e) => { e.preventDefault(); setIsDragOver(false); }}
+                              onDrop={(e) => {
+                                e.preventDefault(); setIsDragOver(false);
+                                const file = e.dataTransfer.files?.[0];
+                                if (file && (file.type === 'image/png' || file.type === 'image/svg+xml')) {
+                                  if (file.size > 2 * 1024 * 1024) { setToastMessage('Image must be under 2MB'); setShowToast(true); setTimeout(()=>setShowToast(false),3000); return; }
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => {
+                                    if (activeLogoTab === 'primary') setBranding((prev:any) => ({...prev, logoUpload: reader.result, logoUrl: ''}));
+                                    if (activeLogoTab === 'dark') setBranding((prev:any) => ({...prev, logoDarkUpload: reader.result, logoDarkUrl: ''}));
+                                    if (activeLogoTab === 'icon') setBranding((prev:any) => ({...prev, iconUpload: reader.result, iconUrl: ''}));
+                                  };
+                                  reader.readAsDataURL(file);
+                                } else {
+                                  setToastMessage('Only PNG or SVG allowed'); setShowToast(true); setTimeout(()=>setShowToast(false),3000);
+                                }
+                              }}
+                              style={{ flex: 1, margin: 0, padding: '12px 16px', minHeight: 'auto', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '12px', justifyContent: 'flex-start' }}
+                            >
+                              <UploadCloud size={20} className={styles.uploadIcon} style={{ margin: 0, color: 'var(--primary)' }} />
+                              <div style={{ flex: 1, textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span className={styles.uploadDropzoneTitle} style={{ fontSize: '0.9rem', margin: 0, fontWeight: 600 }}>Drag & drop or click to browse</span>
+                                <span className={styles.uploadDropzoneGuidance} style={{ margin: 0, fontSize: '0.8rem' }}>— PNG or SVG (max 2 MB)</span>
                               </div>
-                              
-                              <label 
-                                className={`${styles.uploadDropzone} ${isDragOver ? styles.uploadDropzoneActive : ''}`}
-                                onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-                                onDragLeave={(e) => { e.preventDefault(); setIsDragOver(false); }}
-                                onDrop={(e) => {
-                                  e.preventDefault(); setIsDragOver(false);
-                                  const file = e.dataTransfer.files?.[0];
-                                  if (file && (file.type === 'image/png' || file.type === 'image/svg+xml')) {
+                              <div className={styles.uploadDropzoneButton} style={{ margin: 0, whiteSpace: 'nowrap', padding: '6px 12px' }}>
+                                Upload
+                              </div>
+                              <input 
+                                type="file" 
+                                accept="image/png, image/svg+xml" 
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
                                     if (file.size > 2 * 1024 * 1024) { setToastMessage('Image must be under 2MB'); setShowToast(true); setTimeout(()=>setShowToast(false),3000); return; }
                                     const reader = new FileReader();
                                     reader.onloadend = () => {
@@ -1439,160 +1494,182 @@ export default function SettingsPage() {
                                       if (activeLogoTab === 'icon') setBranding((prev:any) => ({...prev, iconUpload: reader.result, iconUrl: ''}));
                                     };
                                     reader.readAsDataURL(file);
-                                  } else {
-                                    setToastMessage('Only PNG or SVG allowed'); setShowToast(true); setTimeout(()=>setShowToast(false),3000);
                                   }
                                 }}
-                              >
-                                <UploadCloud size={32} className={styles.uploadIcon} />
-                                <div className={styles.uploadDropzoneButton}>
-                                  <UploadCloud size={16} /> Upload logo
-                                </div>
-                                <div className={styles.uploadDropzoneTitle}>Drag & drop or click to browse</div>
-                                <p className={styles.uploadDropzoneGuidance}>PNG or SVG · transparent background · min 200×200px · up to 2 MB</p>
-                                <input 
-                                  type="file" 
-                                  accept="image/png, image/svg+xml" 
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      if (file.size > 2 * 1024 * 1024) { setToastMessage('Image must be under 2MB'); setShowToast(true); setTimeout(()=>setShowToast(false),3000); return; }
-                                      const reader = new FileReader();
-                                      reader.onloadend = () => {
-                                        if (activeLogoTab === 'primary') setBranding((prev:any) => ({...prev, logoUpload: reader.result, logoUrl: ''}));
-                                        if (activeLogoTab === 'dark') setBranding((prev:any) => ({...prev, logoDarkUpload: reader.result, logoDarkUrl: ''}));
-                                        if (activeLogoTab === 'icon') setBranding((prev:any) => ({...prev, iconUpload: reader.result, iconUrl: ''}));
-                                      };
-                                      reader.readAsDataURL(file);
-                                    }
-                                  }}
-                                  style={{display:'none'}}
-                                />
-                              </label>
-                            </div>
-                            
-                            <div className={styles.logoPreviewSection}>
-                              <div className={styles.logoPreviewSectionTitle}>Preview — how it appears in the sidebar</div>
-                              <div className={styles.logoPreviewCards}>
-                                <div className={`${styles.logoPreviewCard} ${styles.light}`}>
-                                  {branding.logoUpload ? <img src={branding.logoUpload} alt="Preview" /> : branding.logoUrl ? <img src={branding.logoUrl} alt="Preview" /> : <img src="/vca_logo.png" alt="Preview" />}
-                                </div>
-                                <div className={`${styles.logoPreviewCard} ${styles.dark}`}>
-                                  {(branding.logoDarkUpload || branding.logoDarkUrl) 
-                                    ? (branding.logoDarkUpload ? <img src={branding.logoDarkUpload} alt="Preview Dark" /> : <img src={branding.logoDarkUrl} alt="Preview Dark" />) 
-                                    : (branding.logoUpload ? <img src={branding.logoUpload} alt="Preview Dark" /> : branding.logoUrl ? <img src={branding.logoUrl} alt="Preview Dark" /> : <img src="/vca_logo.png" alt="Preview Dark" />)
-                                  }
-                                </div>
-                                {activeLogoTab === 'icon' && (
-                                  <div className={`${styles.logoPreviewCard} ${styles.light}`} style={{width: '48px', minWidth: '48px', padding: '8px'}}>
-                                    {(branding.iconUpload || branding.iconUrl) 
-                                      ? (branding.iconUpload ? <img src={branding.iconUpload} alt="Icon Preview" /> : <img src={branding.iconUrl} alt="Icon Preview" />)
-                                      : <ImageIcon size={24} color="#cbd5e1" />
-                                    }
-                                  </div>
-                                )}
+                                style={{display:'none'}}
+                              />
+                            </label>
+                          </div>
+                          
+                          {/* Sidebar preview chips + dark-logo warning in one row */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', marginTop: '4px' }}>
+                            <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 500 }}>Sidebar Preview:</span>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <div className={`${styles.logoPreviewCard} ${styles.light}`} style={{ padding: '4px', width: '36px', height: '36px', minWidth: '36px', margin: 0 }}>
+                                {branding.logoUpload ? <img src={branding.logoUpload} alt="Preview" /> : branding.logoUrl ? <img src={branding.logoUrl} alt="Preview" /> : <img src="/vca_logo.png" alt="Preview" />}
                               </div>
-                              {(!branding.logoDarkUpload && !branding.logoDarkUrl && activeLogoTab !== 'icon') && (
-                                <div className={styles.logoWarning}>
-                                  <Building2 size={16} /> Dark-colored logos can disappear on dark panels — consider uploading a Dark Theme variant.
+                              <div className={`${styles.logoPreviewCard} ${styles.dark}`} style={{ padding: '4px', width: '36px', height: '36px', minWidth: '36px', margin: 0 }}>
+                                {(branding.logoDarkUpload || branding.logoDarkUrl) 
+                                  ? (branding.logoDarkUpload ? <img src={branding.logoDarkUpload} alt="Preview Dark" /> : <img src={branding.logoDarkUrl} alt="Preview Dark" />) 
+                                  : (branding.logoUpload ? <img src={branding.logoUpload} alt="Preview Dark" /> : branding.logoUrl ? <img src={branding.logoUrl} alt="Preview Dark" /> : <img src="/vca_logo.png" alt="Preview Dark" />)
+                                }
+                              </div>
+                              {activeLogoTab === 'icon' && (
+                                <div className={`${styles.logoPreviewCard} ${styles.light}`} style={{ padding: '4px', width: '36px', height: '36px', minWidth: '36px', margin: 0 }}>
+                                  {(branding.iconUpload || branding.iconUrl) 
+                                    ? (branding.iconUpload ? <img src={branding.iconUpload} alt="Icon Preview" /> : <img src={branding.iconUrl} alt="Icon Preview" />)
+                                    : <ImageIcon size={20} color="#cbd5e1" />
+                                  }
                                 </div>
                               )}
                             </div>
+                            
+                            {(!branding.logoDarkUpload && !branding.logoDarkUrl && activeLogoTab !== 'icon') && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#b45309', background: '#fef3c7', padding: '6px 12px', borderRadius: '6px' }}>
+                                <Building2 size={14} /> Consider uploading a Dark Theme variant.
+                              </div>
+                            )}
                           </div>
-                        </div>
+                        </section>
 
-                        <div className={styles.fieldGroup}>
-                          <label>Primary Brand Color</label>
-                          <div className={styles.colorGrid}>
+                        <div style={{ height: '1px', background: '#e2e8f0' }} />
+
+                        {/* 2. BRAND COLOR SECTION */}
+                        <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          <label style={{ fontWeight: 600, color: '#4a2018', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Primary Brand Color</label>
+                          <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                             {['#551e19', '#3D1A0E', '#2d4a6b', '#10b981', '#f59e0b'].map(color => (
                               <div 
                                 key={color}
-                                className={`${styles.colorItem} ${branding.primaryColor === color ? styles.activeColor : ''}`}
                                 onClick={() => setBranding({ ...branding, primaryColor: color })}
-                              >
-                                <div className={styles.colorBox} style={{ backgroundColor: color }} />
-                              </div>
+                                style={{
+                                  width: '32px',
+                                  height: '32px',
+                                  borderRadius: '50%',
+                                  backgroundColor: color,
+                                  cursor: 'pointer',
+                                  border: '3px solid white',
+                                  boxShadow: branding.primaryColor === color ? `0 0 0 2px ${color}` : '0 2px 4px rgba(0,0,0,0.1)',
+                                  transition: 'all 0.2s ease',
+                                  flexShrink: 0
+                                }}
+                                title={color}
+                              />
                             ))}
                           </div>
-                        </div>
-                        <div className={styles.fieldGroup}>
-                          <label>HEADING FONT</label>
-                          <select 
-                            className={styles.select}
-                            value={branding.headingFont}
-                            onChange={(e) => setBranding({ ...branding, headingFont: e.target.value })}
-                          >
-                            <option>DM Sans (Default)</option>
-                            <option>Playfair Display</option>
-                            <option>Montserrat</option>
-                            <option>Open Sans</option>
-                            <option>Oleo Script</option>
-                            <option>Lato</option>
-                            <option>Merriweather</option>
-                            <option>Nunito</option>
-                            <option>Poppins</option>
-                            <option>Roboto</option>
-                          </select>
-                        </div>
-                        <div className={styles.fieldGroup}>
-                          <label>BODY FONT</label>
-                          <select 
-                            className={styles.select}
-                            value={branding.bodyFont}
-                            onChange={(e) => setBranding({ ...branding, bodyFont: e.target.value })}
-                          >
-                            <option>Inter (Default)</option>
-                            <option>Poppins</option>
-                            <option>Roboto</option>
-                            <option>Open Sans</option>
-                            <option>Lato</option>
-                            <option>Merriweather</option>
-                            <option>Nunito</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                    </div>
+                        </section>
 
-                    {/* Live Preview Card */}
-                    <div className={styles.stickyPreviewPane}>
-                      <div className={styles.previewPin}>
-                        <Pin size={12} /> Stays in view while you scroll
-                      </div>
-                      <div className={styles.previewCard} style={{ fontFamily: branding.bodyFont === 'Inter (Default)' ? 'Inter' : branding.bodyFont }}>
-                        <div className={styles.previewContent}>
-                          <h2 className={styles.previewHeading} style={{ fontFamily: branding.headingFont === 'DM Sans (Default)' ? 'DM Sans' : branding.headingFont, color: branding.primaryColor }}>Typography & Color Preview</h2>
-                          <p className={styles.previewText}>
-                            This is how your academy's content will look. The heading font 
-                            captures attention, while the body font ensures readability for 
-                            your students and staff.
-                          </p>
-                          <div className={styles.previewButtons}>
-                            <Button className={styles.previewPrimary} style={{ background: branding.primaryColor }}>Primary Button</Button>
-                            <Button 
-                              variant="secondary" 
-                              className={styles.previewSecondary}
-                              style={{ color: branding.primaryColor, borderColor: branding.primaryColor }}
-                            >
-                              Secondary
-                            </Button>
+                        <div style={{ height: '1px', background: '#e2e8f0' }} />
+
+                        {/* 3. TYPOGRAPHY SECTION */}
+                        <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          <label style={{ fontWeight: 600, color: '#4a2018', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Typography</label>
+                          <div style={{ display: 'flex', gap: '20px' }}>
+                            <div style={{ flex: 1 }}>
+                              <label style={{ display: 'block', fontSize: '0.75rem', color: '#64748b', marginBottom: '6px', fontWeight: 500 }}>Heading Font</label>
+                              <select 
+                                className={styles.select}
+                                value={branding.headingFont}
+                                onChange={(e) => setBranding({ ...branding, headingFont: e.target.value })}
+                                style={{ width: '100%' }}
+                              >
+                                <option>DM Sans (Default)</option>
+                                <option>Playfair Display</option>
+                                <option>Montserrat</option>
+                                <option>Open Sans</option>
+                                <option>Oleo Script</option>
+                                <option>Lato</option>
+                                <option>Merriweather</option>
+                                <option>Nunito</option>
+                                <option>Poppins</option>
+                                <option>Roboto</option>
+                              </select>
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <label style={{ display: 'block', fontSize: '0.75rem', color: '#64748b', marginBottom: '6px', fontWeight: 500 }}>Body Font</label>
+                              <select 
+                                className={styles.select}
+                                value={branding.bodyFont}
+                                onChange={(e) => setBranding({ ...branding, bodyFont: e.target.value })}
+                                style={{ width: '100%' }}
+                              >
+                                <option>Inter (Default)</option>
+                                <option>Poppins</option>
+                                <option>Roboto</option>
+                                <option>Open Sans</option>
+                                <option>Lato</option>
+                                <option>Merriweather</option>
+                                <option>Nunito</option>
+                              </select>
+                            </div>
                           </div>
-                        </div>
+                          <div style={{ marginTop: '16px', padding: '24px', background: '#fdf5ea', border: '1px solid #eedcd0', borderRadius: '12px' }}>
+                            <h2 style={{ fontFamily: branding.headingFont === 'DM Sans (Default)' ? 'DM Sans' : branding.headingFont, color: branding.primaryColor, fontSize: '1.5rem', lineHeight: '1.2', margin: '0 0 12px 0', wordWrap: 'break-word', whiteSpace: 'normal' }}>
+                              Typography Preview
+                            </h2>
+                            <p style={{ fontFamily: branding.bodyFont === 'Inter (Default)' ? 'Inter' : branding.bodyFont, color: '#4a2018', fontSize: '0.95rem', lineHeight: '1.5', margin: 0, opacity: 0.85 }}>
+                              This is how your academy's content will look. The heading font captures attention, while the body font ensures readability for your students and staff.
+                            </p>
+                          </div>
+                        </section>
+                        
                       </div>
                     </div>
                   </div>
                 )}
 
                 {/* CLASSROOM SUB-TAB CONTENT */}
-                {activeAppearanceSubTab === 'classroom' && (
+                {activeAppearanceSubTab === 'classroom' && (() => {
+                  const getThemeCategory = (themeId: string) => {
+                    if (themeId.startsWith('custom_')) return 'custom';
+                    if (['wood_maple', 'wood_maple2', 'wood_mahogany', 'wood_birch', 'wood_walnut', 'wood_dark', 'wood_olive'].includes(themeId)) return 'wood';
+                    if (['marble_green', 'marble_blue'].includes(themeId)) return 'marble';
+                    if (['metal', 'leather', 'canvas', 'grey_cb', 'blue_cb', 'purple_diag'].includes(themeId)) return 'other';
+                    return 'classic';
+                  };
+                  const activeCategory = userSelectedCategory || getThemeCategory(branding.boardTheme);
+
+                  return (
                   <div className={styles.stickyPreviewGrid}>
-                    <div className={styles.classroomFormColumn}>
+                    <div style={{ display: 'flex', gap: '32px', alignItems: 'flex-start' }}>
+                      {/* Vertical Sub-Nav */}
+                      <div style={{ width: '160px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '6px', position: 'sticky', top: '24px' }}>
+                        {[
+                          { id: 'board', label: 'Board' },
+                          { id: 'panels', label: 'Panels' },
+                          { id: 'background', label: 'Background' }
+                        ].map(item => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => setActiveClassroomNav(item.id as any)}
+                            style={{
+                              padding: '10px 16px',
+                              textAlign: 'left',
+                              background: activeClassroomNav === item.id ? '#fdf5ea' : 'transparent',
+                              color: activeClassroomNav === item.id ? '#c8854a' : '#64748b',
+                              fontWeight: activeClassroomNav === item.id ? 600 : 500,
+                              borderRadius: '8px',
+                              border: 'none',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              fontSize: '0.95rem'
+                            }}
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className={styles.classroomFormColumn} style={{ flex: 1, minWidth: 0 }}>
                 {/* Green badge */}
                 <div className={styles.visibilityBadge}>
                   <Eye size={16} />
                   <span>Visible to every user</span>
                 </div>
 
+                {activeClassroomNav === 'board' && (
+                  <>
                 {/* Board frame customization */}
                 <section className={styles.boardPiecesSection}>
                   <h3 className={styles.sectionHeading}>
@@ -1802,9 +1879,41 @@ export default function SettingsPage() {
                       </div>
                     )}
 
+                    {/* THEME CATEGORY CHIPS */}
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                      {[
+                        { id: 'custom', label: '🎨 Custom' },
+                        { id: 'classic', label: '🎨 Classic' },
+                        { id: 'wood', label: '🪵 Wood Grain' },
+                        { id: 'marble', label: '🪨 Marble & Stone' },
+                        { id: 'other', label: '✨ Other Materials' }
+                      ].map(cat => (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => setUserSelectedCategory(cat.id)}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '16px',
+                            border: '1px solid',
+                            borderColor: activeCategory === cat.id ? '#c8854a' : '#e2e8f0',
+                            background: activeCategory === cat.id ? '#fdf5ea' : '#ffffff',
+                            color: activeCategory === cat.id ? '#c8854a' : '#64748b',
+                            fontSize: '0.85rem',
+                            fontWeight: activeCategory === cat.id ? 600 : 500,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          {cat.label}
+                        </button>
+                      ))}
+                    </div>
+
                     {/* Custom Themes Category */}
+                    {activeCategory === 'custom' && (
                     <div className={styles.themeCategory}>
-                      <span className={styles.themeCategoryLabel}>🎨 Custom Themes</span>
+                      <span className={styles.themeCategoryLabel} style={{ display: 'none' }}>🎨 Custom Themes</span>
                       <div className={styles.boardThemeGrid}>
                         {/* (+) Create Theme Card */}
                         <div 
@@ -1858,10 +1967,12 @@ export default function SettingsPage() {
                         ))}
                       </div>
                     </div>
+                    )}
 
                     {/* Classic Flat Themes */}
+                    {activeCategory === 'classic' && (
                     <div className={styles.themeCategory}>
-                      <span className={styles.themeCategoryLabel}>🎨 Classic</span>
+                      <span className={styles.themeCategoryLabel} style={{ display: 'none' }}>🎨 Classic</span>
                       <div className={styles.boardThemeGrid}>
                         {[
                           { id: 'brown', name: 'Brown', light: '#eedcd0', dark: '#c8854a' },
@@ -1890,10 +2001,12 @@ export default function SettingsPage() {
                         ))}
                       </div>
                     </div>
+                    )}
 
                     {/* Wood Grain Themes */}
+                    {activeCategory === 'wood' && (
                     <div className={styles.themeCategory}>
-                      <span className={styles.themeCategoryLabel}>🪵 Wood Grain</span>
+                      <span className={styles.themeCategoryLabel} style={{ display: 'none' }}>🪵 Wood Grain</span>
                       <div className={styles.boardThemeGrid}>
                         {[
                           { id: 'wood_maple', name: 'Maple', image: 'https://lichess1.org/assets/images/board/maple.jpg' },
@@ -1918,10 +2031,12 @@ export default function SettingsPage() {
                         ))}
                       </div>
                     </div>
+                    )}
 
                     {/* Marble & Stone Themes */}
+                    {activeCategory === 'marble' && (
                     <div className={styles.themeCategory}>
-                      <span className={styles.themeCategoryLabel}>🪨 Marble & Stone</span>
+                      <span className={styles.themeCategoryLabel} style={{ display: 'none' }}>🪨 Marble & Stone</span>
                       <div className={styles.boardThemeGrid}>
                         {[
                           { id: 'marble_green', name: 'Green Marble', image: 'https://lichess1.org/assets/images/board/marble.jpg' },
@@ -1941,10 +2056,12 @@ export default function SettingsPage() {
                         ))}
                       </div>
                     </div>
+                    )}
 
                     {/* Other Materials */}
+                    {activeCategory === 'other' && (
                     <div className={styles.themeCategory}>
-                      <span className={styles.themeCategoryLabel}>✨ Other Materials</span>
+                      <span className={styles.themeCategoryLabel} style={{ display: 'none' }}>✨ Other Materials</span>
                       <div className={styles.boardThemeGrid}>
                         {[
                           { id: 'metal', name: 'Metal', image: 'https://lichess1.org/assets/images/board/metal.jpg' },
@@ -1968,6 +2085,7 @@ export default function SettingsPage() {
                         ))}
                       </div>
                     </div>
+                    )}
                   </div>
                 </section>
 
@@ -2009,6 +2127,47 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </section>
+
+                <section className={styles.boardPiecesSection}>
+                  <h3 className={styles.sectionHeading}>Piece animations</h3>
+                  
+                  <div className={styles.boardPiecesRow} style={{ alignItems: 'center' }}>
+                    <span className={styles.rowLabel}>Animation style</span>
+                    <div style={{ flex: 1, maxWidth: '200px' }}>
+                      <select
+                        value={branding.pieceAnimation || 'standard'}
+                        onChange={(e) => setBranding({ ...branding, pieceAnimation: e.target.value })}
+                        className={styles.input}
+                        style={{ height: '36px', padding: '0 12px', cursor: 'pointer' }}
+                      >
+                        <option value="none">None (Instant)</option>
+                        <option value="teleport">Teleport</option>
+                        <option value="standard">Standard (Slide)</option>
+                        <option value="arcade">Arcade (Comet Trail)</option>
+                        <option value="bounce">Bounce (Subtle Settle)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className={styles.boardPiecesRow} style={{ alignItems: 'center', marginTop: '16px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span className={styles.rowLabel}>Highlight last move</span>
+                      <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Show subtle highlight on the from/to squares</span>
+                    </div>
+                    <label className={styles.toggleSwitch} style={{ marginLeft: 'auto' }}>
+                      <input
+                        type="checkbox"
+                        checked={branding.highlightLastMove !== false}
+                        onChange={(e) => setBranding({ ...branding, highlightLastMove: e.target.checked })}
+                      />
+                      <span className={styles.slider}></span>
+                    </label>
+                  </div>
+                </section>
+                  </>
+                )}
+
+                {activeClassroomNav === 'panels' && (
                 <div className={styles.chessSettingsCard} style={{ marginTop: 0 }}>
                   <h3 className={styles.cardTitle}>
                     <Palette size={18} /> Panel Style Customization
@@ -2084,9 +2243,12 @@ export default function SettingsPage() {
                     </p>
                   </div>
                 </div>
-                      {/* Classroom Background Section */}
+                )}
+                
+                {activeClassroomNav === 'background' && (
                       <div style={{ marginTop: '0' }}>
-                      <h3 className={styles.sectionHeading} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px', fontSize: '1.25rem', color: 'var(--primary)' }}>
+                        {/* Classroom Background Section */}
+                        <h3 className={styles.sectionHeading} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px', fontSize: '1.25rem', color: 'var(--primary)' }}>
                         <ImageIcon size={20} /> Classroom background
                       </h3>
                       <div className={styles.form}>
@@ -2332,6 +2494,8 @@ export default function SettingsPage() {
                         )}
                       </div>
                     </div>
+                )}
+                    </div>
                     </div>
 
                     {/* Classroom Live Preview Panel */}
@@ -2397,7 +2561,8 @@ export default function SettingsPage() {
                     </div>
                   </div>
                   </div>
-                )}
+                  );
+                })()}
               </div>
             )}
 
@@ -2405,11 +2570,9 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {showToast && (
-        <div className={styles.toast}>
+      <div className={`${styles.toast} ${showToast ? styles.toastVisible : ''}`}>
           {toastMessage}
         </div>
-      )}
 
       <ConfirmDialog
         isOpen={themeToDelete !== null}

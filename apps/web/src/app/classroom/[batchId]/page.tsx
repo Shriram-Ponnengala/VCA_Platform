@@ -42,6 +42,7 @@ export default function ClassroomPage() {
         } else {
           console.log('Current logged-in user role:', data.role);
           setUserRole(data.role);
+          setCurrentUserId(data.userId);
           setToken(data.token);
         }
         setIsLoading(false);
@@ -95,6 +96,7 @@ export default function ClassroomPage() {
   } = useChessRoom(ROOM_ID, token, { enabled: !!token });
 
   const [userRole, setUserRole] = useState<'admin' | 'coach' | 'student' | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
   const [dbNav, setDbNav] = useState<{ games: any[], currentIndex: number } | null>(null);
 
@@ -513,6 +515,8 @@ export default function ClassroomPage() {
         <main className="main-content">
           <section className="board-section">
             <ChessBoard
+              role={userRole}
+              userId={currentUserId}
               fen={boardFen}
               history={gameHistory}
               currentIndex={gameHistory.length - 1}

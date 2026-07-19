@@ -285,7 +285,7 @@ export default function GameCard({ game, idx, onLoadPgn, onLoadFen, isStudent, i
 
       {/* Right Details & Controls */}
       <div className="card-right-panel">
-        <h3 className="game-title">{idx}. {gameTitle}</h3>
+        <h3 className="game-title" title={`${idx}. ${gameTitle}`}>{idx}. {gameTitle}</h3>
         <p className="game-subtitle">{subtitle}</p>
 
         <hr className="card-divider" />

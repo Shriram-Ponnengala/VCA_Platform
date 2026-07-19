@@ -25,6 +25,7 @@ import {
 import GameCard from './GameCard';
 import AccessGamesPanel from './AccessGamesPanel';
 import { applyContextMenuPosition } from '@/lib/utils/contextMenuUtils';
+import Pagination from '../ui/Pagination';
 
 interface FolderData {
   id: string;
@@ -304,7 +305,7 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
   const [moveTargetId, setMoveTargetId] = useState<string>(''); // target folder/collection ID
   const [submittingModal, setSubmittingModal] = useState(false);
 
-  // ── Access Games persistent state (survives tab switches) ──
+  // â”€â”€ Access Games persistent state (survives tab switches) â”€â”€
   const [agPlatform, setAgPlatform] = useState<'lichess' | 'chesscom'>('lichess');
   const [agUsername, setAgUsername] = useState('');
   const [agGames, setAgGames] = useState<AccessGame[] | null>(null);
@@ -477,81 +478,19 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
   const renderPagination = () => {
     if (totalPages <= 1) return null;
     
-    const pages: (number | string)[] = [];
-    
-    if (totalPages <= 7) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      if (paginatedPage <= 4) {
-        pages.push(1, 2, 3, 4, 5, 'ellipsis', totalPages);
-      } else if (paginatedPage >= totalPages - 3) {
-        pages.push(1, 'ellipsis', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
-      } else {
-        pages.push(1, 'ellipsis', paginatedPage - 1, paginatedPage, paginatedPage + 1, 'ellipsis', totalPages);
-      }
-    }
-
     const startIdx = (paginatedPage - 1) * 20 + 1;
     const endIdx = Math.min(paginatedPage * 20, totalChapters);
 
     return (
-      <div className="pagination-bar">
-        <div className="pagination-buttons">
-          <button 
-            className="pagination-btn arrow-btn" 
-            disabled={paginatedPage === 1} 
-            onClick={() => setPaginatedPage(1)}
-            title="First page"
-          >
-            «
-          </button>
-          <button 
-            className="pagination-btn arrow-btn" 
-            disabled={paginatedPage === 1} 
-            onClick={() => setPaginatedPage(prev => Math.max(1, prev - 1))}
-            title="Previous page"
-          >
-            ‹
-          </button>
-          
-          {pages.map((p, idx) => {
-            if (p === 'ellipsis') {
-              return <span key={`ellipsis-${idx}`} className="pagination-ellipsis">...</span>;
-            }
-            return (
-              <button
-                key={`page-${p}`}
-                className={`pagination-btn num-btn ${paginatedPage === p ? 'active' : ''}`}
-                onClick={() => setPaginatedPage(p as number)}
-              >
-                {p}
-              </button>
-            );
-          })}
-          
-          <button 
-            className="pagination-btn arrow-btn" 
-            disabled={paginatedPage === totalPages} 
-            onClick={() => setPaginatedPage(prev => Math.min(totalPages, prev + 1))}
-            title="Next page"
-          >
-            ›
-          </button>
-          <button 
-            className="pagination-btn arrow-btn" 
-            disabled={paginatedPage === totalPages} 
-            onClick={() => setPaginatedPage(totalPages)}
-            title="Last page"
-          >
-            »
-          </button>
-        </div>
-        <div className="pagination-readout">
-          {startIdx}–{endIdx} of {totalChapters} · 20 / page
-        </div>
-      </div>
+      <Pagination
+        currentPage={paginatedPage}
+        totalPages={totalPages}
+        onPageChange={setPaginatedPage}
+        startIdx={startIdx}
+        endIdx={endIdx}
+        totalItems={totalChapters}
+        itemsPerPage={20}
+      />
     );
   };
 
@@ -912,7 +851,7 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
                     {isExpanded ? <ChevronDown size={14} strokeWidth={2} /> : <ChevronRight size={14} strokeWidth={2} />}
                   </span>
                   <Folder size={16} strokeWidth={1.5} className="folder-icon" />
-                  <span className="node-text">{item.name}</span>
+                  <span className="node-text db-tooltip" data-tooltip={item.name}>{item.name}</span>
                 </button>
                 {isExpanded && renderFolderContent(item.id, parentVisibility)}
               </div>
@@ -952,7 +891,7 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
                     {isExpanded ? <ChevronDown size={14} strokeWidth={2} /> : <ChevronRight size={14} strokeWidth={2} />}
                   </span>
                   <BookOpen size={16} strokeWidth={1.5} className="collection-icon" />
-                  <span className="node-text">{col.name}</span>
+                  <span className="node-text db-tooltip" data-tooltip={col.name}>{col.name}</span>
                   <span className="node-badge">
                     {col.games.length}
                   </span>
@@ -977,7 +916,7 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
                             <FileText size={14} strokeWidth={1.5} className="game-icon" />
                           )}
                         </span>
-                        <span className="node-text">{game.chapterName}</span>
+                        <span className="node-text db-tooltip" data-tooltip={game.chapterName}>{game.chapterName}</span>
                         {game.result && (
                           <span className="node-badge game-result-badge">
                             {formatResult(game.result)}
@@ -995,7 +934,7 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
                       >
                         <ChevronDown size={14} className="more-games-chevron" />
                         <span className="more-games-text">
-                          + {remainingCount} more · open panel to browse all
+                          + {remainingCount} more Â· open panel to browse all
                         </span>
                       </div>
                     )}
@@ -1036,7 +975,7 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
                   {isExpanded ? <ChevronDown size={14} strokeWidth={2} /> : <ChevronRight size={14} strokeWidth={2} />}
                 </span>
                 <Folder size={16} strokeWidth={1.5} className="folder-icon" />
-                <span className="node-text">{folder.name}</span>
+                <span className="node-text db-tooltip" data-tooltip={folder.name}>{folder.name}</span>
               </button>
               {isExpanded && renderSharedFolderContent(folder.id, sharerId)}
             </div>
@@ -1065,7 +1004,7 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
                   {isExpanded ? <ChevronDown size={14} strokeWidth={2} /> : <ChevronRight size={14} strokeWidth={2} />}
                 </span>
                 <BookOpen size={16} strokeWidth={1.5} className="collection-icon" />
-                <span className="node-text">{col.name}</span>
+                <span className="node-text db-tooltip" data-tooltip={col.name}>{col.name}</span>
                 <span className="node-badge">
                   {col.games.length}
                 </span>
@@ -1090,7 +1029,7 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
                           <FileText size={14} strokeWidth={1.5} className="game-icon" />
                         )}
                       </span>
-                      <span className="node-text">{game.chapterName}</span>
+                      <span className="node-text db-tooltip" data-tooltip={game.chapterName}>{game.chapterName}</span>
                       {game.result && (
                         <span className="node-badge game-result-badge">
                           {formatResult(game.result)}
@@ -1108,7 +1047,7 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
                     >
                       <ChevronDown size={14} className="more-games-chevron" />
                       <span className="more-games-text">
-                        + {remainingCount} more · open panel to browse all
+                        + {remainingCount} more Â· open panel to browse all
                       </span>
                     </div>
                   )}
@@ -1240,7 +1179,7 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
                                     <FileText size={14} strokeWidth={1.5} className="game-icon" />
                                   )}
                                 </span>
-                                <span className="node-text">{game.chapterName}</span>
+                                <span className="node-text db-tooltip" data-tooltip={game.chapterName}>{game.chapterName}</span>
                                 {game.result && (
                                   <span className="node-badge game-result-badge">
                                     {formatResult(game.result)}
@@ -1258,7 +1197,7 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
                               >
                                 <ChevronDown size={14} className="more-games-chevron" />
                                 <span className="more-games-text">
-                                  + {remainingCount} more · open panel to browse all
+                                  + {remainingCount} more Â· open panel to browse all
                                 </span>
                               </div>
                             )}
@@ -1287,7 +1226,7 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
                           <FileText size={14} strokeWidth={1.5} className="game-icon" />
                         )}
                       </span>
-                      <span className="node-text">{game.chapterName}</span>
+                      <span className="node-text db-tooltip" data-tooltip={game.chapterName}>{game.chapterName}</span>
                       {game.result && (
                         <span className="node-badge game-result-badge">
                           {formatResult(game.result)}
@@ -1353,7 +1292,7 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
         )}
       </div>
 
-      {/* Search Input — hidden on Access Games tab */}
+      {/* Search Input - hidden on Access Games tab */}
       {activeSubTab !== 'access' && (
         <div className="search-container">
           <Search className="search-icon" size={14} />
@@ -1428,7 +1367,7 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
                 data-context-shared={activeSubTab === 'shared' ? "true" : "false"}
               >
                 <BookOpen size={16} strokeWidth={1.5} className="collection-icon" />
-                <span className="node-text">{activeCollection.name}</span>
+                <span className="node-text db-tooltip" data-tooltip={activeCollection.name}>{activeCollection.name}</span>
                 <span className="node-badge">
                   {totalChapters}
                 </span>
@@ -1475,7 +1414,7 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
                             <FileText size={14} strokeWidth={1.5} className="game-icon" />
                           )}
                         </span>
-                        <span className="node-text">{game.chapterName}</span>
+                        <span className="node-text db-tooltip" data-tooltip={game.chapterName}>{game.chapterName}</span>
                         {game.result && (
                           <span className="node-badge game-result-badge">
                             {formatResult(game.result)}
@@ -1831,64 +1770,6 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
           margin-bottom: 8px;
           padding-left: 8px;
         }
-        /* Pagination Styling */
-        .pagination-bar {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 8px 4px;
-          border-bottom: 1px solid #f1f5f9;
-          margin-bottom: 8px;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-        .pagination-buttons {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-        .pagination-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          height: 30px;
-          min-width: 30px;
-          padding: 0 6px;
-          border: 1px solid #eedcd0;
-          background: #ffffff;
-          color: #4a2018;
-          border-radius: 6px;
-          font-size: 0.8rem;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.15s ease;
-        }
-        .pagination-btn:hover:not(:disabled) {
-          border-color: #c8854a;
-          background: rgba(74, 32, 24, 0.05);
-        }
-        .pagination-btn:disabled {
-          opacity: 0.4;
-          cursor: not-allowed;
-          background: #f8fafc;
-        }
-        .pagination-btn.active {
-          background: #2563eb;
-          color: #ffffff;
-          border-color: #2563eb;
-          box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
-        }
-        .pagination-ellipsis {
-          color: #a08070;
-          font-size: 0.85rem;
-          padding: 0 4px;
-          user-select: none;
-        }
-        .pagination-readout {
-          font-size: 0.75rem;
-          color: #7a625d;
-          font-weight: 500;
-        }
 
         .tree-container {
           flex: 1;
@@ -1967,6 +1848,37 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+          position: relative;
+        }
+        /* Custom instant tooltip (replaces slow native title= tooltip) */
+        .db-tooltip {
+          position: relative;
+        }
+        .db-tooltip::after {
+          content: attr(data-tooltip);
+          position: absolute;
+          bottom: calc(100% + 6px);
+          left: 0;
+          background: #1c1917;
+          color: #fff;
+          font-size: 0.78rem;
+          font-weight: 500;
+          padding: 5px 10px;
+          border-radius: 6px;
+          white-space: nowrap;
+          pointer-events: none;
+          opacity: 0;
+          transform: translateY(4px);
+          transition: opacity 0.12s ease, transform 0.12s ease;
+          z-index: 9999;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+          max-width: 280px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .db-tooltip:hover::after {
+          opacity: 1;
+          transform: translateY(0);
         }
         .node-badge {
           font-size: 11px;
@@ -2269,3 +2181,4 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
     </div>
   );
 }
+

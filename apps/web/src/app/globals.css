@@ -16,7 +16,19 @@
   --sidebar-active-bg: #c8854a;
   --sidebar-active-foreground: #ffffff;
   
-  /* Fonts */
+  /* Fonts mapping */
+  --font-inter: 'Inter', sans-serif;
+  --font-playfair: 'Playfair Display', serif;
+  --font-dm-sans: 'DM Sans', sans-serif;
+  --font-montserrat: 'Montserrat', sans-serif;
+  --font-poppins: 'Poppins', sans-serif;
+  --font-roboto: 'Roboto', sans-serif;
+  --font-open-sans: 'Open Sans', sans-serif;
+  --font-oleo-script: 'Oleo Script', cursive;
+  --font-lato: 'Lato', sans-serif;
+  --font-merriweather: 'Merriweather', serif;
+  --font-nunito: 'Nunito', sans-serif;
+
   --font-sans: var(--font-inter), ui-sans-serif, system-ui;
   --font-serif: var(--font-playfair), ui-serif, Georgia;
 
@@ -146,4 +158,515 @@ cg-board square.black {
 .board-wrapper piece.rook.black { background-image: var(--piece-br, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bR.svg')) !important; }
 .board-wrapper piece.queen.black { background-image: var(--piece-bq, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bQ.svg')) !important; }
 .board-wrapper piece.king.black { background-image: var(--piece-bk, url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bK.svg')) !important; }
+
+/* Piece Animations Overrides */
+:root[data-piece-animation="none"] piece.anim {
+  transition: none !important;
+}
+
+/* Arcade: subtle comet trail using multi-layer drop shadow and linear motion blur */
+:root[data-piece-animation="arcade"] piece.anim,
+:root[data-piece-animation="arcade"] piece.dragging {
+  filter: drop-shadow(0px 0px 4px rgba(220, 230, 255, 0.8)) drop-shadow(0px 0px 10px rgba(100, 150, 255, 0.6)) blur(0.5px) !important;
+}
+
+:root[data-piece-animation="arcade"] piece.anim {
+  transition: transform 200ms linear !important;
+}
+
+/* Highlight Last Move Toggle */
+:root[data-highlight-last-move="false"] square.last-move {
+  background-color: transparent !important;
+}
+
+/* Fallbacks for prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  :root[data-piece-animation="arcade"] piece.anim {
+    filter: none !important;
+  }
+}
+
+.vca-bouncing-piece {
+  animation: vca-bounce 180ms ease-in-out;
+}
+
+@keyframes vca-bounce {
+  0%   { margin-top: 0; }
+  60%  { margin-top: 4px; }  /* tiny dip, 4px only */
+  100% { margin-top: 0; }
+}
+
+.vca-teleport-piece {
+  animation: vca-teleport-pop 250ms ease-out forwards;
+  transform-origin: center;
+}
+
+@keyframes vca-teleport-pop {
+  0% {
+    opacity: 0;
+    scale: 0.6;
+  }
+  48% { /* 120ms of 250ms is invisible */
+    opacity: 0;
+    scale: 0.6;
+  }
+  70% { /* 175ms is overshoot peak */
+    opacity: 0.8;
+    scale: 1.12;
+  }
+  100% { /* 250ms settles */
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+.vca-teleport-vanish {
+  position: absolute !important;
+  pointer-events: none;
+  z-index: 10;
+  background-size: cover;
+  animation: vca-vanish 120ms ease-in forwards;
+}
+
+@keyframes vca-vanish {
+  0% {
+    opacity: 1;
+    scale: 1;
+  }
+  100% {
+    opacity: 0;
+    scale: 0.6;
+  }
+}
+
+.vca-teleport-trail {
+  position: absolute !important;
+  pointer-events: none;
+  z-index: 9;
+  background-size: cover;
+  filter: blur(1.5px) opacity(0.4);
+  animation: vca-trail 120ms ease-out forwards;
+}
+
+@keyframes vca-trail {
+  0% {
+    opacity: 0.4;
+    transform: translate(0, 0) scale(0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--tx, 0px), var(--ty, 0px)) scale(0.7);
+  }
+}
+
+/* Coach Timer widget styles — frosted glass surface over the board/page */
+.vca-coach-timer-widget {
+  position: absolute !important;
+  top: calc(var(--board-frame-padding, 10px) + (100% - (var(--board-frame-padding, 10px) * 2)) / 8);
+  right: 100%;
+  margin-right: 10px;
+  z-index: 99;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 12px 28px -6px rgba(45, 74, 107, 0.22), 0 4px 10px -4px rgba(45, 74, 107, 0.12);
+  border-radius: 8px;
+  padding: 8px;
+  width: 240px;
+  color: #4a2018;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  user-select: none;
+  pointer-events: auto; /* Allow clicks on children */
+}
+
+/* Fallback when backdrop-filter isn't supported: opaque brand-cream surface instead of glass */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .vca-coach-timer-widget,
+  .vca-timer-settings-popover {
+    background: rgba(253, 245, 234, 0.97);
+  }
+}
+
+/* Draining ring timer */
+.vca-timer-ring-wrap {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vca-timer-ring-arc {
+  transition: stroke-dashoffset 0.2s linear, stroke 0.4s ease;
+}
+
+.vca-timer-ring-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  color: #4a2018;
+  pointer-events: none;
+}
+
+/* Collapsed vertical pill: more, ring, play/pause, reset — stacked, narrow footprint */
+.vca-timer-pill-collapsed {
+  width: auto !important;
+  align-items: center;
+  border-radius: 999px;
+  padding: 12px 10px;
+  gap: 10px;
+  cursor: grab;
+  touch-action: none;
+}
+.vca-timer-pill-collapsed button {
+  cursor: pointer; /* buttons opt back out of the drag-handle grab cursor */
+}
+.vca-timer-pill-collapsed.vca-timer-dragging {
+  cursor: grabbing;
+  transition: none; /* no lag behind the pointer while actively dragging */
+}
+
+.vca-timer-pill-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.vca-timer-btn {
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  color: #4a2018;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-shadow: 0 2px 6px rgba(45, 74, 107, 0.08);
+  transition: all 0.15s ease;
+}
+.vca-timer-btn:hover {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.9);
+}
+.vca-timer-btn-primary {
+  background: #c8854a;
+  border-color: #c8854a;
+  color: #ffffff;
+}
+.vca-timer-btn-primary:hover {
+  background: #b8763c;
+  border-color: #b8763c;
+}
+
+/* Play/Pause: the pill's focal action — soft green gradient, larger than its siblings */
+.vca-timer-play-btn {
+  width: 46px;
+  height: 46px;
+  background: linear-gradient(135deg, #4ade80, #16a34a);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  color: #ffffff;
+  box-shadow: 0 6px 14px -4px rgba(22, 163, 74, 0.55), 0 2px 4px rgba(22, 163, 74, 0.3);
+}
+.vca-timer-play-btn:hover {
+  background: linear-gradient(135deg, #4ade80, #16a34a);
+  border-color: rgba(255, 255, 255, 0.6);
+  filter: brightness(1.06);
+}
+.vca-timer-play-btn:disabled {
+  opacity: 0.5;
+  filter: grayscale(0.4);
+  cursor: not-allowed;
+}
+
+.vca-timer-pill-btn-active,
+.vca-timer-pill-btn-active:hover {
+  background: #c8854a;
+  border-color: #c8854a;
+  color: #ffffff;
+}
+
+/* Mode + duration popover, anchored beside the pill via inline position styles */
+.vca-timer-settings-popover {
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 12px 28px -6px rgba(45, 74, 107, 0.22), 0 4px 10px -4px rgba(45, 74, 107, 0.12);
+  border-radius: 20px;
+  padding: 14px;
+  color: #4a2018;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  user-select: none;
+  pointer-events: auto;
+}
+
+.vca-timer-popover-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #7a625d;
+}
+
+/* Timer | Style tabs at the top of the expanded panel */
+.vca-timer-panel-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid rgba(74, 32, 24, 0.1);
+  padding-bottom: 8px;
+  margin-bottom: -4px;
+}
+.vca-timer-panel-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #7a625d;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 0 8px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s ease;
+}
+.vca-timer-panel-tab:hover {
+  color: #4a2018;
+}
+.vca-timer-panel-tab.active {
+  color: #c8854a;
+  border-bottom-color: #c8854a;
+}
+
+.vca-timer-style-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.vca-timer-style-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.vca-timer-style-value {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #4a2018;
+}
+
+.vca-timer-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(74, 32, 24, 0.12);
+  outline: none;
+  margin: 2px 0 4px;
+}
+.vca-timer-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #c8854a;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(45, 74, 107, 0.3);
+  cursor: pointer;
+}
+.vca-timer-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #c8854a;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(45, 74, 107, 0.3);
+  cursor: pointer;
+}
+
+.vca-timer-swatch-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.vca-timer-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 1px 4px rgba(45, 74, 107, 0.2);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+.vca-timer-swatch:hover {
+  transform: scale(1.12);
+}
+.vca-timer-swatch.active {
+  border-color: #2d1810;
+}
+.vca-timer-swatch-default {
+  background: conic-gradient(#c8854a 0 50%, #16a34a 50% 100%);
+}
+.vca-timer-color-input {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  cursor: pointer;
+  background: transparent;
+  flex-shrink: 0;
+}
+.vca-timer-color-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+  border-radius: 50%;
+}
+.vca-timer-color-input::-webkit-color-swatch {
+  border: none;
+  border-radius: 50%;
+}
+
+.vca-timer-mode-selector {
+  display: flex;
+  background: rgba(74, 32, 24, 0.06);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+.vca-timer-mode-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #7a625d;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 6px 0;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.vca-timer-mode-btn.active {
+  background: #ffffff;
+  color: #2d1810;
+  box-shadow: 0 2px 6px rgba(45, 74, 107, 0.18);
+}
+
+.vca-timer-presets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.vca-timer-preset-tag {
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(74, 32, 24, 0.08);
+  color: #4a2018;
+  padding: 10px 0;
+  border-radius: 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.vca-timer-preset-tag:hover {
+  background: rgba(255, 255, 255, 0.9);
+}
+.vca-timer-preset-tag.active {
+  background: #c8854a;
+  border-color: #c8854a;
+  color: #ffffff;
+  box-shadow: 0 4px 10px -2px rgba(200, 133, 74, 0.5);
+}
+
+.vca-timer-custom-toggle {
+  display: block;
+  background: transparent;
+  border: 1.5px dashed rgba(74, 32, 24, 0.25);
+  color: #7a625d;
+  padding: 8px 0;
+  border-radius: 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.vca-timer-custom-toggle:hover {
+  border-color: rgba(74, 32, 24, 0.4);
+  color: #4a2018;
+}
+.vca-timer-custom-toggle.active {
+  border-style: solid;
+  border-color: #c8854a;
+  background: rgba(200, 133, 74, 0.12);
+  color: #2d1810;
+}
+
+.vca-timer-custom-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: #7a625d;
+}
+.vca-timer-custom-input {
+  width: 44px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(74, 32, 24, 0.15);
+  color: #2d1810;
+  border-radius: 8px;
+  padding: 4px 6px;
+  text-align: center;
+  font-size: 0.8rem;
+  outline: none;
+}
+.vca-timer-custom-input:focus {
+  border-color: #c8854a;
+  background: #ffffff;
+}
+
+/* Board border pulsing red flash overlay on countdown end */
+.vca-board-flash {
+  animation: vca-flash-glow 1s infinite alternate;
+}
+
+@keyframes vca-flash-glow {
+  0% {
+    box-shadow: 0 0 0 0px rgba(239, 68, 68, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 14px 6px rgba(239, 68, 68, 0.95);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vca-board-flash {
+    animation: vca-flash-low-motion 1s infinite alternate;
+  }
+  @keyframes vca-flash-low-motion {
+    0% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0.75;
+    }
+  }
+}
 

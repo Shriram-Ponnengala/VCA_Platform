@@ -34,6 +34,7 @@ export default function ClassroomPage() {
   const [isLoadingToken, setIsLoadingToken] = useState(true);
   const [isAuthError, setIsAuthError] = useState(false);
   const [userRole, setUserRole] = useState<'admin' | 'coach' | 'student' | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveGameName, setSaveGameName] = useState('');
   const [savingGame, setSavingGame] = useState(false);
@@ -51,6 +52,7 @@ export default function ClassroomPage() {
           const payload = JSON.parse(atob(data.token.split('.')[1]));
           console.log('Current logged-in user role (generic classroom):', payload.role);
           setUserRole(payload.role);
+          setCurrentUserId(payload.id);
         } catch (e) {
           console.error('Error decoding token role:', e);
         }
@@ -588,6 +590,8 @@ export default function ClassroomPage() {
         <main className="main-content" ref={mainContentRef}>
           <section className="board-section">
             <ChessBoard
+              role={userRole}
+              userId={currentUserId}
               fen={boardFen}
               history={gameHistory}
               currentIndex={gameHistory.length - 1}

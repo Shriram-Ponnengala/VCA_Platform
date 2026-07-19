@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Upload, User } from 'lucide-react';
 import { COUNTRIES, CITIES_BY_COUNTRY } from '@/lib/data';
 import { DOBSelect } from '@/components/ui/DOBSelect';
+import { useStudents } from '@/lib/hooks/useStudents';
 import styles from './AddStudentModal.module.css';
 
 interface AddStudentModalProps {
@@ -14,7 +15,10 @@ interface AddStudentModalProps {
 }
 
 export function AddStudentModal({ isOpen, onClose, onSave, initialData }: AddStudentModalProps) {
+  const { students } = useStudents();
   const [hasSecondary, setHasSecondary] = useState(false);
+  const [isLinking, setIsLinking] = useState(false);
+  const [siblingId, setSiblingId] = useState('');
   const [formData, setFormData] = useState({
     // Student Details
     studentFirstName: '',
@@ -92,6 +96,8 @@ export function AddStudentModal({ isOpen, onClose, onSave, initialData }: AddStu
           country: '', city: ''
         });
         setHasSecondary(false);
+        setIsLinking(false);
+        setSiblingId('');
       }
       setErrors({});
     } else {
@@ -99,6 +105,28 @@ export function AddStudentModal({ isOpen, onClose, onSave, initialData }: AddStu
     }
     return () => { document.body.style.overflow = 'unset'; };
   }, [isOpen, initialData]);
+
+  const handleSiblingChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedId = e.target.value;
+    setSiblingId(selectedId);
+    
+    if (selectedId) {
+      const sibling = students.find(s => s.id === selectedId);
+      if (sibling) {
+        setFormData(prev => ({
+          ...prev,
+          parentFirstName: sibling.parentFirstName || '',
+          parentMiddleName: sibling.parentMiddleName || '',
+          parentLastName: sibling.parentLastName || '',
+          parentEmail: sibling.parentEmail || '',
+          parentMobile: sibling.mobile || '',
+          country: sibling.country || '',
+          city: sibling.city || ''
+        }));
+        // We will fetch the full details on the backend, so we just lock the UI.
+      }
+    }
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -173,7 +201,8 @@ export function AddStudentModal({ isOpen, onClose, onSave, initialData }: AddStu
         studentMobile,
         email: studentEmail,
         mobile: studentMobile,
-        profilePhoto
+        profilePhoto,
+        siblingId: isLinking ? siblingId : undefined
       };
       onSave(submittedData);
     }
@@ -298,7 +327,29 @@ export function AddStudentModal({ isOpen, onClose, onSave, initialData }: AddStu
               <div className={styles.divider} />
             </div>
 
-            <div className={styles.row3}>
+            {!initialData && (
+              <div style={{ marginBottom: '24px', padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <label className={styles.checkboxGroup} style={{ marginBottom: isLinking ? '16px' : '0' }}>
+                  <input type="checkbox" checked={isLinking} onChange={e => setIsLinking(e.target.checked)} className={styles.checkbox} />
+                  <span className={styles.checkboxLabel} style={{ fontWeight: 600 }}>Link to an existing sibling&apos;s family</span>
+                </label>
+                
+                {isLinking && (
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.label}>SELECT SIBLING</label>
+                    <select value={siblingId} onChange={handleSiblingChange} className={styles.select}>
+                      <option value="">-- Choose a sibling --</option>
+                      {students.map(s => (
+                        <option key={s.id} value={s.id}>{s.name} (Parent: {s.parentName})</option>
+                      ))}
+                    </select>
+                    <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>Selecting a sibling will automatically link their parent and location details.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className={styles.row3} style={{ opacity: isLinking && siblingId ? 0.6 : 1, pointerEvents: isLinking && siblingId ? 'none' : 'auto' }}>
               <div className={styles.fieldGroup}>
                 <label className={styles.label}>PARENT FIRST NAME *</label>
                 <input name="parentFirstName" value={formData.parentFirstName} onChange={handleChange} className={styles.input} />
@@ -363,7 +414,7 @@ export function AddStudentModal({ isOpen, onClose, onSave, initialData }: AddStu
           </div>
 
           {/* SECTION 3: Other details */}
-          <div className={styles.section}>
+          <div className={styles.section} style={{ opacity: isLinking && siblingId ? 0.6 : 1, pointerEvents: isLinking && siblingId ? 'none' : 'auto' }}>
             <div className={styles.sectionHeader}>
               <h3 className={styles.sectionTitle}>Other details</h3>
               <div className={styles.divider} />
