@@ -169,6 +169,12 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ isLocked = false }) => {
       const chess = new Chess(fenRef.current);
       chess.move({ from: from as any, to: to as any, promotion });
       lastMovedFenRef.current = chess.fen();
+      if (cgRef.current) {
+        cgRef.current.set({
+          fen: chess.fen(),
+          turnColor: chess.turn() === 'w' ? 'white' : 'black',
+        });
+      }
     } catch (e) {
       // Ignore
     }

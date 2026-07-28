@@ -10,6 +10,7 @@ export interface Session {
   platform: string;
   meetingLink: string | null;
   description: string | null;
+  notes: string | null;
   status: string;
   classId: string;
   agenda: string[] | null;

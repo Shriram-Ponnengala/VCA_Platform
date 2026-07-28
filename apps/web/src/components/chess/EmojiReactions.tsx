@@ -117,6 +117,8 @@ interface ActiveReaction {
   y: number;
   config: EmojiConfig;
   size: number;
+  isCombo?: boolean;
+  comboIndex?: number;
 }
 
 interface ActiveParticle {
@@ -183,6 +185,7 @@ export const EmojiReactions: React.FC<EmojiReactionsProps> = ({
   const [showCombo, setShowCombo] = useState(false);
   
   const lastTriggerRef = useRef<number>(0);
+  const comboCountRef = useRef<number>(0);
   const comboTimerRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -307,54 +310,110 @@ export const EmojiReactions: React.FC<EmojiReactionsProps> = ({
   // Main fire engine function
   const fire = useCallback((emoji: EmojiConfig, clickX?: number, clickY?: number) => {
     // Determine coordinates
-    let x = 0;
-    let y = 0;
+    let baseX = 0;
+    let baseY = 0;
     
     if (clickX !== undefined && clickY !== undefined) {
-      x = clickX;
-      y = clickY;
+      baseX = clickX;
+      baseY = clickY;
     } else {
       // center of the board
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
-        x = rect.width / 2;
-        y = rect.height / 2;
+        baseX = rect.width / 2;
+        baseY = rect.height / 2;
       } else {
         const defaultWidth = boardWidth || 500;
-        x = defaultWidth / 2;
-        y = defaultWidth / 2;
+        baseX = defaultWidth / 2;
+        baseY = defaultWidth / 2;
       }
     }
 
     const currentWidth = boardWidth || 500;
     const emojiSize = (currentWidth / 8) * 2.7;
+
+    // 1. Calculate Combo Counter
+    const nowTime = Date.now();
+    if (comboTimerRef.current) {
+      clearTimeout(comboTimerRef.current);
+    }
+
+    let currentCombo = 1;
+    if (nowTime - lastTriggerRef.current < 1300) {
+      currentCombo = comboCountRef.current + 1;
+    } else {
+      currentCombo = 1;
+    }
+
+    comboCountRef.current = currentCombo;
+    setComboCount(currentCombo);
+    setShowCombo(currentCombo > 1);
+    lastTriggerRef.current = nowTime;
+
+    comboTimerRef.current = setTimeout(() => {
+      setShowCombo(false);
+      setComboCount(0);
+      comboCountRef.current = 0;
+    }, 1300);
+
+    // 2. Compute diagonal side offset for combos matching PROPOSED (SIDE FLOAT UP)
+    const isCombo = currentCombo > 1;
+    let comboOffsetX = 0;
+    let comboOffsetY = 0;
+
+    if (isCombo) {
+      // Step sequentially along a diagonal line from bottom-left to top-right
+      const maxSteps = 5;
+      const stepIndex = (currentCombo - 1) % maxSteps;
+      const diagFactor = stepIndex - (maxSteps - 1) / 2; // -2, -1, 0, 1, 2
+
+      const stepDistX = Math.min(emojiSize * 0.45, 38);
+      const stepDistY = Math.min(emojiSize * 0.55, 48);
+
+      comboOffsetX = diagFactor * stepDistX;
+      comboOffsetY = -diagFactor * stepDistY;
+    }
+
+    const x = baseX + comboOffsetX;
+    const y = baseY + comboOffsetY;
     const reactionId = `${Date.now()}-${Math.random()}`;
 
-    // 1. Add reaction emoji element
-    // slam animations (punch, handshake) stay on screen longer
-    const reactionDuration = emoji.animation === 'slam' ? 1500 : 1200;
-    setReactions((prev) => [...prev, { id: reactionId, x, y, config: emoji, size: emojiSize }]);
+    // 3. Add reaction emoji element
+    // Combo emojis float upwards and fade out
+    const reactionDuration = isCombo ? 1400 : (emoji.animation === 'slam' ? 1500 : 1200);
+    setReactions((prev) => [
+      ...prev,
+      {
+        id: reactionId,
+        x,
+        y,
+        config: emoji,
+        size: emojiSize,
+        isCombo,
+        comboIndex: currentCombo,
+      }
+    ]);
     setTimeout(() => {
       setReactions((prev) => prev.filter((r) => r.id !== reactionId));
     }, reactionDuration);
 
-    // 2. Play sound & update usage
+    // 4. Play sound & update usage
     playSound(emoji.sound);
     incrementUsage(emoji.id);
 
-    // 3. Shake effect
+    // 5. Shake effect
     if (emoji.shakeLevel !== 'none') {
       onShake(emoji.shakeLevel);
       setTimeout(() => onShake('none'), 500);
     }
 
-    // 4. Flash effect
+    // 6. Flash effect
     if (emoji.flash !== 'none') {
       setFlashType(emoji.flash);
       setTimeout(() => setFlashType('none'), 150);
     }
 
-    // 5. Shockwave
+    // 7. Shockwave
     if (emoji.shock) {
       const shockwaveId = `${Date.now()}-${Math.random()}`;
       const shockwaveSize = currentWidth * 0.45;
@@ -364,9 +423,28 @@ export const EmojiReactions: React.FC<EmojiReactionsProps> = ({
       }, 600);
     }
 
-    // 6. Generate Particles
+    // 8. Generate Particles at the offset position
     const { glyphs, count, mode } = emoji.particles;
     const newParticles: ActiveParticle[] = [];
+
+    if (isCombo) {
+      const sparkles = ['✨', '⭐', '💫', '⚡'];
+      for (let s = 0; s < 3; s++) {
+        newParticles.push({
+          id: `${Date.now()}-streak-${s}-${Math.random()}`,
+          x: x - s * 10,
+          y: y + s * 14,
+          glyph: sparkles[s % sparkles.length],
+          tx: `${35 + s * 20}px`,
+          ty: `-${60 + s * 25}px`,
+          scale: 0.6 + Math.random() * 0.4,
+          rotate: '30deg',
+          delay: `${s * 0.04}s`,
+          duration: '1.0s',
+          mode: 'rise',
+        });
+      }
+    }
 
     for (let i = 0; i < count; i++) {
       const pId = `${Date.now()}-${i}-${Math.random()}`;
@@ -440,30 +518,6 @@ export const EmojiReactions: React.FC<EmojiReactionsProps> = ({
       const ids = new Set(newParticles.map(p => p.id));
       setParticles((prev) => prev.filter(p => !ids.has(p.id)));
     }, 1500);
-
-    // 7. Combo Counter
-    const nowTime = Date.now();
-    if (comboTimerRef.current) {
-      clearTimeout(comboTimerRef.current);
-    }
-
-    if (nowTime - lastTriggerRef.current < 1300) {
-      setComboCount((prev) => {
-        const nextCombo = prev + 1;
-        setShowCombo(true);
-        return nextCombo;
-      });
-    } else {
-      setComboCount(1);
-      setShowCombo(false);
-    }
-    
-    lastTriggerRef.current = nowTime;
-
-    comboTimerRef.current = setTimeout(() => {
-      setShowCombo(false);
-      setComboCount(0);
-    }, 1300);
 
   }, [boardWidth, playSound, onShake]);
 
@@ -576,7 +630,7 @@ export const EmojiReactions: React.FC<EmojiReactionsProps> = ({
         {reactions.map((r) => (
           <div
             key={r.id}
-            className={`reacting-emoji emoji-anim-${r.config.animation}`}
+            className={`reacting-emoji ${r.isCombo ? 'emoji-combo-float' : `emoji-anim-${r.config.animation}`}`}
             style={{
               left: r.x,
               top: r.y,
@@ -614,9 +668,14 @@ export const EmojiReactions: React.FC<EmojiReactionsProps> = ({
           </div>
         ))}
 
+        {/* Golden Diagonal Combo Light Beam */}
+        {showCombo && comboCount > 1 && (
+          <div className="emoji-combo-light-beam" />
+        )}
+
         {/* Combo Counter UI */}
         {showCombo && comboCount > 1 && (
-          <div className="emoji-combo-badge animate-combo">
+          <div key={comboCount} className="emoji-combo-badge animate-combo">
             COMBO x{comboCount}
           </div>
         )}
@@ -851,6 +910,58 @@ export const EmojiReactions: React.FC<EmojiReactionsProps> = ({
         }
 
         /* Emoji Animation Styles */
+        .emoji-combo-float {
+          animation: emoji-combo-float-anim 1.4s cubic-bezier(0.15, 0.85, 0.35, 1) forwards;
+          filter: drop-shadow(0 0 10px #f59e0b) drop-shadow(0 0 20px #fbbf24) drop-shadow(0 4px 10px rgba(0,0,0,0.5)) !important;
+        }
+        @keyframes emoji-combo-float-anim {
+          0% {
+            transform: translate(-50%, -50%) translate(0, 0) scale(0.4) rotate(-10deg);
+            opacity: 0;
+          }
+          18% {
+            transform: translate(-50%, -50%) translate(20px, -35px) scale(1.25) rotate(0deg);
+            opacity: 1;
+          }
+          50% {
+            transform: translate(-50%, -50%) translate(65px, -110px) scale(1.06) rotate(6deg);
+            opacity: 1;
+          }
+          80% {
+            transform: translate(-50%, -50%) translate(110px, -185px) scale(0.9) rotate(3deg);
+            opacity: 0.85;
+          }
+          100% {
+            transform: translate(-50%, -50%) translate(145px, -245px) scale(0.75) rotate(0deg);
+            opacity: 0;
+          }
+        }
+
+        .emoji-combo-light-beam {
+          position: absolute;
+          top: 5%;
+          right: 15%;
+          width: 120px;
+          height: 90%;
+          background: linear-gradient(
+            135deg,
+            rgba(251, 191, 36, 0) 0%,
+            rgba(251, 191, 36, 0.12) 30%,
+            rgba(245, 158, 11, 0.28) 50%,
+            rgba(251, 191, 36, 0.12) 70%,
+            rgba(251, 191, 36, 0) 100%
+          );
+          transform: rotate(-35deg);
+          pointer-events: none;
+          z-index: 3;
+          border-radius: 50px;
+          filter: blur(14px);
+          animation: combo-beam-pulse 0.8s ease-in-out infinite alternate;
+        }
+        @keyframes combo-beam-pulse {
+          0% { opacity: 0.35; transform: rotate(-35deg) scaleX(0.85); }
+          100% { opacity: 0.85; transform: rotate(-35deg) scaleX(1.15); }
+        }
         .emoji-anim-slam {
           animation: emoji-slam 1.5s cubic-bezier(0.2, 0.9, 0.25, 1) forwards;
         }

@@ -232,6 +232,7 @@ model Session {
   platform    String
   meetingLink String?
   description String?
+  notes       String?
   status      String   @default("Upcoming") // Upcoming, Live, Completed, Cancelled
   
   classId     String

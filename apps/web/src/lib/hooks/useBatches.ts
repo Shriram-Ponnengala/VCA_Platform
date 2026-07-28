@@ -7,6 +7,7 @@ export interface Batch {
   name: string;
   program: string;
   coach?: string;
+  coachName?: string;
   coachId: string;
   type: 'Group' | 'One-on-One';
   startDate: string;
@@ -80,6 +81,7 @@ export function useBatches() {
         ...b,
         name: b.className || b.name,
         coach: b.coach?.user?.username || b.coach?.username || 'No Coach',
+        coachName: b.coach?.user ? `${b.coach.user.firstName || ''} ${b.coach.user.lastName || ''}`.trim() || b.coach.user.username : (b.coach?.username || 'No Coach'),
         coachId: b.coach?.userId || b.coachId,
         students: (b.enrollments || []).map((e: any) => e.student?.id || e.studentId),
         studentDetails: [
@@ -132,6 +134,7 @@ export function useBatches() {
         ...newBatch,
         name: newBatch.className || newBatch.name,
         coach: newBatch.coach?.user?.username || newBatch.coach?.username || 'No Coach',
+        coachName: newBatch.coach?.user ? `${newBatch.coach.user.firstName || ''} ${newBatch.coach.user.lastName || ''}`.trim() || newBatch.coach.user.username : (newBatch.coach?.username || 'No Coach'),
         coachId: newBatch.coach?.userId || newBatch.coachId,
         students: [],
         studentDetails: []

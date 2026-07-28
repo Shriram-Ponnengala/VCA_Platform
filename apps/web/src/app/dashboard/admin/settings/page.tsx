@@ -2104,11 +2104,10 @@ export default function SettingsPage() {
                         { id: 'staunty', name: 'staunty' },
                         { id: 'pixel', name: 'pixel' },
                         { id: 'letter', name: 'letter' },
-                        { id: 'chibi', name: 'Chess Pal' },
+                        { id: 'chessbuddy', name: 'Chess Buddy' },
                       ].map(pieceSet => {
-                        const isLocalTheme = pieceSet.id === 'chibi';
-                        const previewUrl = isLocalTheme 
-                          ? `/pieces/${pieceSet.id}/wn.png`
+                        const previewUrl = pieceSet.id === 'chessbuddy'
+                          ? '/pieces/chessbuddy/wN.png'
                           : `https://lichess1.org/assets/_L5MIdy/piece/${pieceSet.id}/wN.svg`;
                         return (
                           <div 
@@ -2145,6 +2144,7 @@ export default function SettingsPage() {
                         <option value="standard">Standard (Slide)</option>
                         <option value="arcade">Arcade (Comet Trail)</option>
                         <option value="bounce">Bounce (Subtle Settle)</option>
+                        <option value="trail">Trail (Particle Streak)</option>
                       </select>
                     </div>
                   </div>

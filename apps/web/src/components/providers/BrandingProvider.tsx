@@ -135,12 +135,12 @@ export default function BrandingProvider() {
           }
         }
 
-        const pTheme = (branding.pieceTheme || 'cburnett').toLowerCase();
+        let pTheme = (branding.pieceTheme || 'cburnett').toLowerCase();
+        if (pTheme === 'chibi') pTheme = 'cburnett'; // Fallback for removed legacy theme
         const pieces = ['wP', 'wB', 'wN', 'wR', 'wQ', 'wK', 'bP', 'bB', 'bN', 'bR', 'bQ', 'bK'];
-        const isLocalTheme = pTheme === 'chibi';
         pieces.forEach(p => {
-          const url = isLocalTheme 
-            ? `/pieces/${pTheme}/${p.toLowerCase()}.png`
+          const url = pTheme === 'chessbuddy'
+            ? `/pieces/chessbuddy/${p}.png`
             : `https://lichess1.org/assets/_L5MIdy/piece/${pTheme}/${p}.svg`;
           document.documentElement.style.setProperty(
             `--piece-${p.toLowerCase()}`,

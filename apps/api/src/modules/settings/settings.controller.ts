@@ -118,13 +118,11 @@ export class SettingsController {
       }
       
       // Chess pieces styles
-      const pTheme = (branding.pieceTheme || 'cburnett').toLowerCase();
+      let pTheme = (branding.pieceTheme || 'cburnett').toLowerCase();
+      if (pTheme === 'chibi') pTheme = 'cburnett'; // Fallback for removed legacy theme
       const pieces = ['wP', 'wB', 'wN', 'wR', 'wQ', 'wK', 'bP', 'bB', 'bN', 'bR', 'bQ', 'bK'];
-      const isLocalTheme = pTheme === 'chibi';
       pieces.forEach(p => {
-        const url = isLocalTheme 
-          ? `/pieces/${pTheme}/${p.toLowerCase()}.png`
-          : `https://lichess1.org/assets/_L5MIdy/piece/${pTheme}/${p}.svg`;
+        const url = `https://lichess1.org/assets/_L5MIdy/piece/${pTheme}/${p}.svg`;
         css += `  --piece-${p.toLowerCase()}: url(${url});\n`;
       });
       

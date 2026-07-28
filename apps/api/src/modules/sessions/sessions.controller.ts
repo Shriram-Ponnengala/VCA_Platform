@@ -42,9 +42,9 @@ export class SessionsController {
       
       const session = await this.service.createSession({ ...data, classId: req.params.batchId as string });
       res.status(201).json(session);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      res.status(500).json({ error: 'Failed to create session' });
+      res.status(400).json({ error: error.message || 'Failed to create session' });
     }
   }
 
@@ -57,9 +57,9 @@ export class SessionsController {
 
       const session = await this.service.updateSession(req.params.id as string, data);
       res.json(session);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      res.status(500).json({ error: 'Failed to update session' });
+      res.status(400).json({ error: error.message || 'Failed to update session' });
     }
   }
 

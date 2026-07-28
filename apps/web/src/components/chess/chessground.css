@@ -146,6 +146,39 @@ square.check {
 .cburnett piece.queen.black { background-image: url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bQ.svg'); }
 .cburnett piece.king.black { background-image: url('https://lichess1.org/assets/_L5MIdy/piece/cburnett/bK.svg'); }
 
+.chessbuddy piece {
+  background-size: 85% !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+}
+
+/* Scale up and visually center the pawns and rooks */
+.chessbuddy piece.pawn {
+  background-size: 115% !important;
+  background-position: center center !important;
+  top: -10px !important;
+}
+
+.chessbuddy piece.rook {
+  background-size: 105% !important;
+  background-position: center center !important;
+  top: -7px !important;
+}
+
+/* (The individual images are mapped by variables in globals.css/BrandingProvider, but we leave these here as fallbacks just in case) */
+.chessbuddy piece.pawn.white { background-image: url('/pieces/chessbuddy/wP.png'); }
+.chessbuddy piece.bishop.white { background-image: url('/pieces/chessbuddy/wB.png'); }
+.chessbuddy piece.knight.white { background-image: url('/pieces/chessbuddy/wN.png'); }
+.chessbuddy piece.rook.white { background-image: url('/pieces/chessbuddy/wR.png'); }
+.chessbuddy piece.queen.white { background-image: url('/pieces/chessbuddy/wQ.png'); }
+.chessbuddy piece.king.white { background-image: url('/pieces/chessbuddy/wK.png'); }
+.chessbuddy piece.pawn.black { background-image: url('/pieces/chessbuddy/bP.png'); }
+.chessbuddy piece.bishop.black { background-image: url('/pieces/chessbuddy/bB.png'); }
+.chessbuddy piece.knight.black { background-image: url('/pieces/chessbuddy/bN.png'); }
+.chessbuddy piece.rook.black { background-image: url('/pieces/chessbuddy/bR.png'); }
+.chessbuddy piece.queen.black { background-image: url('/pieces/chessbuddy/bQ.png'); }
+.chessbuddy piece.king.black { background-image: url('/pieces/chessbuddy/bK.png'); }
+
 /* Coordinates */
 coords {
   position: absolute;

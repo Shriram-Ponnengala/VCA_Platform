@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Video, Edit2, Download, MoreVertical, Activity, UserCircle, ExternalLink, Trash2, Link as LinkIcon, Copy, Plus, Check, PlayCircle, FileText, Youtube, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Video, Edit2, Download, MoreVertical, Activity, UserCircle, ExternalLink, Trash2, Link as LinkIcon, Copy, Plus, Check, PlayCircle, FileText, Youtube, CheckCircle, XCircle, RefreshCw, BookOpen } from 'lucide-react';
 import { useSessions } from '@/lib/hooks/useSessions';
 import { useBatches } from '@/lib/hooks/useBatches';
 import { useStudents } from '@/lib/hooks/useStudents';
@@ -36,6 +36,10 @@ export default function CoachSessionDetailPage() {
   const [newFileUrl, setNewFileUrl] = useState('');
   const [newFileTitle, setNewFileTitle] = useState('');
   const [newFileType, setNewFileType] = useState('link');
+
+  const [addingType, setAddingType] = useState<string | null>(null);
+  const [addingUrl, setAddingUrl] = useState('');
+  const [addingLabel, setAddingLabel] = useState('');
 
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
   const [attendanceDraft, setAttendanceDraft] = useState<any[]>([]);
@@ -178,6 +182,23 @@ export default function CoachSessionDetailPage() {
   const recordingAttachment = parsedAttachments.find(a => a.type === 'recording');
   const otherAttachments = parsedAttachments.filter(a => a.type !== 'recording');
 
+  const driveRecording = parsedAttachments.find(a => a.type === 'drive_recording');
+  const pgnFile = parsedAttachments.find(a => a.type === 'pgn');
+  const lichessStudy = parsedAttachments.find(a => a.type === 'lichess_study');
+  const otherFiles = parsedAttachments.find(a => a.type === 'other');
+  const homeworkAssignment = parsedAttachments.find(a => a.type === 'homework');
+
+  const coachName = batch?.coachName || batch?.coach || 'No Coach';
+  const getInitials = (name: string) => {
+    if (!name) return 'SP';
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+  const coachInitials = getInitials(coachName);
+
   const saveAttachments = async (newAttachments: any[]) => {
     try {
       const res = await fetch(`/api/sessions/${session.id}`, {
@@ -218,6 +239,98 @@ export default function CoachSessionDetailPage() {
     setNewFileTitle('');
   };
 
+  const handleSaveAttachment = (type: string) => {
+    if (!addingUrl.trim()) return;
+    const defaultLabels: Record<string, string> = {
+      drive_recording: 'Google Drive Recording',
+      pgn: 'PGN File',
+      lichess_study: 'Lichess Study',
+      other: 'Other Files',
+      homework: 'Homework / Assignment'
+    };
+    const newAttachment = {
+      type,
+      label: addingLabel.trim() || defaultLabels[type] || 'Attachment',
+      url: addingUrl.trim(),
+      addedAt: new Date().toISOString(),
+      addedBy: 'Coach'
+    };
+    const updated = parsedAttachments.filter(a => a.type !== type);
+    updated.push(newAttachment);
+    saveAttachments(updated);
+    setAddingType(null);
+    setAddingUrl('');
+    setAddingLabel('');
+  };
+
+  const handleRemoveAttachmentByType = (typeToRemove: string) => {
+    const updated = parsedAttachments.filter(a => a.type !== typeToRemove);
+    saveAttachments(updated);
+  };
+
+  const renderDescription = (description: string | null) => {
+    if (!description) return <p style={{ fontSize: '0.85rem', color: '#64748b', fontStyle: 'italic', margin: 0 }}>No description provided for this session.</p>;
+    const lines = description.split('\n').map(l => l.trim()).filter(Boolean);
+    const isBulletList = lines.some(line => line.startsWith('*') || line.startsWith('-') || line.startsWith('•'));
+    if (isBulletList) {
+      return (
+        <ul style={{ paddingLeft: '20px', margin: '8px 0', listStyleType: 'disc' }}>
+          {lines.map((line, idx) => {
+            const cleaned = line.replace(/^[\*\-\•]\s*/, '');
+            return <li key={idx} style={{ marginBottom: '6px', fontSize: '0.85rem', color: '#334155' }}>{cleaned}</li>;
+          })}
+        </ul>
+      );
+    }
+    return <p style={{ fontSize: '0.85rem', color: '#334155', lineHeight: '1.5', margin: 0 }}>{description}</p>;
+  };
+
+  const renderReadOnlyRow = (
+    label: string,
+    url: string,
+    icon: React.ReactNode,
+    iconBg: string
+  ) => {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', padding: '12px 0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ 
+            display: 'flex', alignItems: 'center', justifyContent: 'center', 
+            width: '32px', height: '32px', borderRadius: '8px', backgroundColor: iconBg 
+          }}>
+            {icon}
+          </div>
+          <span style={{ fontSize: '0.9rem', fontWeight: 500, color: '#334155' }}>
+            {label}
+          </span>
+        </div>
+        <a 
+          href={url} 
+          target="_blank" 
+          rel="noreferrer" 
+          style={{ display: 'flex', alignItems: 'center', color: '#64748b', cursor: 'pointer' }}
+          title="Open Link"
+        >
+          <ExternalLink size={14} />
+        </a>
+      </div>
+    );
+  };
+
+  const getAttachmentMeta = (type: string) => {
+    switch (type) {
+      case 'pgn':
+        return { icon: <FileText size={16} color="#2563eb" />, bg: '#dbeafe' };
+      case 'lichess_study':
+      case 'lichess':
+        return { icon: <BookOpen size={16} color="#7c3aed" />, bg: '#f3e8ff' };
+      case 'homework':
+        return { icon: <Edit2 size={16} color="#ea580c" />, bg: '#ffedd5' };
+      default:
+        return { icon: <LinkIcon size={16} color="#4b5563" />, bg: '#f3f4f6' };
+    }
+  };
+
   return (
     <div className={styles.container}>
       {/* Main Header Card */}
@@ -233,17 +346,6 @@ export default function CoachSessionDetailPage() {
               <div className={styles.titleRow}>
                 <h1 className={styles.title}>{session.title}</h1>
                 <span className={styles.badgeUpcoming}>Upcoming</span>
-              </div>
-              <div className={styles.metaRow}>
-                <div className={styles.metaItem}>
-                  <CalendarIcon size={14} /> {fullDateStr}
-                </div>
-                <div className={styles.metaItem}>
-                  <ClockIcon size={14} /> {session.startTime} - {session.endTime} ({session.duration} mins)
-                </div>
-                <div className={styles.metaItem}>
-                  <VideoIcon size={14} /> {session.platform}
-                </div>
               </div>
             </div>
           </div>
@@ -281,32 +383,12 @@ export default function CoachSessionDetailPage() {
       {/* Tab Content */}
       {activeTab === 'overview' && (
         <div className={styles.attendanceContent}>
-          <div className={styles.overviewMetricsGrid}>
-            <div className={styles.metricCard}>
-              <span className={styles.metricLabel}><Activity size={14} /> Status</span>
-              <span className={styles.badgeUpcoming}>Upcoming</span>
-            </div>
-            <div className={styles.metricCard}>
-              <span className={styles.metricLabel}><ClockIcon size={14} /> Duration</span>
-              <span className={styles.metricValue}>{session.duration} mins</span>
-            </div>
-            <div className={styles.metricCard}>
-              <span className={styles.metricLabel}><VideoIcon size={14} /> Platform</span>
-              <span className={styles.metricValue}>{session.platform}</span>
-            </div>
-            <div className={styles.metricCard}>
-              <span className={styles.metricLabel}><UsersIcon size={14} color="#64748b" /> Students</span>
-              <span className={styles.metricValue}>{enrolledStudents.length}</span>
-            </div>
-            <div className={styles.metricCard}>
-              <span className={styles.metricLabel}><UserCircle size={14} /> Created By</span>
-              <span className={styles.metricValue}>Admin</span>
-            </div>
-          </div>
-
           <div className={styles.overviewThreeColGrid}>
+            {/* Column 1 - Session Overview */}
             <div className={styles.overviewCol}>
-              <h2 className={styles.sectionTitle}><Activity size={16} /> Session Details</h2>
+              <h2 className={styles.sectionTitle} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FileText size={18} /> Session Overview
+              </h2>
               <div className={styles.detailsList}>
                 <div className={styles.detailRow}>
                   <span className={styles.detailLabel}>Date</span>
@@ -317,59 +399,147 @@ export default function CoachSessionDetailPage() {
                   <span className={styles.detailValue}>{session.startTime} - {session.endTime} ({session.duration} mins)</span>
                 </div>
                 <div className={styles.detailRow}>
+                  <span className={styles.detailLabel}>Batch / Program</span>
+                  <span className={styles.detailValue}>{batch.name} · {batch.program || 'Regular Program'}</span>
+                </div>
+                <div className={styles.detailRow}>
+                  <span className={styles.detailLabel}>Session Type</span>
+                  <span className={styles.detailValue}>{batch.type || 'Regular Class'}</span>
+                </div>
+                <div className={styles.detailRow}>
                   <span className={styles.detailLabel}>Platform</span>
                   <span className={styles.detailValue}>{session.platform}</span>
                 </div>
                 <div className={styles.detailRow}>
                   <span className={styles.detailLabel}>Meeting Link</span>
                   <span className={styles.detailValue}>
-                    <a href={session.meetingLink || '#'} target="_blank" className={styles.linkText}>{session.meetingLink || 'Not added'} <ExternalLink size={12} /></a>
+                    {session.meetingLink ? (
+                      <a href={session.meetingLink} target="_blank" rel="noreferrer" className={styles.linkText} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        {session.meetingLink.substring(0, 30)}{session.meetingLink.length > 30 ? '...' : ''} <ExternalLink size={12} />
+                      </a>
+                    ) : (
+                      'Not added'
+                    )}
                   </span>
                 </div>
-                <div className={styles.detailRow}>
-                  <span className={styles.detailLabel}>Batch / Program</span>
-                  <span className={styles.detailValue}>{batch.name}</span>
-                </div>
-                <div className={styles.detailRow}>
-                  <span className={styles.detailLabel}>Session Type</span>
-                  <span className={styles.detailValue}>Regular Class</span>
-                </div>
-                <div className={styles.detailRow}>
-                  <span className={styles.detailLabel}>Created By</span>
-                  <span className={styles.detailValue}>Admin</span>
+                <div className={styles.detailRow} style={{ alignItems: 'center' }}>
+                  <span className={styles.detailLabel}>Coach</span>
+                  <span className={styles.detailValue} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      backgroundColor: '#7c2d12',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.75rem',
+                      fontWeight: 'bold'
+                    }}>
+                      {coachInitials}
+                    </div>
+                    <span>{coachName}</span>
+                  </span>
                 </div>
               </div>
             </div>
 
+            {/* Column 2 - Topic / Description */}
             <div className={styles.overviewCol}>
-              <h2 className={styles.sectionTitle}><FileText size={16} /> Topic / Description</h2>
-              <p style={{ fontSize: '0.85rem', color: '#334155', lineHeight: '1.5' }}>
-                {session.description || 'No description provided for this session.'}
-              </p>
+              <h2 className={styles.sectionTitle} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <BookOpen size={18} /> Topic / Description
+              </h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#0f172a', margin: 0 }}>
+                  {session.title}
+                </h3>
+                {renderDescription(session.description)}
+                
+                {session.notes && (
+                  <>
+                    <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '16px 0 8px 0' }} />
+                    <h4 style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#7c2d12', textTransform: 'uppercase', margin: '0 0 6px 0' }}>
+                      Notes
+                    </h4>
+                    <p style={{ fontSize: '0.85rem', color: '#334155', lineHeight: '1.5', margin: 0, whiteSpace: 'pre-wrap' }}>
+                      {session.notes}
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
 
+            {/* Column 3 - Session Recording & Files */}
             <div className={styles.overviewCol}>
-              <h2 className={styles.sectionTitle}><PlayCircle size={16} /> Session Recording</h2>
-              <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Recording Link (Google Drive)</p>
-              <button 
-                className={styles.btnSecondary} 
-                style={{ 
-                  marginTop: 'auto', 
-                  alignSelf: 'flex-start',
-                  opacity: recordingAttachment ? 1 : 0.6,
-                  cursor: recordingAttachment ? 'pointer' : 'not-allowed'
-                }}
-                onClick={() => {
-                  if (recordingAttachment?.url) {
-                    window.open(recordingAttachment.url, '_blank');
-                  } else {
-                    displayToast('No recording link found for this session');
-                  }
-                }}
-              >
-                <ExternalLink size={16} color={recordingAttachment ? "#3b82f6" : "#94a3b8"} /> 
-                {recordingAttachment ? 'Open Recording' : 'No Recording Added'}
-              </button>
+              <h2 className={styles.sectionTitle} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <PlayCircle size={18} /> Session Recording & Files
+              </h2>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {parsedAttachments.length === 0 ? (
+                  <p style={{ fontSize: '0.85rem', color: '#64748b', fontStyle: 'italic', margin: '12px 0' }}>
+                    No materials yet — add them in the Recording & Files tab.
+                  </p>
+                ) : (
+                  <>
+                    {/* Always render drive_recording if any attachments exist */}
+                    {driveRecording ? (
+                      renderReadOnlyRow(driveRecording.label || 'Google Drive Recording', driveRecording.url, <Video size={16} color="#16a34a" />, '#dcfce7')
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', padding: '12px 0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ 
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                            width: '32px', height: '32px', borderRadius: '8px', backgroundColor: '#f8fafc' 
+                          }}>
+                            <Video size={16} color="#94a3b8" />
+                          </div>
+                          <span style={{ fontSize: '0.9rem', fontWeight: 500, color: '#94a3b8' }}>
+                            Google Drive Recording
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>Not added yet</span>
+                      </div>
+                    )}
+                    
+                    {/* Render other attachments dynamically */}
+                    {parsedAttachments.filter(a => a.type !== 'drive_recording' && a.type !== 'recording').map((att, idx) => {
+                      const meta = getAttachmentMeta(att.type);
+                      let label = att.label;
+                      if (!label) {
+                        if (att.type === 'pgn') label = 'PGN File';
+                        else if (att.type === 'lichess_study') label = 'Lichess Study';
+                        else if (att.type === 'homework') label = 'Homework / Assignment';
+                        else label = 'Other File';
+                      }
+                      return (
+                        <React.Fragment key={idx}>
+                          {renderReadOnlyRow(label, att.url, meta.icon, meta.bg)}
+                        </React.Fragment>
+                      );
+                    })}
+                  </>
+                )}
+              </div>
+
+              <div style={{ 
+                marginTop: 'auto', 
+                backgroundColor: '#fff7ed', 
+                border: '1px solid #ffedd5', 
+                borderRadius: '8px', 
+                padding: '12px',
+                display: 'flex',
+                gap: '10px'
+              }}>
+                <FolderIcon size={20} color="#ea580c" />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#9a3412' }}>Add files, recordings and assignments</span>
+                  <span style={{ fontSize: '0.75rem', color: '#ea580c', lineHeight: '1.4' }}>
+                    Materials added here will be available in the Recording & Files tab for students.
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -697,7 +867,7 @@ export default function CoachSessionDetailPage() {
 
       {isEditSessionOpen && (
         <CreateSessionModal
-          batchId={batchId}
+          batchId={batchId || ''}
           session={session}
           onClose={() => setIsEditSessionOpen(false)}
           onSave={() => {
@@ -721,3 +891,4 @@ const CalendarIcon = ({ size }: { size: number }) => <svg xmlns="http://www.w3.o
 const ClockIcon = ({ size }: { size: number }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>;
 const VideoIcon = ({ size }: { size: number }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>;
 const UsersIcon = ({ size, color }: { size: number, color: string }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>;
+const FolderIcon = ({ size, color }: { size: number, color?: string }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>;

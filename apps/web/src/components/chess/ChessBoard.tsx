@@ -19,6 +19,7 @@ import 'chessground/assets/chessground.base.css';
 import 'chessground/assets/chessground.brown.css';
 import 'chessground/assets/chessground.cburnett.css';
 import './chessground.css';
+import { MoveTrailCanvas, MoveTrailCanvasHandle, TrailVariant } from './MoveTrailCanvas';
 
 interface ChessBoardProps {
   fen: string;
@@ -525,8 +526,35 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const cgRef = useRef<Api | null>(null);
+  const trailCanvasRef = useRef<MoveTrailCanvasHandle | null>(null);
   const lastMovedFenRef = useRef<string>('');
   const prevFenRef = useRef<string>('');
+  const prevNodeIdRef = useRef<string | null>(null);
+
+  const getMoveTrailVariant = (move: any, chessInstance?: Chess | null): TrailVariant => {
+    let isCheckmate = false;
+    let isCheck = false;
+    let isCapture = false;
+
+    if (chessInstance) {
+      try {
+        isCheckmate = chessInstance.isCheckmate();
+        isCheck = chessInstance.isCheck();
+      } catch {}
+    }
+
+    if (move) {
+      if (move.san?.includes('#')) isCheckmate = true;
+      if (move.san?.includes('+')) isCheck = true;
+      if (move.captured || move.flags?.includes('c') || move.flags?.includes('e') || move.san?.includes('x')) {
+        isCapture = true;
+      }
+    }
+
+    if (isCheckmate || isCheck) return 'fire';
+    if (isCapture) return 'rainbow';
+    return 'blue';
+  };
 
   // Chessground caches the board's bounding rect for click/drag hit-testing and only
   // re-measures when told to. Layout can still be settling (fonts, CSS transitions,
@@ -537,8 +565,10 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
   const scheduleRedraw = useCallback(() => {
     requestAnimationFrame(() => {
       cgRef.current?.redrawAll();
+      trailCanvasRef.current?.resize();
       requestAnimationFrame(() => {
         cgRef.current?.redrawAll();
+        trailCanvasRef.current?.resize();
       });
     });
   }, []);
@@ -695,6 +725,13 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
     }
     
     if (move && chess) {
+      const animStyle = typeof document !== 'undefined'
+        ? (document.documentElement.getAttribute('data-piece-animation') || 'standard')
+        : 'standard';
+      if (animStyle === 'trail') {
+        const variant = getMoveTrailVariant(move, chess);
+        trailCanvasRef.current?.playTrail({ from: move.from, to: move.to, variant, duration: 200 });
+      }
       lastMovedFenRef.current = chess.fen();
       onMoveRef.current(move, currentIndexRef.current, chess.fen());
     } else if (isFreehandRef.current) {
@@ -728,7 +765,20 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
     }
     
     if (move && chess) {
+      const animStyle = typeof document !== 'undefined'
+        ? (document.documentElement.getAttribute('data-piece-animation') || 'standard')
+        : 'standard';
+      if (animStyle === 'trail') {
+        const variant = getMoveTrailVariant(move, chess);
+        trailCanvasRef.current?.playTrail({ from: move.from, to: move.to, variant, duration: 200 });
+      }
       lastMovedFenRef.current = chess.fen();
+      if (cgRef.current) {
+        cgRef.current.set({
+          fen: chess.fen(),
+          turnColor: chess.turn() === 'w' ? 'white' : 'black',
+        });
+      }
       onMoveRef.current(move, currentIndexRef.current, chess.fen());
     }
   };
@@ -979,6 +1029,20 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
           duration: animStyle === 'bounce' ? 300 : (animStyle === 'arcade' ? 250 : 200),
         }
       };
+
+      const isForwardStep = currentNode?.parentId && prevNodeIdRef.current && currentNode.parentId === prevNodeIdRef.current;
+      prevNodeIdRef.current = currentNode?.id || null;
+
+      if (fenChanged && lastMove && isForwardStep && animStyle === 'trail' && cleanFen !== lastMovedFenRef.current) {
+        const fromSq = currentNode?.from;
+        const destSq = currentNode?.to;
+        if (fromSq && destSq) {
+          let cVariant: Chess | null = null;
+          try { cVariant = new Chess(cleanFen); } catch {}
+          const variant = getMoveTrailVariant(currentNode, cVariant);
+          trailCanvasRef.current?.playTrail({ from: fromSq, to: destSq, variant, duration: 200 });
+        }
+      }
 
       if (cleanFen !== lastMovedFenRef.current) {
         config.fen = cleanFen;
@@ -1793,6 +1857,8 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
               ref={containerRef} 
               style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1 }} 
             />
+
+            <MoveTrailCanvas ref={trailCanvasRef} orientation={orientation} />
 
             {/* Targets and Blocks overlays */}
             {Object.entries(targets).map(([sq, code]) => {
