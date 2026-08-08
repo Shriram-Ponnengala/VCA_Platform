@@ -48,7 +48,7 @@ body {
   overflow-x: hidden;
   font-family: var(--font-sans);
   background-color: var(--background);
-  color: var(--foreground);
+  color: var(--body-color, var(--foreground));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -56,7 +56,7 @@ body {
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-serif);
   font-weight: 700;
-  color: var(--foreground);
+  color: var(--heading-color, var(--foreground));
 }
 
 a {
@@ -125,10 +125,30 @@ button {
 /* board-wrapper is overflow:visible so badges aren't clipped; board-clip clips the chessground */
 .board-wrapper {
   background-color: transparent;
+  box-sizing: border-box !important;
 }
 .board-clip {
   background: var(--board-frame-color) !important;
   padding: var(--board-frame-padding) !important;
+  box-sizing: border-box !important;
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.board-inner-playing-area {
+  width: 100% !important;
+  height: 100% !important;
+  box-sizing: border-box !important;
+  position: relative !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+cg-container, cg-board {
+  width: 100% !important;
+  height: 100% !important;
+  box-sizing: border-box !important;
 }
 
 cg-board {

@@ -94,9 +94,11 @@ interface DatabasePanelProps {
   role?: 'ADMIN' | 'COACH' | 'STUDENT' | 'admin' | 'coach' | 'student' | null;
   onGamesContextLoaded?: (games: any[], currentIndex: number) => void;
   activeGameId?: string | null;
+  /** 0-based index of the active game within the collection (i.e. dbNav.currentIndex). Used to auto-sync pagination. */
+  activeGameIndex?: number | null;
 }
 
-export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesContextLoaded, activeGameId }: DatabasePanelProps) {
+export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesContextLoaded, activeGameId, activeGameIndex }: DatabasePanelProps) {
   const [folders, setFolders] = useState<FolderData[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [shared, setShared] = useState<SharedData>({ folders: [], collections: [], games: [], shares: [] });
@@ -385,6 +387,46 @@ export default function DatabasePanel({ onLoadPgn, onLoadFen, role, onGamesConte
 
     fetchPaginatedGames();
   }, [activeCollectionId, paginatedPage]);
+
+  // Sync pagination page when activeGameId/activeGameIndex changes (e.g. prev/next puzzle from toolbar).
+  // We prefer activeGameIndex (0-based global position) since it is always accurate.
+  // Fallback: search paginatedGames first; if not found, look up the tree data.
+  useEffect(() => {
+    if (!activeGameId || !activeCollectionId) return;
+
+    // Fast path: if caller supplies the 0-based index, use it directly.
+    if (activeGameIndex != null && activeGameIndex >= 0) {
+      const targetPage = Math.ceil((activeGameIndex + 1) / 20);
+      if (targetPage >= 1 && targetPage !== paginatedPage) {
+        setPaginatedPage(targetPage);
+      }
+      return;
+    }
+
+    // Slow path (fallback): check if already on this page
+    const isOnCurrentPage = paginatedGames.some(g => g.id === activeGameId);
+    if (isOnCurrentPage) return;
+
+    // Look up position in tree data (may be incomplete for large collections)
+    const allCollections = [
+      ...collections,
+      ...(shared?.collections || [])
+    ];
+    const col = allCollections.find(c => c.id === activeCollectionId);
+    if (!col || !col.games) return;
+
+    const gameIdx = col.games.findIndex((g: any) => g.id === activeGameId);
+    if (gameIdx === -1) return;
+
+    const game = col.games[gameIdx] as any;
+    const oneBasedPos = (game.orderIndex != null ? game.orderIndex : gameIdx + 1);
+    const targetPage = Math.ceil(oneBasedPos / 20);
+
+    if (targetPage >= 1 && targetPage !== paginatedPage) {
+      setPaginatedPage(targetPage);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeGameId, activeGameIndex, activeCollectionId]);
 
   // Filter tree data by searchQuery
   const filteredTree = useMemo(() => {

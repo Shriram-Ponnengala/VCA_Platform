@@ -28,10 +28,21 @@ import {
   UploadCloud,
   RefreshCw,
   Image as ImageIcon,
-  Pin
+  Pin,
+  Square,
+  Blend,
+  Sparkles,
+  Sliders
 } from 'lucide-react';
 import { Button } from '@vca/ui';
 import styles from './settings.module.css';
+import {
+  TEXTURE_CATEGORIES,
+  TEXTURE_REGISTRY,
+  TextureCategory,
+  renderTextureStyle,
+  getTextureById
+} from '@/components/chess/textures.config';
 
 // Custom Chess Knight Icon matching the premium piece style section
 const ChessKnightIcon = ({ size = 18, className = '', style }: { size?: number; className?: string; style?: React.CSSProperties }) => (
@@ -58,6 +69,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'personal' | 'account' | 'appearance' | 'administration' | 'academy'>('appearance');
   const [activeAppearanceSubTab, setActiveAppearanceSubTab] = useState<'branding' | 'classroom'>('branding');
   const [activeClassroomNav, setActiveClassroomNav] = useState<'board' | 'panels' | 'background'>('board');
+  const [activeTextureCategory, setActiveTextureCategory] = useState<TextureCategory>('paper');
   const [userSelectedCategory, setUserSelectedCategory] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -120,11 +132,19 @@ export default function SettingsPage() {
         stops: Array<{ color: string; position: number }>;
         direction: string;
       };
-      texture: 'dots' | 'grid' | 'stripes' | 'wood' | 'stars';
+      texture: string;
+      textureParams?: {
+        baseColor: string;
+        patternColor: string;
+        scale: number;
+        opacity: number;
+      };
       imageSource: 'upload' | 'url';
       imageUrl: string;
       imageUpload: string;
       imageOverlay: boolean;
+      imageOverlayOpacity?: number;
+      imageFit?: 'cover' | 'contain';
     };
     pieceAnimation?: string;
     highlightLastMove?: boolean;
@@ -159,10 +179,18 @@ export default function SettingsPage() {
         direction: '135deg'
       },
       texture: 'dots',
+      textureParams: {
+        baseColor: '#fdf0e4',
+        patternColor: '#c8854a',
+        scale: 100,
+        opacity: 50
+      },
       imageSource: 'url',
       imageUrl: '',
       imageUpload: '',
-      imageOverlay: false
+      imageOverlay: false,
+      imageOverlayOpacity: 0,
+      imageFit: 'cover'
     }
   });
 
@@ -572,23 +600,59 @@ export default function SettingsPage() {
     });
   };
 
-  const setBgTexture = (texture: 'dots' | 'grid' | 'stripes' | 'wood' | 'stars') => {
-    setBranding(prev => ({
-      ...prev,
-      classroomBackground: {
-        ...(prev.classroomBackground || {
-          type: 'solid',
-          solidColor: '#fdf0e4',
-          gradient: { stops: [{ color: '#fdf0e4', position: 0 }, { color: '#eedcd0', position: 100 }], direction: '135deg' },
-          texture: 'dots',
-          imageSource: 'url',
-          imageUrl: '',
-          imageUpload: '',
-          imageOverlay: false
-        }),
-        texture
-      }
-    }));
+  const setBgTexture = (texture: string) => {
+    const texDef = getTextureById(texture);
+    setBranding(prev => {
+      const currentBg = prev.classroomBackground || {
+        type: 'solid',
+        solidColor: '#fdf0e4',
+        gradient: { stops: [{ color: '#fdf0e4', position: 0 }, { color: '#eedcd0', position: 100 }], direction: '135deg' },
+        texture: 'dots',
+        imageSource: 'url',
+        imageUrl: '',
+        imageUpload: '',
+        imageOverlay: false
+      };
+      return {
+        ...prev,
+        classroomBackground: {
+          ...currentBg,
+          type: 'texture',
+          texture,
+          textureParams: currentBg.texture === texture && currentBg.textureParams
+            ? currentBg.textureParams
+            : { ...texDef.defaultParams }
+        }
+      };
+    });
+  };
+
+  const setBgTextureParam = (key: 'baseColor' | 'patternColor' | 'scale' | 'opacity', val: any) => {
+    setBranding(prev => {
+      const currentBg = prev.classroomBackground || {
+        type: 'solid',
+        solidColor: '#fdf0e4',
+        gradient: { stops: [{ color: '#fdf0e4', position: 0 }, { color: '#eedcd0', position: 100 }], direction: '135deg' },
+        texture: 'dots',
+        imageSource: 'url',
+        imageUrl: '',
+        imageUpload: '',
+        imageOverlay: false
+      };
+      const activeDef = getTextureById(currentBg.texture || 'dots');
+      const currentParams = currentBg.textureParams || { ...activeDef.defaultParams };
+
+      return {
+        ...prev,
+        classroomBackground: {
+          ...currentBg,
+          textureParams: {
+            ...currentParams,
+            [key]: val
+          }
+        }
+      };
+    });
   };
 
   const setBgImageSource = (imageSource: 'upload' | 'url') => {
@@ -680,7 +744,7 @@ export default function SettingsPage() {
     }
   };
 
-  const setBgImageOverlay = (imageOverlay: boolean) => {
+  const setBgImageOverlayOpacity = (opacity: number) => {
     setBranding(prev => ({
       ...prev,
       classroomBackground: {
@@ -694,12 +758,32 @@ export default function SettingsPage() {
           imageUpload: '',
           imageOverlay: false
         }),
-        imageOverlay
+        imageOverlayOpacity: opacity,
+        imageOverlay: opacity > 0
       }
     }));
   };
 
-  const getPreviewBackgroundStyle = () => {
+  const setBgImageFit = (imageFit: 'cover' | 'contain') => {
+    setBranding(prev => ({
+      ...prev,
+      classroomBackground: {
+        ...(prev.classroomBackground || {
+          type: 'solid',
+          solidColor: '#fdf0e4',
+          gradient: { stops: [{ color: '#fdf0e4', position: 0 }, { color: '#eedcd0', position: 100 }], direction: '135deg' },
+          texture: 'dots',
+          imageSource: 'url',
+          imageUrl: '',
+          imageUpload: '',
+          imageOverlay: false
+        }),
+        imageFit
+      }
+    }));
+  };
+
+  const getPreviewBackgroundStyle = (): React.CSSProperties => {
     const bg = branding.classroomBackground || { type: 'solid', solidColor: '#fdf0e4' };
     
     if (bg.type === 'solid') {
@@ -717,45 +801,14 @@ export default function SettingsPage() {
     }
     
     if (bg.type === 'texture') {
-      const texture = bg.texture || 'dots';
-      if (texture === 'dots') {
-        return {
-          background: '#fdf0e4',
-          backgroundImage: 'radial-gradient(#eedcd0 15%, transparent 16%)',
-          backgroundSize: '16px 16px',
-          backgroundRepeat: 'repeat'
-        };
-      }
-      if (texture === 'grid') {
-        return {
-          background: '#fdf0e4',
-          backgroundImage: 'linear-gradient(rgba(238, 220, 208, 0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(238, 220, 208, 0.4) 1px, transparent 1px)',
-          backgroundSize: '20px 20px',
-          backgroundRepeat: 'repeat'
-        };
-      }
-      if (texture === 'stripes') {
-        return {
-          background: 'repeating-linear-gradient(45deg, #fdf0e4, #fdf0e4 10px, #f5e4d7 10px, #f5e4d7 20px)'
-        };
-      }
-      if (texture === 'wood') {
-        return {
-          background: '#fdf0e4',
-          backgroundImage: `url('https://lichess1.org/assets/images/board/maple.jpg')`,
-          backgroundSize: '200px 200px',
-          backgroundRepeat: 'repeat'
-        };
-      }
-      if (texture === 'stars') {
-        return {
-          backgroundColor: '#0d1b2a',
-          backgroundImage: `radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 40px), radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 30px), radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 40px)`,
-          backgroundSize: '550px 550px, 350px 350px, 250px 250px',
-          backgroundPosition: '0 0, 40px 60px, 130px 270px',
-          backgroundRepeat: 'repeat'
-        };
-      }
+      const texStyle = renderTextureStyle(bg.texture || 'dots', bg.textureParams);
+      return {
+        backgroundColor: texStyle.background,
+        backgroundImage: texStyle.backgroundImage,
+        backgroundSize: texStyle.backgroundSize,
+        backgroundRepeat: (texStyle.backgroundRepeat || 'repeat') as any,
+        backgroundPosition: texStyle.backgroundPosition || '0 0'
+      };
     }
     
     if (bg.type === 'image') {
@@ -763,14 +816,25 @@ export default function SettingsPage() {
       if (imgUrl) {
         return {
           backgroundImage: `url('${imgUrl}')`,
-          backgroundSize: 'cover',
+          backgroundSize: bg.imageFit || 'cover',
           backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
+          backgroundRepeat: bg.imageFit === 'contain' ? 'no-repeat' : 'no-repeat'
         };
       }
     }
     
     return { background: '#fdf0e4' };
+  };
+
+  const getPreviewOverlayColor = (): string => {
+    const bg = branding.classroomBackground || { type: 'solid', solidColor: '#fdf0e4' };
+    const opacityPct = bg.imageOverlayOpacity !== undefined 
+      ? bg.imageOverlayOpacity 
+      : (bg.imageOverlay ? 45 : 0);
+    if (opacityPct > 0) {
+      return `rgba(0, 0, 0, ${(opacityPct / 100).toFixed(2)})`;
+    }
+    return 'transparent';
   };
 
   const handleCreateCustomTheme = () => {
@@ -1370,192 +1434,207 @@ export default function SettingsPage() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                         
                         {/* 1. LOGO SECTION */}
-                        <section style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                          <label style={{ fontWeight: 600, color: '#4a2018', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Academy Logo</label>
-                          
-                          <div className={styles.logoVariantTabs} style={{ marginBottom: 0 }}>
-                            <button 
-                              type="button" 
-                              className={`${styles.logoVariantTab} ${activeLogoTab === 'primary' ? styles.logoVariantTabActive : ''}`}
-                              onClick={() => setActiveLogoTab('primary')}
-                            >
-                              Primary (Light)
-                            </button>
-                            <button 
-                              type="button" 
-                              className={`${styles.logoVariantTab} ${activeLogoTab === 'dark' ? styles.logoVariantTabActive : ''}`}
-                              onClick={() => setActiveLogoTab('dark')}
-                            >
-                              Dark Theme
-                            </button>
-                            <button 
-                              type="button" 
-                              className={`${styles.logoVariantTab} ${activeLogoTab === 'icon' ? styles.logoVariantTabActive : ''}`}
-                              onClick={() => setActiveLogoTab('icon')}
-                            >
-                              Collapsed Icon
-                            </button>
+                        <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <ImageIcon size={18} style={{ color: 'var(--primary)' }} />
+                            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: '#2d1510' }}>Logo</h3>
                           </div>
-                          
-                          <div style={{ display: 'flex', gap: '16px', alignItems: 'stretch' }}>
-                            {/* Logo Tile */}
-                            <div className={styles.currentLogoBox} style={{ width: '130px', flexShrink: 0, margin: 0, padding: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                              <div className={styles.currentLogoPreview} style={{ marginBottom: '12px' }}>
-                                {activeLogoTab === 'primary' && (
-                                  branding.logoUpload ? <img src={branding.logoUpload} alt="Primary Logo" style={{ objectFit: 'contain', width: '100%', height: '100%', padding: '4px' }} /> 
-                                  : branding.logoUrl ? <img src={branding.logoUrl} alt="Primary Logo" style={{ objectFit: 'contain', width: '100%', height: '100%', padding: '4px' }} /> 
-                                  : <img src="/vca_logo.png" alt="Default Logo" style={{ objectFit: 'contain', width: '100%', height: '100%', padding: '4px' }} />
-                                )}
-                                {activeLogoTab === 'dark' && (
-                                  branding.logoDarkUpload ? <img src={branding.logoDarkUpload} alt="Dark Logo" style={{ objectFit: 'contain', width: '100%', height: '100%', padding: '4px' }} /> 
-                                  : branding.logoDarkUrl ? <img src={branding.logoDarkUrl} alt="Dark Logo" style={{ objectFit: 'contain', width: '100%', height: '100%', padding: '4px' }} /> 
-                                  : <span style={{fontSize:'0.8rem', color:'#94a3b8'}}>No Dark Logo</span>
-                                )}
-                                {activeLogoTab === 'icon' && (
-                                  branding.iconUpload ? <img src={branding.iconUpload} alt="Icon Logo" style={{ objectFit: 'contain', width: '100%', height: '100%', padding: '4px' }} /> 
-                                  : branding.iconUrl ? <img src={branding.iconUrl} alt="Icon Logo" style={{ objectFit: 'contain', width: '100%', height: '100%', padding: '4px' }} /> 
-                                  : <span style={{fontSize:'0.8rem', color:'#94a3b8'}}>No Icon Logo</span>
+
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '20px' }}>
+                            {/* Logo Tile & Action Links */}
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
+                              <div className={styles.singleLogoBox}>
+                                {branding.logoUpload ? (
+                                  <img src={branding.logoUpload} alt="Academy Logo" style={{ objectFit: 'contain', width: '100%', height: '100%' }} />
+                                ) : branding.logoUrl ? (
+                                  <img src={branding.logoUrl} alt="Academy Logo" style={{ objectFit: 'contain', width: '100%', height: '100%' }} />
+                                ) : (
+                                  <img src="/vca_logo.png" alt="Academy Logo" style={{ objectFit: 'contain', width: '100%', height: '100%' }} />
                                 )}
                               </div>
-                              <div className={styles.logoActionsRow} style={{ justifyContent: 'center' }}>
-                                <label className={styles.logoActionBtn}>
-                                  <RefreshCw size={14} /> Replace
-                                  <input 
-                                    type="file" 
-                                    accept="image/png, image/svg+xml" 
+                              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', fontWeight: 600, color: '#2563eb', cursor: 'pointer' }}>
+                                  <RefreshCw size={12} /> Replace
+                                  <input
+                                    type="file"
+                                    accept="image/png, image/svg+xml"
                                     onChange={(e) => {
                                       const file = e.target.files?.[0];
                                       if (file) {
-                                        if (file.size > 2 * 1024 * 1024) { setToastMessage('Image must be under 2MB'); setShowToast(true); setTimeout(()=>setShowToast(false),3000); return; }
+                                        if (file.size > 2 * 1024 * 1024) {
+                                          setToastMessage('Image must be under 2MB');
+                                          setShowToast(true);
+                                          setTimeout(() => setShowToast(false), 3000);
+                                          return;
+                                        }
                                         const reader = new FileReader();
                                         reader.onloadend = () => {
-                                          if (activeLogoTab === 'primary') setBranding((prev:any) => ({...prev, logoUpload: reader.result, logoUrl: ''}));
-                                          if (activeLogoTab === 'dark') setBranding((prev:any) => ({...prev, logoDarkUpload: reader.result, logoDarkUrl: ''}));
-                                          if (activeLogoTab === 'icon') setBranding((prev:any) => ({...prev, iconUpload: reader.result, iconUrl: ''}));
+                                          setBranding((prev: any) => ({ ...prev, logoUpload: reader.result, logoUrl: '' }));
                                         };
                                         reader.readAsDataURL(file);
                                       }
                                     }}
-                                    style={{display:'none'}}
+                                    style={{ display: 'none' }}
                                   />
                                 </label>
-                                <button type="button" className={`${styles.logoActionBtn} ${styles.danger}`} onClick={() => {
-                                  if (activeLogoTab === 'primary') setBranding((prev:any) => ({...prev, logoUpload: '', logoUrl: ''}));
-                                  if (activeLogoTab === 'dark') setBranding((prev:any) => ({...prev, logoDarkUpload: '', logoDarkUrl: ''}));
-                                  if (activeLogoTab === 'icon') setBranding((prev:any) => ({...prev, iconUpload: '', iconUrl: ''}));
-                                }}>
-                                  <Trash2 size={14} /> Remove
+                                <button
+                                  type="button"
+                                  onClick={() => setBranding((prev: any) => ({ ...prev, logoUpload: '', logoUrl: '' }))}
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', fontSize: '0.8rem', fontWeight: 600, color: '#dc2626', cursor: 'pointer', padding: 0 }}
+                                >
+                                  <Trash2 size={12} /> Remove
                                 </button>
                               </div>
                             </div>
-                            
-                            {/* Compact Upload Zone */}
-                            <label 
-                              className={`${styles.uploadDropzone} ${isDragOver ? styles.uploadDropzoneActive : ''}`}
+
+                            {/* Small Rectangular Upload Box (~200px wide, ~72px tall) */}
+                            <label
+                              className={`${styles.smallUploadDropzone} ${isDragOver ? styles.uploadDropzoneActive : ''}`}
                               onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
                               onDragLeave={(e) => { e.preventDefault(); setIsDragOver(false); }}
                               onDrop={(e) => {
-                                e.preventDefault(); setIsDragOver(false);
+                                e.preventDefault();
+                                setIsDragOver(false);
                                 const file = e.dataTransfer.files?.[0];
                                 if (file && (file.type === 'image/png' || file.type === 'image/svg+xml')) {
-                                  if (file.size > 2 * 1024 * 1024) { setToastMessage('Image must be under 2MB'); setShowToast(true); setTimeout(()=>setShowToast(false),3000); return; }
+                                  if (file.size > 2 * 1024 * 1024) {
+                                    setToastMessage('Image must be under 2MB');
+                                    setShowToast(true);
+                                    setTimeout(() => setShowToast(false), 3000);
+                                    return;
+                                  }
                                   const reader = new FileReader();
                                   reader.onloadend = () => {
-                                    if (activeLogoTab === 'primary') setBranding((prev:any) => ({...prev, logoUpload: reader.result, logoUrl: ''}));
-                                    if (activeLogoTab === 'dark') setBranding((prev:any) => ({...prev, logoDarkUpload: reader.result, logoDarkUrl: ''}));
-                                    if (activeLogoTab === 'icon') setBranding((prev:any) => ({...prev, iconUpload: reader.result, iconUrl: ''}));
+                                    setBranding((prev: any) => ({ ...prev, logoUpload: reader.result, logoUrl: '' }));
                                   };
                                   reader.readAsDataURL(file);
                                 } else {
-                                  setToastMessage('Only PNG or SVG allowed'); setShowToast(true); setTimeout(()=>setShowToast(false),3000);
+                                  setToastMessage('Only PNG or SVG allowed');
+                                  setShowToast(true);
+                                  setTimeout(() => setShowToast(false), 3000);
                                 }
                               }}
-                              style={{ flex: 1, margin: 0, padding: '12px 16px', minHeight: 'auto', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '12px', justifyContent: 'flex-start' }}
                             >
-                              <UploadCloud size={20} className={styles.uploadIcon} style={{ margin: 0, color: 'var(--primary)' }} />
-                              <div style={{ flex: 1, textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span className={styles.uploadDropzoneTitle} style={{ fontSize: '0.9rem', margin: 0, fontWeight: 600 }}>Drag & drop or click to browse</span>
-                                <span className={styles.uploadDropzoneGuidance} style={{ margin: 0, fontSize: '0.8rem' }}>— PNG or SVG (max 2 MB)</span>
-                              </div>
-                              <div className={styles.uploadDropzoneButton} style={{ margin: 0, whiteSpace: 'nowrap', padding: '6px 12px' }}>
-                                Upload
-                              </div>
-                              <input 
-                                type="file" 
-                                accept="image/png, image/svg+xml" 
+                              <UploadCloud size={20} style={{ color: '#2563eb', marginBottom: '2px' }} />
+                              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#2563eb' }}>Upload logo</span>
+                              <span style={{ fontSize: '0.72rem', color: '#64748b' }}>PNG/SVG · max 2MB</span>
+                              <input
+                                type="file"
+                                accept="image/png, image/svg+xml"
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
                                   if (file) {
-                                    if (file.size > 2 * 1024 * 1024) { setToastMessage('Image must be under 2MB'); setShowToast(true); setTimeout(()=>setShowToast(false),3000); return; }
+                                    if (file.size > 2 * 1024 * 1024) {
+                                      setToastMessage('Image must be under 2MB');
+                                      setShowToast(true);
+                                      setTimeout(() => setShowToast(false), 3000);
+                                      return;
+                                    }
                                     const reader = new FileReader();
                                     reader.onloadend = () => {
-                                      if (activeLogoTab === 'primary') setBranding((prev:any) => ({...prev, logoUpload: reader.result, logoUrl: ''}));
-                                      if (activeLogoTab === 'dark') setBranding((prev:any) => ({...prev, logoDarkUpload: reader.result, logoDarkUrl: ''}));
-                                      if (activeLogoTab === 'icon') setBranding((prev:any) => ({...prev, iconUpload: reader.result, iconUrl: ''}));
+                                      setBranding((prev: any) => ({ ...prev, logoUpload: reader.result, logoUrl: '' }));
                                     };
                                     reader.readAsDataURL(file);
                                   }
                                 }}
-                                style={{display:'none'}}
+                                style={{ display: 'none' }}
                               />
                             </label>
-                          </div>
-                          
-                          {/* Sidebar preview chips + dark-logo warning in one row */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', marginTop: '4px' }}>
-                            <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 500 }}>Sidebar Preview:</span>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <div className={`${styles.logoPreviewCard} ${styles.light}`} style={{ padding: '4px', width: '36px', height: '36px', minWidth: '36px', margin: 0 }}>
-                                {branding.logoUpload ? <img src={branding.logoUpload} alt="Preview" /> : branding.logoUrl ? <img src={branding.logoUrl} alt="Preview" /> : <img src="/vca_logo.png" alt="Preview" />}
-                              </div>
-                              <div className={`${styles.logoPreviewCard} ${styles.dark}`} style={{ padding: '4px', width: '36px', height: '36px', minWidth: '36px', margin: 0 }}>
-                                {(branding.logoDarkUpload || branding.logoDarkUrl) 
-                                  ? (branding.logoDarkUpload ? <img src={branding.logoDarkUpload} alt="Preview Dark" /> : <img src={branding.logoDarkUrl} alt="Preview Dark" />) 
-                                  : (branding.logoUpload ? <img src={branding.logoUpload} alt="Preview Dark" /> : branding.logoUrl ? <img src={branding.logoUrl} alt="Preview Dark" /> : <img src="/vca_logo.png" alt="Preview Dark" />)
-                                }
-                              </div>
-                              {activeLogoTab === 'icon' && (
-                                <div className={`${styles.logoPreviewCard} ${styles.light}`} style={{ padding: '4px', width: '36px', height: '36px', minWidth: '36px', margin: 0 }}>
-                                  {(branding.iconUpload || branding.iconUrl) 
-                                    ? (branding.iconUpload ? <img src={branding.iconUpload} alt="Icon Preview" /> : <img src={branding.iconUrl} alt="Icon Preview" />)
-                                    : <ImageIcon size={20} color="#cbd5e1" />
-                                  }
-                                </div>
-                              )}
-                            </div>
-                            
-                            {(!branding.logoDarkUpload && !branding.logoDarkUrl && activeLogoTab !== 'icon') && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#b45309', background: '#fef3c7', padding: '6px 12px', borderRadius: '6px' }}>
-                                <Building2 size={14} /> Consider uploading a Dark Theme variant.
-                              </div>
-                            )}
                           </div>
                         </section>
 
                         <div style={{ height: '1px', background: '#e2e8f0' }} />
 
-                        {/* 2. BRAND COLOR SECTION */}
-                        <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                          <label style={{ fontWeight: 600, color: '#4a2018', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Primary Brand Color</label>
-                          <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                            {['#551e19', '#3D1A0E', '#2d4a6b', '#10b981', '#f59e0b'].map(color => (
-                              <div 
-                                key={color}
-                                onClick={() => setBranding({ ...branding, primaryColor: color })}
-                                style={{
-                                  width: '32px',
-                                  height: '32px',
-                                  borderRadius: '50%',
-                                  backgroundColor: color,
-                                  cursor: 'pointer',
-                                  border: '3px solid white',
-                                  boxShadow: branding.primaryColor === color ? `0 0 0 2px ${color}` : '0 2px 4px rgba(0,0,0,0.1)',
-                                  transition: 'all 0.2s ease',
-                                  flexShrink: 0
-                                }}
-                                title={color}
-                              />
-                            ))}
+                        {/* 2. COLORS SECTION */}
+                        <section style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Palette size={18} style={{ color: 'var(--primary)' }} />
+                            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: '#2d1510' }}>Colors</h3>
+                          </div>
+
+                          {/* Brand Color */}
+                          <div className={styles.colorRoleRow}>
+                            <div className={styles.colorRoleMeta}>
+                              <span className={styles.colorRoleTitle}>Brand color</span>
+                              <span className={styles.colorRoleSubtitle}>· buttons & accents</span>
+                            </div>
+                            <div className={styles.colorSwatchesGroup}>
+                              {['#551e19', '#2d4a6b', '#10b981', '#f59e0b', '#c8854a'].map(color => (
+                                <button
+                                  key={color}
+                                  type="button"
+                                  className={`${styles.colorCircle} ${branding.primaryColor === color ? styles.colorCircleActive : ''}`}
+                                  style={{ background: color }}
+                                  onClick={() => setBranding({ ...branding, primaryColor: color })}
+                                  title={color}
+                                />
+                              ))}
+                              <label className={styles.customColorPickerPlus} title="Custom color">
+                                +
+                                <input
+                                  type="color"
+                                  value={branding.primaryColor || '#551e19'}
+                                  onChange={(e) => setBranding({ ...branding, primaryColor: e.target.value })}
+                                  style={{ opacity: 0, width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, cursor: 'pointer' }}
+                                />
+                              </label>
+                            </div>
+                          </div>
+
+                          {/* Heading Text */}
+                          <div className={styles.colorRoleRow}>
+                            <div className={styles.colorRoleMeta}>
+                              <span className={styles.colorRoleTitle}>Heading text</span>
+                            </div>
+                            <div className={styles.colorSwatchesGroup}>
+                              {['#2d1510', '#551e19', '#1e293b', '#0f172a', '#111827'].map(color => (
+                                <button
+                                  key={color}
+                                  type="button"
+                                  className={`${styles.colorCircle} ${(branding.headingTextColor || '#2d1510') === color ? styles.colorCircleActive : ''}`}
+                                  style={{ background: color }}
+                                  onClick={() => setBranding({ ...branding, headingTextColor: color })}
+                                  title={color}
+                                />
+                              ))}
+                              <label className={styles.customColorPickerPlus} title="Custom color">
+                                +
+                                <input
+                                  type="color"
+                                  value={branding.headingTextColor || '#2d1510'}
+                                  onChange={(e) => setBranding({ ...branding, headingTextColor: e.target.value })}
+                                  style={{ opacity: 0, width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, cursor: 'pointer' }}
+                                />
+                              </label>
+                            </div>
+                          </div>
+
+                          {/* Body / Paragraph Text */}
+                          <div className={styles.colorRoleRow}>
+                            <div className={styles.colorRoleMeta}>
+                              <span className={styles.colorRoleTitle}>Body / paragraph text</span>
+                            </div>
+                            <div className={styles.colorSwatchesGroup}>
+                              {['#4a2018', '#334155', '#475569', '#64748b', '#1f2937'].map(color => (
+                                <button
+                                  key={color}
+                                  type="button"
+                                  className={`${styles.colorCircle} ${(branding.bodyTextColor || '#4a2018') === color ? styles.colorCircleActive : ''}`}
+                                  style={{ background: color }}
+                                  onClick={() => setBranding({ ...branding, bodyTextColor: color })}
+                                  title={color}
+                                />
+                              ))}
+                              <label className={styles.customColorPickerPlus} title="Custom color">
+                                +
+                                <input
+                                  type="color"
+                                  value={branding.bodyTextColor || '#4a2018'}
+                                  onChange={(e) => setBranding({ ...branding, bodyTextColor: e.target.value })}
+                                  style={{ opacity: 0, width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, cursor: 'pointer' }}
+                                />
+                              </label>
+                            </div>
                           </div>
                         </section>
 
@@ -1566,7 +1645,7 @@ export default function SettingsPage() {
                           <label style={{ fontWeight: 600, color: '#4a2018', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Typography</label>
                           <div style={{ display: 'flex', gap: '20px' }}>
                             <div style={{ flex: 1 }}>
-                              <label style={{ display: 'block', fontSize: '0.75rem', color: '#64748b', marginBottom: '6px', fontWeight: 500 }}>Heading Font</label>
+                              <label style={{ display: 'block', fontSize: '0.75rem', color: '#64748b', marginBottom: '6px', fontWeight: 500 }}>HEADING FONT</label>
                               <select 
                                 className={styles.select}
                                 value={branding.headingFont}
@@ -1586,7 +1665,7 @@ export default function SettingsPage() {
                               </select>
                             </div>
                             <div style={{ flex: 1 }}>
-                              <label style={{ display: 'block', fontSize: '0.75rem', color: '#64748b', marginBottom: '6px', fontWeight: 500 }}>Body Font</label>
+                              <label style={{ display: 'block', fontSize: '0.75rem', color: '#64748b', marginBottom: '6px', fontWeight: 500 }}>BODY FONT</label>
                               <select 
                                 className={styles.select}
                                 value={branding.bodyFont}
@@ -1603,11 +1682,30 @@ export default function SettingsPage() {
                               </select>
                             </div>
                           </div>
+
+                          {/* Typography Preview */}
                           <div style={{ marginTop: '16px', padding: '24px', background: '#fdf5ea', border: '1px solid #eedcd0', borderRadius: '12px' }}>
-                            <h2 style={{ fontFamily: branding.headingFont === 'DM Sans (Default)' ? 'DM Sans' : branding.headingFont, color: branding.primaryColor, fontSize: '1.5rem', lineHeight: '1.2', margin: '0 0 12px 0', wordWrap: 'break-word', whiteSpace: 'normal' }}>
-                              Typography Preview
+                            <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#8a6c5b', marginBottom: '8px' }}>
+                              PREVIEW
+                            </span>
+                            <h2 style={{
+                              fontFamily: branding.headingFont === 'DM Sans (Default)' ? 'DM Sans' : (branding.headingFont || 'inherit'),
+                              color: branding.headingTextColor || '#2d1510',
+                              fontSize: '1.5rem',
+                              lineHeight: '1.2',
+                              margin: '0 0 12px 0',
+                              wordWrap: 'break-word',
+                              whiteSpace: 'normal'
+                            }}>
+                              Typography preview
                             </h2>
-                            <p style={{ fontFamily: branding.bodyFont === 'Inter (Default)' ? 'Inter' : branding.bodyFont, color: '#4a2018', fontSize: '0.95rem', lineHeight: '1.5', margin: 0, opacity: 0.85 }}>
+                            <p style={{
+                              fontFamily: branding.bodyFont === 'Inter (Default)' ? 'Inter' : (branding.bodyFont || 'inherit'),
+                              color: branding.bodyTextColor || '#4a2018',
+                              fontSize: '0.95rem',
+                              lineHeight: '1.5',
+                              margin: 0
+                            }}>
                               This is how your academy's content will look. The heading font captures attention, while the body font ensures readability for your students and staff.
                             </p>
                           </div>
@@ -2168,403 +2266,757 @@ export default function SettingsPage() {
                 )}
 
                 {activeClassroomNav === 'panels' && (
-                <div className={styles.chessSettingsCard} style={{ marginTop: 0 }}>
-                  <h3 className={styles.cardTitle}>
-                    <Palette size={18} /> Panel Style Customization
-                  </h3>
-                  <p style={{ marginTop: '-18px', marginBottom: '20px', fontSize: '0.85rem', color: '#64748b' }}>
-                    Same features. Different look.
-                  </p>
-                  
-                  <div className={styles.panelThemeGrid}>
-                    {[
-                      { id: 'solid', name: 'Solid', previewStyle: { background: '#ffffff', border: '1.5px solid #eedcd0' } },
-                      { id: 'glass', name: 'Glass', previewStyle: { background: 'rgba(255, 255, 255, 0.45)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', border: '1.5px solid rgba(255,255,255,0.3)' } },
-                      { id: 'slate', name: 'Slate', previewStyle: { background: '#2d4a6b', border: '1.5px solid rgba(255,255,255,0.15)' } },
-                      { id: 'parchment', name: 'Parch.', previewStyle: { background: '#fdf5ea', backgroundImage: 'radial-gradient(#eedcd0 1px, transparent 0), radial-gradient(#eedcd0 1px, #fdf5ea 0)', backgroundSize: '4px 4px', backgroundPosition: '0 0, 2px 2px', border: '1.5px solid #eedcd0' } },
-                      { id: 'gradient', name: 'Grad.', previewStyle: { background: 'linear-gradient(to bottom, #ffffff, #fdf5ea)', border: '1.5px solid #eedcd0' } },
-                    ].map(theme => (
-                      <div 
-                        key={theme.id}
-                        className={`${styles.panelThemeItem} ${branding.panelStyle === theme.id ? styles.activePanelTheme : ''}`}
-                        onClick={() => setBranding({ ...branding, panelStyle: theme.id })}
-                      >
-                        <div className={styles.panelPreviewBox} style={theme.previewStyle} />
-                        <span className={styles.panelThemeName}>{theme.name}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    {/* Opacity Slider */}
-                    {(branding.panelStyle === 'solid' || branding.panelStyle === 'glass') && (
-                      <div className={styles.fieldGroup}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <label className={styles.frameSubLabel} style={{ margin: 0 }}>Opacity</label>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--primary)' }}>{branding.panelOpacity ?? 95}%</span>
-                        </div>
-                        <div className={styles.sliderRow} style={{ margin: 0 }}>
-                          <input
-                            type="range"
-                            min={10}
-                            max={100}
-                            step={5}
-                            value={branding.panelOpacity ?? 95}
-                            onChange={(e) => setBranding({ ...branding, panelOpacity: Number(e.target.value) })}
-                            className={styles.paddingSlider}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Blur Slider */}
-                    {branding.panelStyle === 'glass' && (
-                      <div className={styles.fieldGroup}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <label className={styles.frameSubLabel} style={{ margin: 0 }}>Blur</label>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--primary)' }}>{branding.panelBlur ?? 0}px</span>
-                        </div>
-                        <div className={styles.sliderRow} style={{ margin: 0 }}>
-                          <input
-                            type="range"
-                            min={0}
-                            max={20}
-                            step={1}
-                            value={branding.panelBlur ?? 0}
-                            onChange={(e) => setBranding({ ...branding, panelBlur: Number(e.target.value) })}
-                            className={styles.paddingSlider}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '4px 0 0 0', lineHeight: '1.4' }}>
-                      Opacity applies to Solid + Glass · Blur applies to Glass only · Changes apply to all right-side panels
-                    </p>
-                  </div>
-                </div>
-                )}
-                
-                {activeClassroomNav === 'background' && (
-                      <div style={{ marginTop: '0' }}>
-                        {/* Classroom Background Section */}
-                        <h3 className={styles.sectionHeading} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px', fontSize: '1.25rem', color: 'var(--primary)' }}>
-                        <ImageIcon size={20} /> Classroom background
-                      </h3>
-                      <div className={styles.form}>
-                        {/* Type Selector Tabs */}
-                        <div className={styles.fieldGroup}>
-                          <label>Background Type</label>
-                          <div className={styles.bgTypeGrid}>
-                            {[
-                              { id: 'solid', label: 'Solid' },
-                              { id: 'gradient', label: 'Gradient' },
-                              { id: 'texture', label: 'Texture' },
-                              { id: 'image', label: 'Image' }
-                            ].map(t => (
-                              <button
-                                key={t.id}
-                                type="button"
-                                className={`${styles.bgTypeItem} ${branding.classroomBackground?.type === t.id ? styles.bgTypeItemActive : ''}`}
-                                onClick={() => setBgType(t.id as any)}
-                              >
-                                {t.label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Solid Controls */}
-                        {branding.classroomBackground?.type === 'solid' && (
-                          <div className={styles.fieldGroup}>
-                            <label>Solid Background Color</label>
-                            <div className={styles.row} style={{ margin: 0, alignItems: 'center', gap: '12px' }}>
-                              <input
-                                type="color"
-                                value={branding.classroomBackground.solidColor || '#fdf0e4'}
-                                onChange={(e) => setBgSolidColor(e.target.value)}
-                                style={{ width: '45px', height: '40px', padding: 0, border: '1px solid #eedcd0', borderRadius: '8px', cursor: 'pointer' }}
-                              />
-                              <input
-                                type="text"
-                                className={styles.input}
-                                value={branding.classroomBackground.solidColor || '#fdf0e4'}
-                                onChange={(e) => setBgSolidColor(e.target.value)}
-                                placeholder="#FFFFFF"
-                                style={{ flex: 1 }}
-                              />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {/* 1. PANEL STYLE PRESETS */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', marginBottom: '12px' }}>
+                        PANEL STYLE
+                      </label>
+                      <div className={styles.panelThemeGrid}>
+                        {[
+                          { id: 'solid', name: 'Solid', previewStyle: { background: branding.panelColor || '#ffffff', border: '1.5px solid #eedcd0' } },
+                          { id: 'glass', name: 'Glass', previewStyle: { background: 'rgba(255, 255, 255, 0.45)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', border: '1.5px solid rgba(255,255,255,0.3)' } },
+                          { id: 'slate', name: 'Slate', previewStyle: { background: branding.panelColor || '#2d4a6b', border: '1.5px solid rgba(255,255,255,0.15)' } },
+                          { id: 'parchment', name: 'Parch.', previewStyle: { background: '#fdf5ea', backgroundImage: 'radial-gradient(#eedcd0 1px, transparent 0), radial-gradient(#eedcd0 1px, #fdf5ea 0)', backgroundSize: '4px 4px', backgroundPosition: '0 0, 2px 2px', border: '1.5px solid #eedcd0' } },
+                          { id: 'gradient', name: 'Grad.', previewStyle: { background: 'linear-gradient(to bottom, #ffffff, #fdf5ea)', border: '1.5px solid #eedcd0' } },
+                          { id: 'image', name: 'Image', icon: ImageIcon, previewStyle: { background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)', border: '1.5px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center' } },
+                        ].map(theme => (
+                          <div
+                            key={theme.id}
+                            className={`${styles.panelThemeItem} ${branding.panelStyle === theme.id ? styles.activePanelTheme : ''}`}
+                            onClick={() => setBranding({ ...branding, panelStyle: theme.id })}
+                          >
+                            <div className={styles.panelPreviewBox} style={theme.previewStyle}>
+                              {theme.icon && <theme.icon size={22} style={{ color: '#2563eb' }} />}
                             </div>
+                            <span className={styles.panelThemeName}>{theme.name}</span>
                           </div>
-                        )}
+                        ))}
+                      </div>
+                    </div>
 
-                        {/* Gradient Controls */}
-                        {branding.classroomBackground?.type === 'gradient' && (
-                          <div className={styles.fieldGroup}>
-                            <label>Gradient Settings</label>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                              {/* Stops */}
-                              <div className={styles.row} style={{ margin: 0, gap: '16px' }}>
-                                <div className={styles.fieldGroup} style={{ flex: 1 }}>
-                                  <label style={{ fontSize: '0.68rem', color: '#8c7060' }}>Start Color</label>
-                                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    <input
-                                      type="color"
-                                      value={branding.classroomBackground.gradient.stops[0]?.color || '#fdf0e4'}
-                                      onChange={(e) => setBgGradientStop(0, e.target.value)}
-                                      style={{ width: '40px', height: '36px', padding: 0, border: '1px solid #eedcd0', borderRadius: '6px', cursor: 'pointer' }}
-                                    />
-                                    <input
-                                      type="text"
-                                      className={styles.input}
-                                      value={branding.classroomBackground.gradient.stops[0]?.color || '#fdf0e4'}
-                                      onChange={(e) => setBgGradientStop(0, e.target.value)}
-                                      style={{ padding: '8px 12px' }}
-                                    />
-                                  </div>
-                                </div>
-                                <div className={styles.fieldGroup} style={{ flex: 1 }}>
-                                  <label style={{ fontSize: '0.68rem', color: '#8c7060' }}>End Color</label>
-                                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    <input
-                                      type="color"
-                                      value={branding.classroomBackground.gradient.stops[1]?.color || '#eedcd0'}
-                                      onChange={(e) => setBgGradientStop(1, e.target.value)}
-                                      style={{ width: '40px', height: '36px', padding: 0, border: '1px solid #eedcd0', borderRadius: '6px', cursor: 'pointer' }}
-                                    />
-                                    <input
-                                      type="text"
-                                      className={styles.input}
-                                      value={branding.classroomBackground.gradient.stops[1]?.color || '#eedcd0'}
-                                      onChange={(e) => setBgGradientStop(1, e.target.value)}
-                                      style={{ padding: '8px 12px' }}
-                                    />
-                                  </div>
-                                </div>
-                              </div>
+                    {/* 2. CUSTOMIZE CARD */}
+                    <div className={styles.chessSettingsCard} style={{ marginTop: 0, padding: '24px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                        <Sliders size={18} style={{ color: 'var(--primary)' }} />
+                        <h3 className={styles.cardTitle} style={{ margin: 0 }}>Customize</h3>
+                      </div>
+                      <p style={{ marginTop: 0, marginBottom: '24px', fontSize: '0.82rem', color: '#64748b' }}>
+                        Controls adapt to the selected style.
+                      </p>
 
-                              {/* Direction */}
-                              <div className={styles.fieldGroup}>
-                                <label style={{ fontSize: '0.68rem', color: '#8c7060' }}>Direction</label>
-                                <select
-                                  className={styles.select}
-                                  value={branding.classroomBackground.gradient.direction || '135deg'}
-                                  onChange={(e) => setBgGradientDirection(e.target.value)}
-                                >
-                                  <option value="135deg">Diagonal (135°)</option>
-                                  <option value="90deg">Horizontal (90°)</option>
-                                  <option value="180deg">Vertical (180°)</option>
-                                  <option value="0deg">To Top (0°)</option>
-                                  <option value="45deg">Diagonal Up (45°)</option>
-                                </select>
-                              </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        {/* Panel Color (Solid & Slate) */}
+                        {(branding.panelStyle === 'solid' || branding.panelStyle === 'slate') && (
+                          <div className={styles.colorRoleRow}>
+                            <div className={styles.colorRoleMeta}>
+                              <span className={styles.colorRoleTitle}>Panel color</span>
+                              <span className={styles.colorRoleSubtitle}>Solid & Slate</span>
                             </div>
-                          </div>
-                        )}
-
-                        {/* Texture Presets */}
-                        {branding.classroomBackground?.type === 'texture' && (
-                          <div className={styles.fieldGroup}>
-                            <label>Select a Texture</label>
-                            <div className={styles.texturePresetGrid}>
-                              {[
-                                { id: 'dots', label: 'Fine Dots', bg: 'radial-gradient(#eedcd0 15%, transparent 16%)', size: '12px 12px' },
-                                { id: 'grid', label: 'Math Grid', bg: 'linear-gradient(rgba(238, 220, 208, 0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(238, 220, 208, 0.4) 1px, transparent 1px)', size: '15px 15px' },
-                                { id: 'stripes', label: 'Diagonal Stripes', bg: 'repeating-linear-gradient(45deg, #fdf0e4, #fdf0e4 5px, #f5e4d7 5px, #f5e4d7 10px)', size: 'auto' },
-                                { id: 'wood', label: 'Maple Wood', bg: `url('https://lichess1.org/assets/images/board/maple.jpg')`, size: 'cover' },
-                                { id: 'stars', label: 'Cosmic Sky', bg: '#0d1b2a radial-gradient(white, rgba(255,255,255,.2) 1px, transparent 20px)', size: '100px 100px' }
-                              ].map(p => (
-                                <div
-                                  key={p.id}
-                                  className={`${styles.texturePresetCard} ${branding.classroomBackground?.texture === p.id ? styles.texturePresetCardActive : ''}`}
-                                  onClick={() => setBgTexture(p.id as any)}
-                                >
-                                  <div
-                                    className={styles.texturePresetPreview}
-                                    style={{
-                                      backgroundColor: p.id === 'stars' ? '#0d1b2a' : '#fdf0e4',
-                                      backgroundImage: p.bg,
-                                      backgroundSize: p.size
-                                    }}
-                                  />
-                                  <span className={styles.texturePresetLabel}>{p.label}</span>
-                                </div>
+                            <div className={styles.colorSwatchesGroup}>
+                              {['#ffffff', '#2d4a6b', '#334155', '#451a03'].map(color => (
+                                <button
+                                  key={color}
+                                  type="button"
+                                  className={`${styles.colorCircle} ${(branding.panelColor || (branding.panelStyle === 'slate' ? '#2d4a6b' : '#ffffff')) === color ? styles.colorCircleActive : ''}`}
+                                  style={{ background: color, border: color === '#ffffff' ? '1px solid #cbd5e1' : undefined }}
+                                  onClick={() => setBranding({ ...branding, panelColor: color })}
+                                  title={color}
+                                />
                               ))}
+                              <label className={styles.customColorPickerPlus} title="Custom color">
+                                +
+                                <input
+                                  type="color"
+                                  value={branding.panelColor || (branding.panelStyle === 'slate' ? '#2d4a6b' : '#ffffff')}
+                                  onChange={(e) => setBranding({ ...branding, panelColor: e.target.value })}
+                                  style={{ opacity: 0, width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, cursor: 'pointer' }}
+                                />
+                              </label>
                             </div>
                           </div>
                         )}
 
-                        {/* Image Controls */}
-                        {branding.classroomBackground?.type === 'image' && (
-                          <div className={styles.fieldGroup}>
-                            <label>Image Settings</label>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                              {/* Source Selector */}
+                        {/* Background Image Controls (Image type) */}
+                        {branding.panelStyle === 'image' && (
+                          <>
+                            {/* Background Image Source Toggle */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div className={styles.colorRoleMeta}>
+                                <span className={styles.colorRoleTitle}>Background image</span>
+                                <span className={styles.colorRoleSubtitle}>Image</span>
+                              </div>
                               <div className={styles.imageSourceToggle}>
                                 <button
                                   type="button"
-                                  className={`${styles.imageSourceBtn} ${branding.classroomBackground.imageSource === 'upload' ? styles.imageSourceBtnActive : ''}`}
-                                  onClick={() => setBgImageSource('upload')}
+                                  className={`${styles.imageSourceBtn} ${(branding.panelImageSource || 'upload') === 'upload' ? styles.imageSourceBtnActive : ''}`}
+                                  onClick={() => setBranding({ ...branding, panelImageSource: 'upload' })}
                                 >
-                                  Upload Image
+                                  Upload
                                 </button>
                                 <button
                                   type="button"
-                                  className={`${styles.imageSourceBtn} ${branding.classroomBackground.imageSource === 'url' ? styles.imageSourceBtnActive : ''}`}
-                                  onClick={() => setBgImageSource('url')}
+                                  className={`${styles.imageSourceBtn} ${branding.panelImageSource === 'url' ? styles.imageSourceBtnActive : ''}`}
+                                  onClick={() => setBranding({ ...branding, panelImageSource: 'url' })}
                                 >
-                                  Image URL
+                                  URL
                                 </button>
                               </div>
+                            </div>
 
-                              {/* Upload Form */}
-                              {branding.classroomBackground.imageSource === 'upload' && (
-                                <div>
-                                  <label
-                                    className={styles.uploadContainer}
-                                    style={{ display: 'block' }}
-                                  >
-                                    <div className={styles.uploadText}>Click to select file</div>
-                                    <div className={styles.uploadSubtext}>JPG, PNG or WEBP (Max 5MB)</div>
-                                    <input
-                                      type="file"
-                                      accept="image/*"
-                                      onChange={handleBgImageUpload}
-                                      style={{ display: 'none' }}
-                                    />
-                                  </label>
-                                  {imageUploadError && (
-                                    <p style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '6px', fontWeight: 600 }}>{imageUploadError}</p>
-                                  )}
-                                  {branding.classroomBackground.imageUpload && (
-                                    <div className={styles.imagePreviewBox}>
-                                      <img
-                                        src={branding.classroomBackground.imageUpload}
-                                        alt="Uploaded preview"
-                                        className={styles.imagePreview}
-                                      />
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-
-                              {/* URL Form */}
-                              {branding.classroomBackground.imageSource === 'url' && (
-                                <div className={styles.fieldGroup}>
-                                  <label style={{ fontSize: '0.68rem', color: '#8c7060' }}>Paste Image Address</label>
-                                  <input
-                                    type="text"
-                                    className={styles.input}
-                                    value={branding.classroomBackground.imageUrl || ''}
-                                    onChange={(e) => setBgImageUrl(e.target.value)}
-                                    placeholder="https://example.com/background.jpg"
-                                  />
-                                  {imageUrlError && (
-                                    <p style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '4px', fontWeight: 600 }}>{imageUrlError}</p>
-                                  )}
-                                  {branding.classroomBackground.imageUrl && !imageUrlError && (
-                                    <div className={styles.imagePreviewBox}>
-                                      <img
-                                        src={branding.classroomBackground.imageUrl}
-                                        alt="URL preview"
-                                        className={styles.imagePreview}
-                                      />
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-
-                              {/* Dark Overlay checkbox */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                            {/* Upload Zone or URL Input */}
+                            {(branding.panelImageSource || 'upload') === 'upload' ? (
+                              <label
+                                className={`${styles.smallUploadDropzone} ${isDragOver ? styles.uploadDropzoneActive : ''}`}
+                                onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                                onDragLeave={(e) => { e.preventDefault(); setIsDragOver(false); }}
+                                onDrop={(e) => {
+                                  e.preventDefault();
+                                  setIsDragOver(false);
+                                  const file = e.dataTransfer.files?.[0];
+                                  if (file && file.type.startsWith('image/')) {
+                                    if (file.size > 2 * 1024 * 1024) {
+                                      setToastMessage('Image must be under 2MB');
+                                      setShowToast(true);
+                                      setTimeout(() => setShowToast(false), 3000);
+                                      return;
+                                    }
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => {
+                                      setBranding((prev: any) => ({ ...prev, panelImageUpload: reader.result, panelImageUrl: '' }));
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
+                                }}
+                                style={{ width: '100%', height: '84px' }}
+                              >
+                                <UploadCloud size={20} style={{ color: '#2563eb', marginBottom: '2px' }} />
+                                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#2563eb' }}>
+                                  {branding.panelImageUpload ? 'Image uploaded — Click to replace' : 'Upload panel image'}
+                                </span>
+                                <span style={{ fontSize: '0.72rem', color: '#64748b' }}>PNG/SVG/JPG · max 2MB</span>
                                 <input
-                                  type="checkbox"
-                                  id="bg-overlay-checkbox"
-                                  checked={branding.classroomBackground.imageOverlay || false}
-                                  onChange={(e) => setBgImageOverlay(e.target.checked)}
-                                  style={{ width: '16px', height: '16px', accentColor: 'var(--primary)', cursor: 'pointer' }}
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      if (file.size > 2 * 1024 * 1024) {
+                                        setToastMessage('Image must be under 2MB');
+                                        setShowToast(true);
+                                        setTimeout(() => setShowToast(false), 3000);
+                                        return;
+                                      }
+                                      const reader = new FileReader();
+                                      reader.onloadend = () => {
+                                        setBranding((prev: any) => ({ ...prev, panelImageUpload: reader.result, panelImageUrl: '' }));
+                                      };
+                                      reader.readAsDataURL(file);
+                                    }
+                                  }}
+                                  style={{ display: 'none' }}
                                 />
-                                <label
-                                  htmlFor="bg-overlay-checkbox"
-                                  style={{ fontSize: '0.82rem', fontWeight: 600, color: '#4a2018', cursor: 'pointer', textTransform: 'none' }}
-                                >
-                                  Apply subtle dark overlay to keep chessboard readable
-                                </label>
+                              </label>
+                            ) : (
+                              <input
+                                type="text"
+                                value={branding.panelImageUrl || ''}
+                                onChange={(e) => setBranding({ ...branding, panelImageUrl: e.target.value })}
+                                placeholder="https://example.com/panel-bg.jpg"
+                                className={styles.input}
+                              />
+                            )}
+
+                            {/* Fit Control */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div className={styles.colorRoleMeta}>
+                                <span className={styles.colorRoleTitle}>Fit</span>
+                                <span className={styles.colorRoleSubtitle}>Image</span>
                               </div>
+                              <div className={styles.imageSourceToggle} style={{ maxWidth: '180px' }}>
+                                <button
+                                  type="button"
+                                  className={`${styles.imageSourceBtn} ${(branding.panelImageFit || 'cover') === 'cover' ? styles.imageSourceBtnActive : ''}`}
+                                  onClick={() => setBranding({ ...branding, panelImageFit: 'cover' })}
+                                >
+                                  Cover
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`${styles.imageSourceBtn} ${branding.panelImageFit === 'contain' ? styles.imageSourceBtnActive : ''}`}
+                                  onClick={() => setBranding({ ...branding, panelImageFit: 'contain' })}
+                                >
+                                  Contain
+                                </button>
+                              </div>
+                            </div>
+                          </>
+                        )}
+
+                        {/* Opacity Slider (Solid · Glass · Image) */}
+                        {(branding.panelStyle === 'solid' || branding.panelStyle === 'glass' || branding.panelStyle === 'image') && (
+                          <div className={styles.fieldGroup}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div className={styles.colorRoleMeta}>
+                                <span className={styles.colorRoleTitle}>Opacity</span>
+                                <span className={styles.colorRoleSubtitle}>Solid · Glass · Image</span>
+                              </div>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                                {branding.panelOpacity ?? 95}%
+                              </span>
+                            </div>
+                            <div className={styles.sliderRow} style={{ margin: 0 }}>
+                              <input
+                                type="range"
+                                min={10}
+                                max={100}
+                                step={5}
+                                value={branding.panelOpacity ?? 95}
+                                onChange={(e) => setBranding({ ...branding, panelOpacity: Number(e.target.value) })}
+                                className={styles.paddingSlider}
+                              />
                             </div>
                           </div>
                         )}
-                      </div>
-                    </div>
-                )}
-                    </div>
-                    </div>
 
-                    {/* Classroom Live Preview Panel */}
-                    <div className={styles.stickyPreviewPane}>
-                      <div className={styles.previewPin}>
-                        <Pin size={12} /> Stays in view while you scroll
-                      </div>
-                      <div className={styles.livePreviewWrapper} style={{ marginTop: 0 }}>
-                        <span className={styles.livePreviewTitle}>Classroom Live Preview</span>
-                      <div
-                        className={styles.livePreviewBackgroundContainer}
-                        style={getPreviewBackgroundStyle()}
-                      >
-                        {/* Overlay element */}
-                        <div
-                          className={styles.livePreviewOverlay}
-                          style={{
-                            backgroundColor: branding.classroomBackground?.type === 'image' && branding.classroomBackground.imageOverlay
-                              ? 'rgba(0, 0, 0, 0.45)'
-                              : 'transparent'
-                          }}
-                        />
-                        <div className={styles.livePreviewInner}>
-                          {/* Mini Chessboard mock */}
-                          <div className={styles.miniBoard}>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gridTemplateRows: 'repeat(4, 1fr)', width: '100%', height: '100%' }}>
-                              {[0, 1, 2, 3].map(row =>
-                                [0, 1, 2, 3].map(col => {
-                                  const isDark = (row + col) % 2 === 1;
-                                  return (
-                                    <div
-                                      key={`${row}-${col}`}
-                                      style={{
-                                        backgroundColor: isDark
-                                          ? (branding.boardTheme.startsWith('custom_') ? branding.customThemes?.find(t => t.id === branding.boardTheme)?.dark || '#c8854a' : '#c8854a')
-                                          : (branding.boardTheme.startsWith('custom_') ? branding.customThemes?.find(t => t.id === branding.boardTheme)?.light || '#eedcd0' : '#eedcd0')
-                                      }}
-                                    />
-                                  );
-                                })
-                              )}
+                        {/* Blur Slider (Glass · Image) */}
+                        {(branding.panelStyle === 'glass' || branding.panelStyle === 'image') && (
+                          <div className={styles.fieldGroup}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div className={styles.colorRoleMeta}>
+                                <span className={styles.colorRoleTitle}>Blur</span>
+                                <span className={styles.colorRoleSubtitle}>Glass · Image</span>
+                              </div>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--primary)' }}>
+                                {branding.panelBlur ?? 0}px
+                              </span>
+                            </div>
+                            <div className={styles.sliderRow} style={{ margin: 0 }}>
+                              <input
+                                type="range"
+                                min={0}
+                                max={20}
+                                step={1}
+                                value={branding.panelBlur ?? 0}
+                                onChange={(e) => setBranding({ ...branding, panelBlur: Number(e.target.value) })}
+                                className={styles.paddingSlider}
+                              />
                             </div>
                           </div>
+                        )}
 
-                          {/* Mini panel mock */}
-                          <div
-                            className={styles.miniPanel}
-                            style={{
-                              background: branding.panelStyle === 'solid'
-                                ? `rgba(255,255,255, ${(branding.panelOpacity ?? 95)/100})`
-                                : branding.panelStyle === 'glass'
-                                ? 'rgba(255, 255, 255, 0.55)'
-                                : branding.panelStyle === 'slate'
-                                ? '#2d4a6b'
-                                : branding.panelStyle === 'parchment'
-                                ? '#fdf5ea'
-                                : 'linear-gradient(to bottom, #ffffff, #fdf5ea)',
-                              border: branding.panelStyle === 'glass' ? '1.5px solid rgba(255,255,255,0.3)' : '1px solid #eedcd0'
-                            }}
-                          />
+                        <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '4px 0 0 0', lineHeight: '1.4' }}>
+                          Panel color applies to Solid & Slate · Opacity applies to Solid, Glass & Image · Blur applies to Glass & Image
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {activeClassroomNav === 'background' && (
+                  <div style={{ marginTop: '0' }}>
+                    {/* Classroom Background Section */}
+                    <h3 className={styles.sectionHeading} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px', fontSize: '1.25rem', color: 'var(--primary)' }}>
+                      <ImageIcon size={20} /> Classroom background
+                    </h3>
+                    <div className={styles.form}>
+                      {/* ═══ 1. BACKGROUND TYPE ═══ */}
+                      <div className={styles.fieldGroup}>
+                        <label>Background Type</label>
+                        <div className={styles.bgTypeSegmented}>
+                          {[
+                            { id: 'solid', label: 'Solid', icon: Square },
+                            { id: 'gradient', label: 'Gradient', icon: Blend },
+                            { id: 'texture', label: 'Texture', icon: Sparkles },
+                            { id: 'image', label: 'Image', icon: ImageIcon }
+                          ].map(t => {
+                            const IconComp = t.icon;
+                            const isActive = (branding.classroomBackground?.type || 'solid') === t.id;
+                            return (
+                              <button
+                                key={t.id}
+                                type="button"
+                                className={`${styles.bgTypeSegmentItem} ${isActive ? styles.bgTypeSegmentItemActive : ''}`}
+                                onClick={() => setBgType(t.id as any)}
+                              >
+                                <IconComp size={14} />
+                                <span>{t.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Solid Controls */}
+                      {branding.classroomBackground?.type === 'solid' && (
+                        <div className={styles.fieldGroup}>
+                          <label>Solid Background Color</label>
+                          <div className={styles.row} style={{ margin: 0, alignItems: 'center', gap: '12px' }}>
+                            <input
+                              type="color"
+                              value={branding.classroomBackground.solidColor || '#fdf0e4'}
+                              onChange={(e) => setBgSolidColor(e.target.value)}
+                              style={{ width: '45px', height: '40px', padding: 0, border: '1px solid #eedcd0', borderRadius: '8px', cursor: 'pointer' }}
+                            />
+                            <input
+                              type="text"
+                              className={styles.input}
+                              value={branding.classroomBackground.solidColor || '#fdf0e4'}
+                              onChange={(e) => setBgSolidColor(e.target.value)}
+                              placeholder="#FFFFFF"
+                              style={{ flex: 1 }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Gradient Controls */}
+                      {branding.classroomBackground?.type === 'gradient' && (
+                        <div className={styles.fieldGroup}>
+                          <label>Gradient Settings</label>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            <div className={styles.row} style={{ margin: 0, gap: '16px' }}>
+                              <div className={styles.fieldGroup} style={{ flex: 1 }}>
+                                <label style={{ fontSize: '0.68rem', color: '#8c7060' }}>Start Color</label>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                  <input
+                                    type="color"
+                                    value={branding.classroomBackground.gradient?.stops?.[0]?.color || '#fdf0e4'}
+                                    onChange={(e) => setBgGradientStop(0, e.target.value)}
+                                    style={{ width: '40px', height: '36px', padding: 0, border: '1px solid #eedcd0', borderRadius: '6px', cursor: 'pointer' }}
+                                  />
+                                  <input
+                                    type="text"
+                                    className={styles.input}
+                                    value={branding.classroomBackground.gradient?.stops?.[0]?.color || '#fdf0e4'}
+                                    onChange={(e) => setBgGradientStop(0, e.target.value)}
+                                    style={{ padding: '8px 12px' }}
+                                  />
+                                </div>
+                              </div>
+                              <div className={styles.fieldGroup} style={{ flex: 1 }}>
+                                <label style={{ fontSize: '0.68rem', color: '#8c7060' }}>End Color</label>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                  <input
+                                    type="color"
+                                    value={branding.classroomBackground.gradient?.stops?.[1]?.color || '#eedcd0'}
+                                    onChange={(e) => setBgGradientStop(1, e.target.value)}
+                                    style={{ width: '40px', height: '36px', padding: 0, border: '1px solid #eedcd0', borderRadius: '6px', cursor: 'pointer' }}
+                                  />
+                                  <input
+                                    type="text"
+                                    className={styles.input}
+                                    value={branding.classroomBackground.gradient?.stops?.[1]?.color || '#eedcd0'}
+                                    onChange={(e) => setBgGradientStop(1, e.target.value)}
+                                    style={{ padding: '8px 12px' }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className={styles.fieldGroup}>
+                              <label style={{ fontSize: '0.68rem', color: '#8c7060' }}>Direction</label>
+                              <select
+                                className={styles.select}
+                                value={branding.classroomBackground.gradient?.direction || '135deg'}
+                                onChange={(e) => setBgGradientDirection(e.target.value)}
+                              >
+                                <option value="135deg">Diagonal (135°)</option>
+                                <option value="90deg">Horizontal (90°)</option>
+                                <option value="180deg">Vertical (180°)</option>
+                                <option value="0deg">To Top (0°)</option>
+                                <option value="45deg">Diagonal Up (45°)</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ═══ 3. TEXTURES — PARAMETRIC + REGISTRY ═══ */}
+                      {branding.classroomBackground?.type === 'texture' && (
+                        <div className={styles.fieldGroup}>
+                          <label>SELECT A TEXTURE</label>
+                          
+                          {/* Category Chips */}
+                          <div className={styles.categoryChipsRow}>
+                            {TEXTURE_CATEGORIES.map(cat => (
+                              <button
+                                key={cat.id}
+                                type="button"
+                                className={`${styles.categoryChip} ${activeTextureCategory === cat.id ? styles.categoryChipActive : ''}`}
+                                onClick={() => setActiveTextureCategory(cat.id)}
+                              >
+                                {cat.label}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Texture Cards for selected category */}
+                          <div className={styles.textureGrid}>
+                            {TEXTURE_REGISTRY.filter(t => t.category === activeTextureCategory).map(p => {
+                              const activeTextureId = branding.classroomBackground?.texture || 'dots';
+                              const isSelected = activeTextureId === p.id;
+                              const currentParams = isSelected && branding.classroomBackground?.textureParams
+                                ? branding.classroomBackground.textureParams
+                                : p.defaultParams;
+                              const previewStyle = p.renderCss(currentParams);
+
+                              return (
+                                <div
+                                  key={p.id}
+                                  className={`${styles.textureCard} ${isSelected ? styles.textureCardActive : ''}`}
+                                  onClick={() => setBgTexture(p.id)}
+                                >
+                                  <div
+                                    className={styles.textureCardPreview}
+                                    style={{
+                                      backgroundColor: previewStyle.background,
+                                      backgroundImage: previewStyle.backgroundImage,
+                                      backgroundSize: previewStyle.backgroundSize,
+                                      backgroundRepeat: previewStyle.backgroundRepeat || 'repeat',
+                                      backgroundPosition: previewStyle.backgroundPosition || '0 0'
+                                    }}
+                                  />
+                                  <span className={styles.textureCardLabel}>{p.name}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Customize Panel for current selected texture */}
+                          {(() => {
+                            const activeTexDef = getTextureById(branding.classroomBackground?.texture || 'dots');
+                            const currentParams = {
+                              ...activeTexDef.defaultParams,
+                              ...(branding.classroomBackground?.textureParams || {})
+                            };
+
+                            const presetBases = activeTexDef.presetBaseColors || ['#fdf0e4', '#f0f4f8', '#f5f0f8', '#f0f8f4'];
+                            const presetPatterns = activeTexDef.presetPatternColors || ['#c8854a', '#708090', '#c06c84', '#4a7c59'];
+
+                            return (
+                              <div className={styles.textureCustomizePanel}>
+                                <div className={styles.customizeHeader}>
+                                  <Sliders size={16} />
+                                  <span>Customize · {activeTexDef.name}</span>
+                                </div>
+
+                                {/* Base color */}
+                                <div className={styles.customizeRow}>
+                                  <span className={styles.customizeLabel}>Base color</span>
+                                  <div className={styles.swatchGroup}>
+                                    {presetBases.map(c => (
+                                      <div
+                                        key={c}
+                                        className={`${styles.swatchCircle} ${currentParams.baseColor.toLowerCase() === c.toLowerCase() ? styles.swatchCircleActive : ''}`}
+                                        style={{ backgroundColor: c }}
+                                        onClick={() => setBgTextureParam('baseColor', c)}
+                                      />
+                                    ))}
+                                    <input
+                                      type="color"
+                                      value={currentParams.baseColor}
+                                      onChange={(e) => setBgTextureParam('baseColor', e.target.value)}
+                                      style={{ width: '24px', height: '24px', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* Pattern color */}
+                                <div className={styles.customizeRow}>
+                                  <span className={styles.customizeLabel}>Pattern color</span>
+                                  <div className={styles.swatchGroup}>
+                                    {presetPatterns.map(c => (
+                                      <div
+                                        key={c}
+                                        className={`${styles.swatchCircle} ${currentParams.patternColor.toLowerCase() === c.toLowerCase() ? styles.swatchCircleActive : ''}`}
+                                        style={{ backgroundColor: c }}
+                                        onClick={() => setBgTextureParam('patternColor', c)}
+                                      />
+                                    ))}
+                                    <input
+                                      type="color"
+                                      value={currentParams.patternColor}
+                                      onChange={(e) => setBgTextureParam('patternColor', e.target.value)}
+                                      style={{ width: '24px', height: '24px', padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* Scale */}
+                                <div className={styles.customizeRow}>
+                                  <span className={styles.customizeLabel}>Scale</span>
+                                  <input
+                                    type="range"
+                                    min={50}
+                                    max={200}
+                                    step={5}
+                                    value={currentParams.scale}
+                                    onChange={(e) => setBgTextureParam('scale', Number(e.target.value))}
+                                    className={styles.customizeSlider}
+                                  />
+                                </div>
+
+                                {/* Opacity */}
+                                <div className={styles.customizeRow}>
+                                  <span className={styles.customizeLabel}>Opacity</span>
+                                  <input
+                                    type="range"
+                                    min={10}
+                                    max={100}
+                                    step={5}
+                                    value={currentParams.opacity}
+                                    onChange={(e) => setBgTextureParam('opacity', Number(e.target.value))}
+                                    className={styles.customizeSlider}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+
+                      {/* ═══ 2. IMAGE SETTINGS ═══ */}
+                      {branding.classroomBackground?.type === 'image' && (
+                        <div className={styles.fieldGroup}>
+                          <label>Image Settings</label>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            {/* Source Selector */}
+                            <div className={styles.imageSourceToggle}>
+                              <button
+                                type="button"
+                                className={`${styles.imageSourceBtn} ${branding.classroomBackground.imageSource === 'upload' ? styles.imageSourceBtnActive : ''}`}
+                                onClick={() => setBgImageSource('upload')}
+                              >
+                                Upload Image
+                              </button>
+                              <button
+                                type="button"
+                                className={`${styles.imageSourceBtn} ${branding.classroomBackground.imageSource === 'url' ? styles.imageSourceBtnActive : ''}`}
+                                onClick={() => setBgImageSource('url')}
+                              >
+                                Image URL
+                              </button>
+                            </div>
+
+                            {/* Upload Form */}
+                            {branding.classroomBackground.imageSource === 'upload' && (
+                              <div>
+                                <label className={styles.uploadContainer} style={{ display: 'block' }}>
+                                  <UploadCloud size={24} style={{ margin: '0 auto 8px auto', color: 'var(--primary)' }} />
+                                  <div className={styles.uploadText}>Click or drag image file here</div>
+                                  <div className={styles.uploadSubtext}>JPG, PNG or WEBP (Max 5MB)</div>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleBgImageUpload}
+                                    style={{ display: 'none' }}
+                                  />
+                                </label>
+                                {imageUploadError && (
+                                  <p style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '6px', fontWeight: 600 }}>{imageUploadError}</p>
+                                )}
+                                {branding.classroomBackground.imageUpload && (
+                                  <div className={styles.imagePreviewBox}>
+                                    <img
+                                      src={branding.classroomBackground.imageUpload}
+                                      alt="Uploaded preview"
+                                      className={styles.imagePreview}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* URL Form */}
+                            {branding.classroomBackground.imageSource === 'url' && (
+                              <div className={styles.fieldGroup}>
+                                <label style={{ fontSize: '0.75rem', color: '#64748b' }}>Paste Image Address</label>
+                                <input
+                                  type="text"
+                                  className={styles.input}
+                                  value={branding.classroomBackground.imageUrl || ''}
+                                  onChange={(e) => setBgImageUrl(e.target.value)}
+                                  placeholder="https://example.com/background.jpg"
+                                />
+                                {imageUrlError && (
+                                  <p style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: '4px', fontWeight: 600 }}>{imageUrlError}</p>
+                                )}
+                                {branding.classroomBackground.imageUrl && !imageUrlError && (
+                                  <div className={styles.imagePreviewBox}>
+                                    <img
+                                      src={branding.classroomBackground.imageUrl}
+                                      alt="URL preview"
+                                      className={styles.imagePreview}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Readability Overlay & Fit Controls */}
+                      <div className={styles.fieldGroup} style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #f1f5f9' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                              <label style={{ margin: 0, fontSize: '0.84rem', fontWeight: 600, color: '#334155' }}>Readability overlay</label>
+                              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--primary)' }}>
+                                {branding.classroomBackground?.imageOverlayOpacity !== undefined 
+                                  ? branding.classroomBackground.imageOverlayOpacity 
+                                  : (branding.classroomBackground?.imageOverlay ? 45 : 0)}% darken
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min={0}
+                              max={60}
+                              step={5}
+                              value={branding.classroomBackground?.imageOverlayOpacity !== undefined 
+                                ? branding.classroomBackground.imageOverlayOpacity 
+                                : (branding.classroomBackground?.imageOverlay ? 45 : 0)}
+                              onChange={(e) => setBgImageOverlayOpacity(Number(e.target.value))}
+                              style={{ width: '100%', accentColor: 'var(--primary)', cursor: 'pointer' }}
+                            />
+                          </div>
+
+                          {branding.classroomBackground?.type === 'image' && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <label style={{ margin: 0, fontSize: '0.84rem', fontWeight: 600, color: '#334155' }}>Fit</label>
+                              <div className={styles.imageSourceToggle} style={{ maxWidth: '180px' }}>
+                                <button
+                                  type="button"
+                                  className={`${styles.imageSourceBtn} ${(branding.classroomBackground?.imageFit || 'cover') === 'cover' ? styles.imageSourceBtnActive : ''}`}
+                                  onClick={() => setBgImageFit('cover')}
+                                >
+                                  Cover
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`${styles.imageSourceBtn} ${branding.classroomBackground?.imageFit === 'contain' ? styles.imageSourceBtnActive : ''}`}
+                                  onClick={() => setBgImageFit('contain')}
+                                >
+                                  Contain
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
                   </div>
-                  </div>
-                  );
-                })()}
+                )}
               </div>
-            )}
+
+            {/* ═══ 4. CLASSROOM LIVE PREVIEW (Faithful Miniature) ═══ */}
+            <div className={styles.stickyPreviewPane}>
+              <div className={styles.previewPin}>
+                <Pin size={12} /> Stays in view while you scroll
+              </div>
+              <div className={styles.livePreviewWrapper}>
+                <span className={styles.livePreviewTitle}>Classroom Live Preview</span>
+                <div
+                  className={styles.livePreviewBackgroundContainer}
+                  style={getPreviewBackgroundStyle()}
+                >
+                  <div
+                    className={styles.livePreviewOverlay}
+                    style={{
+                      backgroundColor: getPreviewOverlayColor()
+                    }}
+                  />
+                  {/* Mini Board */}
+                  <div className={styles.miniBoard}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gridTemplateRows: 'repeat(4, 1fr)', width: '100%', height: '100%' }}>
+                      {[0, 1, 2, 3].map(row =>
+                        [0, 1, 2, 3].map(col => {
+                          const isDark = (row + col) % 2 === 1;
+                          return (
+                            <div
+                              key={`${row}-${col}`}
+                              style={{
+                                backgroundColor: isDark
+                                  ? (branding.boardTheme.startsWith('custom_') ? branding.customThemes?.find(t => t.id === branding.boardTheme)?.dark || '#c8854a' : '#c8854a')
+                                  : (branding.boardTheme.startsWith('custom_') ? branding.customThemes?.find(t => t.id === branding.boardTheme)?.light || '#eedcd0' : '#eedcd0')
+                              }}
+                            />
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Mini Panel */}
+                  <div
+                    className={styles.miniPanel}
+                    style={{
+                      position: 'relative',
+                      overflow: 'hidden',
+                      border: (branding.panelStyle === 'glass' || branding.panelStyle === 'image') ? '1.5px solid rgba(255,255,255,0.4)' : '1px solid #eedcd0',
+                      backdropFilter: (branding.panelStyle === 'glass' && (branding.panelBlur ?? 0) > 0) ? `blur(${branding.panelBlur}px)` : 'none'
+                    }}
+                  >
+                    {/* Inner Background Layer for Panel */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        zIndex: 0,
+                        background: (() => {
+                          const pStyle = branding.panelStyle || 'solid';
+                          const op = (branding.panelOpacity ?? 95) / 100;
+                          const overlayAlpha = (100 - (branding.panelOpacity ?? 95)) / 100;
+                          const hexToRgba = (hex: string, a: number) => {
+                            if (!hex) return `rgba(255,255,255,${a})`;
+                            let c = hex.replace('#', '');
+                            if (c.length === 3) c = c.split('').map(x => x + x).join('');
+                            const num = parseInt(c, 16);
+                            if (isNaN(num)) return `rgba(255,255,255,${a})`;
+                            return `rgba(${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}, ${a})`;
+                          };
+                          if (pStyle === 'solid') return hexToRgba(branding.panelColor || '#ffffff', op);
+                          if (pStyle === 'slate') return hexToRgba(branding.panelColor || '#2d4a6b', op);
+                          if (pStyle === 'glass') return `rgba(255, 255, 255, ${op})`;
+                          if (pStyle === 'image') {
+                            const img = (branding.panelImageSource === 'upload' && branding.panelImageUpload)
+                              ? branding.panelImageUpload
+                              : (branding.panelImageUrl || '');
+                            return img
+                              ? `linear-gradient(rgba(255, 255, 255, ${overlayAlpha}), rgba(255, 255, 255, ${overlayAlpha})), url('${img}') center / ${branding.panelImageFit || 'cover'} no-repeat`
+                              : `rgba(255, 255, 255, ${op})`;
+                          }
+                          if (pStyle === 'parchment') return '#fdf5ea';
+                          return 'linear-gradient(to bottom, #ffffff, #fdf5ea)';
+                        })(),
+                        filter: (branding.panelStyle === 'image' && (branding.panelBlur ?? 0) > 0)
+                          ? `blur(${branding.panelBlur}px)`
+                          : 'none',
+                        transform: (branding.panelStyle === 'image' && (branding.panelBlur ?? 0) > 0)
+                          ? 'scale(1.2)'
+                          : 'none',
+                        transition: 'all 0.2s ease'
+                      }}
+                    />
+
+                    {/* Content Layer */}
+                    <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', height: '100%' }}>
+                      <div className={styles.miniPanelHeader} />
+                      <div className={styles.miniPanelLine} />
+                      <div className={styles.miniPanelLineShort} />
+                      <div className={styles.miniPanelLine} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        );
+      })()}
+    </div>
+  )}
 
           </div>
         </div>

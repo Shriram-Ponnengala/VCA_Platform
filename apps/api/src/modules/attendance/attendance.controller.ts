@@ -2,9 +2,10 @@ import { Request, Response } from 'express';
 import { AttendanceService } from './attendance.service';
 import * as jose from 'jose';
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'wdfghjifghjoixcvhjk'
-);
+const getSecretKey = () => {
+  const secret = process.env.JWT_SECRET || 'super_secret_key_12345_random_string_vca';
+  return new TextEncoder().encode(secret.replace(/^"|"$/g, ''));
+};
 
 const service = new AttendanceService();
 
@@ -16,7 +17,7 @@ export class AttendanceController {
     const token = req.cookies['auth-token'];
     if (!token) return null;
     try {
-      const { payload } = await jose.jwtVerify(token, JWT_SECRET);
+      const { payload } = await jose.jwtVerify(token, getSecretKey());
       return payload;
     } catch (e) {
       return null;

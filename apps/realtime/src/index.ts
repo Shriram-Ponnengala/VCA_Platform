@@ -7,9 +7,10 @@ import * as jose from 'jose';
 
 dotenv.config();
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'wdfghjifghjoixcvhjk'
-);
+const getSecretKey = () => {
+  const secret = process.env.JWT_SECRET || 'super_secret_key_12345_random_string_vca';
+  return new TextEncoder().encode(secret.replace(/^"|"$/g, ''));
+};
 
 const getLocalIp = () => {
   const nets = os.networkInterfaces();
@@ -147,7 +148,7 @@ io.use(async (socket, next) => {
     
     if (!token) throw new Error("no token provided");
     
-    const { payload: decoded } = await jose.jwtVerify(token, JWT_SECRET);
+    const { payload: decoded } = await jose.jwtVerify(token, getSecretKey());
     (socket as any).user = decoded;
     next();
   } catch (err: any) {

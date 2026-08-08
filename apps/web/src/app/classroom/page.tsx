@@ -873,6 +873,7 @@ export default function ClassroomPage() {
                     role={userRole} 
                     onGamesContextLoaded={handleGamesContextLoaded}
                     activeGameId={dbNav?.games[dbNav.currentIndex]?.id || null}
+                    activeGameIndex={dbNav?.currentIndex ?? null}
                   />
                 ) : null}
               </div>
@@ -1228,6 +1229,7 @@ export default function ClassroomPage() {
           border-top-left-radius: 0;
           padding: 1rem;
           overflow: hidden;
+          min-height: 0;
         }
 
         /* Full-height panel when no annotations section */

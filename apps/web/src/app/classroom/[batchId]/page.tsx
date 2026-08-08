@@ -728,6 +728,7 @@ export default function ClassroomPage() {
                   role={userRole} 
                   onGamesContextLoaded={handleGamesContextLoaded}
                   activeGameId={dbNav?.games[dbNav.currentIndex]?.id || null}
+                  activeGameIndex={dbNav?.currentIndex ?? null}
                 />
               ) : null}
             </div>
@@ -845,7 +846,9 @@ export default function ClassroomPage() {
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
 
         .page-wrapper {
-          min-height: 100vh;
+          height: 100dvh;
+          overflow: hidden;
+          box-sizing: border-box;
           background: var(--classroom-bg, #fdf0e4) !important;
           background-size: var(--classroom-bg-size, auto) !important;
           background-repeat: var(--classroom-bg-repeat, repeat) !important;
@@ -875,6 +878,8 @@ export default function ClassroomPage() {
           gap: 1.5rem;
           width: 100%;
           max-width: 1200px;
+          height: 100%;
+          min-height: 0;
           position: relative;
           z-index: 1;
         }
@@ -942,7 +947,10 @@ export default function ClassroomPage() {
         .main-content {
           display: grid;
           grid-template-columns: 1fr 400px;
+          grid-template-rows: minmax(0, 1fr);
           gap: 2rem;
+          height: 100%;
+          min-height: 0;
         }
         @media (max-width: 1100px) {
           .main-content { grid-template-columns: 1fr; }
@@ -960,6 +968,7 @@ export default function ClassroomPage() {
           color: var(--panel-text-color, #4a2018);
           backdrop-filter: var(--panel-backdrop-filter, none);
           -webkit-backdrop-filter: var(--panel-backdrop-filter, none);
+          filter: var(--panel-filter, none);
           transition: all 0.3s ease;
         }
 
@@ -967,11 +976,18 @@ export default function ClassroomPage() {
           display: flex;
           justify-content: center;
           align-items: center;
-          min-height: 600px;
+          min-height: 0;
+          overflow: hidden;
         }
 
         /* ── Sidebar ── */
-        .sidebar { display: flex; flex-direction: column; gap: 0; }
+        .sidebar {
+          display: flex;
+          flex-direction: column;
+          gap: 0;
+          height: 100%;
+          min-height: 0;
+        }
         
         .tabs-container {
           display: flex;
@@ -1021,11 +1037,13 @@ export default function ClassroomPage() {
         }
 
         .sidebar-panel { 
-          height: 600px; 
+          height: 100%;
+          min-height: 0;
           display: flex; 
           flex-direction: column; 
           border-top-left-radius: 0;
           padding: 1.5rem;
+          overflow: hidden;
         }
 
         .history-content, .participants-content, .chat-content {

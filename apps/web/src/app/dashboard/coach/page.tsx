@@ -32,6 +32,10 @@ export default function CoachDashboard() {
             .then(res => res.ok ? res.json() : null)
             .then(userData => {
               if (userData) {
+                if (userData.role === 'STUDENT') {
+                  router.replace('/dashboard/student');
+                  return;
+                }
                 setCurrentUser(userData);
               }
               setIsAuthLoaded(true);
@@ -136,9 +140,26 @@ export default function CoachDashboard() {
     return 'Good Evening';
   };
 
-  const coachFullName = currentUser 
-    ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.username
-    : 'Coach';
+  const isCoachRole = currentUser?.role === 'COACH';
+  const namePrefix = isCoachRole ? 'Coach ' : '';
+  const getFullName = (user: any) => {
+    if (!user) return '';
+    const first = (user.firstName || user.coach?.firstName || user.student?.firstName || '').trim();
+    const last = (user.lastName || user.coach?.lastName || user.student?.lastName || '').trim();
+    const combined = `${first} ${last}`.trim();
+    if (combined) return combined;
+    const name = (user.coach?.name || user.student?.name || user.name || '').trim();
+    if (name) return name;
+    if (user.username) {
+      return user.username
+        .split(/[_.\-\s]+/)
+        .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ');
+    }
+    return '';
+  };
+
+  const fullName = getFullName(currentUser);
 
   const startClassroom = async (batchId: string) => {
     try {
@@ -166,7 +187,7 @@ export default function CoachDashboard() {
       <div className={styles.welcomeSection}>
         <div>
           <h1 className={styles.welcomeTitle}>
-            {getGreeting()}, Coach {coachFullName}
+            {getGreeting()}, {namePrefix}{fullName}
           </h1>
           <p className={styles.welcomeSubtitle}>Here's what's happening today.</p>
         </div>

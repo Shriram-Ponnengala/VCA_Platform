@@ -7,9 +7,62 @@ import { StudentBatchSessions } from './StudentBatchSessions';
 import { generateBatchSlug } from '@/lib/utils/urlUtils';
 import styles from './student.module.css';
 
+import { useState, useEffect } from 'react';
+
 export default function StudentDashboard() {
   const router = useRouter();
   const { batches, isLoaded } = useBatches();
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/token', { credentials: 'include' })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!data?.token) return;
+        try {
+          const payload = JSON.parse(atob(data.token.split('.')[1]));
+          fetch(`/api/users/${payload.id}`)
+            .then(res => res.ok ? res.json() : null)
+            .then(userData => {
+              if (userData) {
+                if (userData.role === 'COACH' || userData.role === 'ADMIN') {
+                  router.replace('/dashboard/coach');
+                  return;
+                }
+                setCurrentUser(userData);
+              }
+            })
+            .catch(() => {});
+        } catch (e) {}
+      })
+      .catch(() => {});
+  }, [router]);
+
+  const getGreeting = () => {
+    const hrs = new Date().getHours();
+    if (hrs < 12) return 'Good Morning';
+    if (hrs < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
+  const getStudentName = (user: any) => {
+    if (!user) return 'Student';
+    const first = (user.firstName || user.student?.firstName || '').trim();
+    const last = (user.lastName || user.student?.lastName || '').trim();
+    const combined = `${first} ${last}`.trim();
+    if (combined) return combined;
+    const name = (user.student?.name || user.name || '').trim();
+    if (name) return name;
+    if (user.username) {
+      return user.username
+        .split(/[_.\-\s]+/)
+        .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ');
+    }
+    return 'Student';
+  };
+
+  const studentName = getStudentName(currentUser);
 
   if (!isLoaded) return <div className={styles.container}>Loading dashboard...</div>;
 
@@ -18,7 +71,7 @@ export default function StudentDashboard() {
       <div className={styles.welcomeSection}>
         <div className={styles.welcomeText}>
           <h1 className={styles.welcomeTitle}>
-            Good Evening, student1 <span role="img" aria-label="wave">👋</span>
+            {getGreeting()}, {studentName} <span role="img" aria-label="wave">👋</span>
           </h1>
           <p className={styles.welcomeSubtitle}>Keep learning, keep improving!</p>
         </div>

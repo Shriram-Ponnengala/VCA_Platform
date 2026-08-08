@@ -32,10 +32,35 @@ interface SidebarProps {
 export function Sidebar({ role, username, userId, isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const [profilePhoto, setProfilePhoto] = React.useState<string | null>(null);
+  const [currentRole, setCurrentRole] = React.useState<'ADMIN' | 'COACH' | 'STUDENT'>(role || 'STUDENT');
+  const [currentUsername, setCurrentUsername] = React.useState<string>(username || 'User');
+  const [currentUserId, setCurrentUserId] = React.useState<string | undefined>(userId);
 
   React.useEffect(() => {
-    if (userId) {
-      fetch(`/api/users/${userId}`)
+    if (role && role !== 'STUDENT') setCurrentRole(role);
+    if (username && username !== 'User') setCurrentUsername(username);
+    if (userId) setCurrentUserId(userId);
+  }, [role, username, userId]);
+
+  React.useEffect(() => {
+    fetch('/api/auth/token', { credentials: 'include' })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.token) {
+          try {
+            const payload = JSON.parse(atob(data.token.split('.')[1]));
+            if (payload.role) setCurrentRole(payload.role);
+            if (payload.username) setCurrentUsername(payload.username);
+            if (payload.id) setCurrentUserId(payload.id);
+          } catch (e) {}
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  React.useEffect(() => {
+    if (currentUserId) {
+      fetch(`/api/users/${currentUserId}`)
         .then(async (res) => {
           if (!res.ok) return null;
           const contentType = res.headers.get('content-type');
@@ -51,7 +76,7 @@ export function Sidebar({ role, username, userId, isCollapsed, onToggle }: Sideb
         })
         .catch(() => {});
     }
-  }, [userId]);
+  }, [currentUserId]);
 
   const [branding, setBranding] = React.useState<any>(null);
   React.useEffect(() => {
@@ -124,7 +149,7 @@ export function Sidebar({ role, username, userId, isCollapsed, onToggle }: Sideb
     { name: 'Settings', href: '/dashboard/student/settings', icon: Settings },
   ];
 
-  const safeRole = role ? role.toUpperCase() : 'STUDENT';
+  const safeRole = currentRole ? currentRole.toUpperCase() : 'STUDENT';
   const links = safeRole === 'ADMIN' ? adminLinks : safeRole === 'COACH' ? coachLinks : studentLinks;
 
   const handleLogout = async () => {
@@ -211,10 +236,10 @@ export function Sidebar({ role, username, userId, isCollapsed, onToggle }: Sideb
             <img src={profilePhoto} alt="Profile" className={styles.userAvatar} />
           ) : (
             <div className={styles.userAvatarPlaceholder}>
-              {username?.[0]?.toUpperCase() || 'U'}
+              {currentUsername?.[0]?.toUpperCase() || 'U'}
             </div>
           )}
-          <span className={styles.usernameText}>{username}</span>
+          <span className={styles.usernameText}>{currentUsername}</span>
         </div>
         <button className={styles.signOut} onClick={handleLogout}>
           <LogOut size={20} />

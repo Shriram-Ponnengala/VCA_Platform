@@ -2,9 +2,10 @@ import { Request, Response } from 'express';
 import { prisma } from '@vca/database';
 import * as jose from 'jose';
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'wdfghjifghjoixcvhjk'
-);
+const getSecretKey = () => {
+  const secret = process.env.JWT_SECRET || 'super_secret_key_12345_random_string_vca';
+  return new TextEncoder().encode(secret.replace(/^"|"$/g, ''));
+};
 
 export class ClassroomController {
   async startClassroom(req: Request, res: Response) {
@@ -22,7 +23,7 @@ export class ClassroomController {
 
       let payload;
       try {
-        const { payload: jwtPayload } = await jose.jwtVerify(token, JWT_SECRET);
+        const { payload: jwtPayload } = await jose.jwtVerify(token, getSecretKey());
         payload = jwtPayload;
       } catch (err) {
         return res.status(401).json({ error: 'Invalid token' });
@@ -98,7 +99,7 @@ export class ClassroomController {
 
       let payload;
       try {
-        const { payload: jwtPayload } = await jose.jwtVerify(token, JWT_SECRET);
+        const { payload: jwtPayload } = await jose.jwtVerify(token, getSecretKey());
         payload = jwtPayload;
       } catch (err) {
         return res.status(401).json({ error: 'Invalid token' });
@@ -173,7 +174,7 @@ export class ClassroomController {
 
       let payload;
       try {
-        const { payload: jwtPayload } = await jose.jwtVerify(token, JWT_SECRET);
+        const { payload: jwtPayload } = await jose.jwtVerify(token, getSecretKey());
         payload = jwtPayload;
       } catch (err) {
         return res.status(401).json({ allowed: false, error: 'Invalid token' });

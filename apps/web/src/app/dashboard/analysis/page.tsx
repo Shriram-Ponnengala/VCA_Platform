@@ -912,6 +912,7 @@ export default function AnalysisBoardPage() {
                     role={userRole} 
                     onGamesContextLoaded={handleGamesContextLoaded}
                     activeGameId={dbNav?.games[dbNav.currentIndex]?.id || null}
+                    activeGameIndex={dbNav?.currentIndex ?? null}
                   />
                 ) : null}
               </div>
@@ -1285,6 +1286,7 @@ export default function AnalysisBoardPage() {
           border-top-left-radius: 0;
           padding: 1rem;
           overflow: hidden;
+          min-height: 0;
         }
 
         /* Full-height panel when no annotations section */

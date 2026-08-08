@@ -2,9 +2,10 @@ import { Request, Response } from 'express';
 import { BatchesService } from './batches.service';
 import * as jose from 'jose';
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'wdfghjifghjoixcvhjk'
-);
+const getSecretKey = () => {
+  const secret = process.env.JWT_SECRET || 'super_secret_key_12345_random_string_vca';
+  return new TextEncoder().encode(secret.replace(/^"|"$/g, ''));
+};
 
 const service = new BatchesService();
 
@@ -16,7 +17,7 @@ export class BatchesController {
       console.log("[Batches API] Token present:", !!token);
       if (token) {
         try {
-          const { payload } = await jose.jwtVerify(token, JWT_SECRET);
+          const { payload } = await jose.jwtVerify(token, getSecretKey());
           user = payload;
           console.log("[Batches API] Decoded user:", user.username, user.role);
         } catch (e) {
@@ -43,7 +44,7 @@ export class BatchesController {
       let user = null;
       if (token) {
         try {
-          const { payload } = await jose.jwtVerify(token, JWT_SECRET);
+          const { payload } = await jose.jwtVerify(token, getSecretKey());
           user = payload;
         } catch (e) {}
       }

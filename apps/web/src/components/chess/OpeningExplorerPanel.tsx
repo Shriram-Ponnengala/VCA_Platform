@@ -9,8 +9,10 @@ import {
   LichessFilters,
   LichessSpeed,
   LichessRating,
+  getLichessApiKey,
+  setLichessApiKey,
 } from '@/features/explorer/providers';
-import { Database, HelpCircle, RefreshCw, X, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
+import { Database, HelpCircle, RefreshCw, X, SlidersHorizontal, ArrowUpDown, Key, ExternalLink, Check } from 'lucide-react';
 
 interface OpeningExplorerPanelProps {
   fen: string;
@@ -78,6 +80,21 @@ export default function OpeningExplorerPanel({ fen, onMoveClick, onLoadPgn }: Op
   const [appliedFilters, setAppliedFilters] = useState<LichessFilters | undefined>(undefined);
   const [appliedSort, setAppliedSort] = useState<SortOrder>('none');
 
+  // ── Lichess API Key State ───────────────────────────────────────────
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [showKeySettings, setShowKeySettings] = useState(false);
+
+  useEffect(() => {
+    setApiKeyInput(getLichessApiKey() || '');
+  }, []);
+
+  const handleSaveApiKey = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setLichessApiKey(apiKeyInput);
+    setShowKeySettings(false);
+    setRetryTrigger((prev) => prev + 1);
+  };
+
   // ── Debounced fetch logic ────────────────────────────────────────────────
   useEffect(() => {
     setIsLoading(true);
@@ -91,7 +108,7 @@ export default function OpeningExplorerPanel({ fen, onMoveClick, onLoadPgn }: Op
         setError(null);
       } catch (err: any) {
         console.error('[OpeningExplorer] Error fetching data:', err);
-        setError('Unable to load Opening Explorer.');
+        setError(err?.message || 'Unable to load Opening Explorer.');
       } finally {
         setIsLoading(false);
       }
@@ -210,14 +227,70 @@ export default function OpeningExplorerPanel({ fen, onMoveClick, onLoadPgn }: Op
         {source === 'lichess' && (
           <button
             className={`filter-btn ${showFilters ? 'active' : ''} ${hasActiveFilters ? 'has-filters' : ''}`}
-            onClick={() => setShowFilters(prev => !prev)}
+            onClick={() => {
+              setShowFilters(prev => !prev);
+              setShowKeySettings(false);
+            }}
             title="Filters"
           >
             <SlidersHorizontal size={14} />
             {hasActiveFilters && <span className="filter-dot" />}
           </button>
         )}
+        <button
+          className={`filter-btn ${showKeySettings ? 'active' : ''}`}
+          onClick={() => {
+            setShowKeySettings(prev => !prev);
+            setShowFilters(false);
+          }}
+          title="Lichess API Token Settings"
+        >
+          <Key size={14} />
+        </button>
       </div>
+
+      {/* ── API Key Settings Panel ────────────────────────────────────────── */}
+      {showKeySettings && (
+        <div className="filters-panel">
+          <div className="filter-section">
+            <div className="filter-section-label">Lichess API Key Token</div>
+            <p style={{ fontSize: '0.75rem', color: '#5c3a21', marginBottom: '8px' }}>
+              Lichess Opening Explorer requires a Personal Access Token.
+            </p>
+            <form onSubmit={handleSaveApiKey} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <input
+                type="password"
+                placeholder="Paste Lichess Token (lip_...)"
+                value={apiKeyInput}
+                onChange={(e) => setApiKeyInput(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '6px 10px',
+                  borderRadius: '6px',
+                  background: '#fff',
+                  border: '1px solid #eedcd0',
+                  color: '#2d1510',
+                  fontSize: '0.8rem',
+                }}
+              />
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                <a
+                  href="https://lichess.org/account/oauth/token/create"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="filter-reset-btn"
+                  style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <ExternalLink size={12} /> Get Token
+                </a>
+                <button type="submit" className="filter-apply-btn">
+                  Save & Retry
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ── Lichess Filters Panel ─────────────────────────────────────────── */}
       {source === 'lichess' && showFilters && (
@@ -291,10 +364,84 @@ export default function OpeningExplorerPanel({ fen, onMoveClick, onLoadPgn }: Op
         </div>
       ) : error ? (
         <div className="explorer-error">
-          <p>{error}</p>
-          <button className="retry-btn" onClick={handleRetry}>
-            <RefreshCw size={14} /> Retry
-          </button>
+          {error.includes('401') || error.includes('Unauthorized') || error.includes('Token') ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', maxWidth: '340px', width: '100%', padding: '8px' }}>
+              <Key size={36} style={{ color: '#c8854a', marginBottom: '12px' }} />
+              <h4 style={{ color: '#2d1510', fontSize: '1rem', fontWeight: 600, marginBottom: '6px' }}>Lichess API Token Required</h4>
+              <p style={{ fontSize: '0.78rem', color: '#5c3a21', marginBottom: '16px', lineHeight: '1.4', textAlign: 'center' }}>
+                Lichess requires a Personal Access Token to access Opening Explorer data. Create a free token on Lichess and paste it below.
+              </p>
+              <form onSubmit={handleSaveApiKey} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <input
+                  type="password"
+                  placeholder="Paste Lichess Token (lip_...)"
+                  value={apiKeyInput}
+                  onChange={(e) => setApiKeyInput(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    background: '#fff',
+                    border: '1.5px solid #d4a373',
+                    color: '#2d1510',
+                    fontSize: '0.85rem',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                  <a
+                    href="https://lichess.org/account/oauth/token/create"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      background: '#fff',
+                      border: '1px solid #eedcd0',
+                      color: '#5c3a21',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <ExternalLink size={14} /> Get Token
+                  </a>
+                  <button
+                    type="submit"
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      background: '#c8854a',
+                      color: '#fff',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <Check size={14} /> Save & Retry
+                  </button>
+                </div>
+              </form>
+            </div>
+          ) : (
+            <>
+              <p>{error}</p>
+              <button className="retry-btn" onClick={handleRetry}>
+                <RefreshCw size={14} /> Retry
+              </button>
+            </>
+          )}
         </div>
       ) : !data || data.totalGames === 0 ? (
         <div className="explorer-empty">

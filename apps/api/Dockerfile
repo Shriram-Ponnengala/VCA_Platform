@@ -6,16 +6,34 @@ FROM node:20-alpine AS base
 RUN apk update && apk add --no-cache openssl
 WORKDIR /app
 # Install turbo
-RUN npm install -g turbo
+RUN npm config set fetch-retries 5 && npm config set fetch-retry-mintimeout 20000 && npm config set fetch-retry-maxtimeout 120000 && npm install --network-timeout=1000000 -g turbo
 
 # ==========================================
-# Stage 2: Development (Used by docker-compose)
+# Stage 2: Dependencies (Cache optimization)
 # ==========================================
-FROM base AS development
+FROM base AS deps
+# Copy root configurations
+COPY package.json package-lock.json turbo.json ./
+
+# Copy package.json for all workspaces to cache install step
+COPY packages/chess/package.json ./packages/chess/package.json
+COPY packages/database/package.json ./packages/database/package.json
+COPY packages/types/package.json ./packages/types/package.json
+COPY packages/ui/package.json ./packages/ui/package.json
+
+COPY apps/api/package.json ./apps/api/package.json
+COPY apps/realtime/package.json ./apps/realtime/package.json
+COPY apps/web/package.json ./apps/web/package.json
+
+# Install dependencies
+RUN npm config set fetch-retries 5 && npm config set fetch-retry-mintimeout 20000 && npm config set fetch-retry-maxtimeout 120000 && npm install --network-timeout=1000000
+
+# ==========================================
+# Stage 3: Development (Used by docker-compose)
+# ==========================================
+FROM deps AS development
 # Copy all packages and apps for monorepo workspace resolution
 COPY . .
-# Install dependencies
-RUN npm install
 # Generate Prisma Client
 RUN cd packages/database && npx prisma generate
 
@@ -24,16 +42,15 @@ EXPOSE 4000
 CMD ["sh", "-c", "cd packages/database && npx prisma db push && cd ../../ && npx turbo run dev --filter=api"]
 
 # ==========================================
-# Stage 3: Builder
+# Stage 4: Builder
 # ==========================================
-FROM base AS builder
+FROM deps AS builder
 COPY . .
-RUN npm install
 RUN cd packages/database && npx prisma generate
 RUN npx turbo run build --filter=api
 
 # ==========================================
-# Stage 4: Production (Optimized final image)
+# Stage 5: Production (Optimized final image)
 # ==========================================
 FROM base AS production
 ENV NODE_ENV=production

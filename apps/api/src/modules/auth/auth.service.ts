@@ -4,9 +4,10 @@ import * as jose from 'jose';
 
 const authRepo = new AuthRepository();
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'wdfghjifghjoixcvhjk'
-);
+const getSecretKey = () => {
+  const secret = process.env.JWT_SECRET || 'super_secret_key_12345_random_string_vca';
+  return new TextEncoder().encode(secret.replace(/^"|"$/g, ''));
+};
 
 export class AuthService {
   async login(username: string, password: string) {
@@ -21,7 +22,7 @@ export class AuthService {
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
       .setExpirationTime('24h')
-      .sign(JWT_SECRET);
+      .sign(getSecretKey());
 
     const { passwordHash: _, ...userWithoutPassword } = user;
     return {

@@ -38,9 +38,11 @@ async function main() {
   const studentPassword = await bcrypt.hash('student123', 10);
   const student1 = await prisma.user.upsert({
     where: { username: 'arjun_k' },
-    update: {},
+    update: { firstName: 'Arjun', lastName: 'Kumar' },
     create: {
       username: 'arjun_k',
+      firstName: 'Arjun',
+      lastName: 'Kumar',
       passwordHash: studentPassword,
       role: 'STUDENT',
     },
@@ -48,9 +50,11 @@ async function main() {
 
   const student2 = await prisma.user.upsert({
     where: { username: 'priya_s' },
-    update: {},
+    update: { firstName: 'Priya', lastName: 'Sharma' },
     create: {
       username: 'priya_s',
+      firstName: 'Priya',
+      lastName: 'Sharma',
       passwordHash: studentPassword,
       role: 'STUDENT',
     },

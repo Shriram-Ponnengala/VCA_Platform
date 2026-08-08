@@ -11,7 +11,15 @@ export class UsersRepository {
       orderBy: { createdAt: 'desc' }
     }); 
   }
-  async findById(id: string) { return prisma.user.findUnique({ where: { id } }); }
+  async findById(id: string) { 
+    return prisma.user.findUnique({ 
+      where: { id },
+      include: {
+        student: true,
+        coach: true
+      }
+    }); 
+  }
   async create(data: any) { return prisma.user.create({ data }); }
   async update(id: string, data: any) { return prisma.user.update({ where: { id }, data }); }
   async delete(id: string) { return prisma.user.delete({ where: { id } }); }

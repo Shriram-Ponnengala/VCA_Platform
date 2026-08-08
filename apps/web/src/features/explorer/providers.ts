@@ -41,6 +41,56 @@ export interface IOpeningExplorerProvider {
   fetchData: (fen: string) => Promise<ExplorerData>;
 }
 
+export function getLichessApiKey(): string | null {
+  if (typeof window !== 'undefined') {
+    const localKey = localStorage.getItem('vca_lichess_api_key');
+    if (localKey && localKey.trim()) {
+      return localKey.trim();
+    }
+  }
+  const envKey = process.env.NEXT_PUBLIC_LICHESS_API_KEY;
+  if (envKey && envKey !== 'undefined' && envKey.trim()) {
+    return envKey.trim();
+  }
+  return null;
+}
+
+export function setLichessApiKey(key: string): void {
+  if (typeof window !== 'undefined') {
+    if (key && key.trim()) {
+      localStorage.setItem('vca_lichess_api_key', key.trim());
+    } else {
+      localStorage.removeItem('vca_lichess_api_key');
+    }
+  }
+}
+
+function getLichessHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+  };
+  const apiKey = getLichessApiKey();
+  if (apiKey) {
+    headers['Authorization'] = `Bearer ${apiKey}`;
+  }
+  return headers;
+}
+
+function handleFetchError(response: Response, providerName: string): never {
+  const statusDetails = response.statusText ? ` (${response.statusText})` : '';
+  if (response.status === 401) {
+    throw new Error(
+      `Failed to fetch ${providerName} games (401 Unauthorized). Lichess requires a valid Personal Access Token.`
+    );
+  }
+  if (response.status === 429) {
+    throw new Error(
+      `Failed to fetch ${providerName} games (429 Rate Limit Exceeded). Please wait a moment and try again.`
+    );
+  }
+  throw new Error(`Failed to fetch ${providerName} games: HTTP ${response.status}${statusDetails}`);
+}
+
 export class MastersExplorerProvider implements IOpeningExplorerProvider {
   name = 'masters';
 
@@ -48,14 +98,10 @@ export class MastersExplorerProvider implements IOpeningExplorerProvider {
     const cleanFen = fen.split('|')[0];
     const response = await fetch(
       `https://explorer.lichess.org/masters?fen=${encodeURIComponent(cleanFen)}&topGames=15`,
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_LICHESS_API_KEY}`
-        }
-      }
+      { headers: getLichessHeaders() }
     );
     if (!response.ok) {
-      throw new Error(`Failed to fetch master games: ${response.statusText}`);
+      handleFetchError(response, 'master');
     }
     const data = await response.json();
     return this.mapResponse(data);
@@ -119,14 +165,10 @@ export class LichessExplorerProvider implements IOpeningExplorerProvider {
 
     const response = await fetch(
       `https://explorer.lichess.org/lichess?${params.toString()}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_LICHESS_API_KEY}`
-        }
-      }
+      { headers: getLichessHeaders() }
     );
     if (!response.ok) {
-      throw new Error(`Failed to fetch Lichess games: ${response.statusText}`);
+      handleFetchError(response, 'Lichess');
     }
     const data = await response.json();
     return this.mapResponse(data);

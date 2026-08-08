@@ -28,6 +28,12 @@ export class SettingsController {
       if (branding.primaryColor) {
         css += `  --primary: ${branding.primaryColor};\n`;
       }
+      if (branding.headingTextColor) {
+        css += `  --heading-color: ${branding.headingTextColor};\n`;
+      }
+      if (branding.bodyTextColor) {
+        css += `  --body-color: ${branding.bodyTextColor};\n`;
+      }
       
       if (branding.headingFont) {
         let headingVar = 'var(--font-playfair), serif';
@@ -155,24 +161,81 @@ export class SettingsController {
       let panelBgPosition = '0 0';
       let panelAvatarBg = 'rgba(45, 74, 107, 0.1)';
 
+      const hexToRgba = (hex: string, alpha: number) => {
+        if (!hex) return `rgba(255, 255, 255, ${alpha})`;
+        let c = hex.replace('#', '');
+        if (c.length === 3) c = c.split('').map(x => x + x).join('');
+        const num = parseInt(c, 16);
+        if (isNaN(num)) return `rgba(255, 255, 255, ${alpha})`;
+        return `rgba(${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}, ${alpha})`;
+      };
+
+      const isDarkColor = (hex: string) => {
+        if (!hex) return false;
+        let c = hex.replace('#', '');
+        if (c.length === 3) c = c.split('').map(x => x + x).join('');
+        const num = parseInt(c, 16);
+        if (isNaN(num)) return false;
+        const r = (num >> 16) & 255;
+        const g = (num >> 8) & 255;
+        const b = num & 255;
+        return (r * 299 + g * 587 + b * 114) / 1000 < 128;
+      };
+
       if (pStyle === 'solid') {
-        panelBg = `rgba(255, 255, 255, ${pOpacity / 100})`;
-        panelBorderColor = `rgba(238, 220, 208, ${pOpacity / 100})`;
-      } else if (pStyle === 'glass') {
-        panelBg = `rgba(255, 255, 255, ${pOpacity / 100})`;
-        panelBackdropFilter = `blur(${pBlur}px)`;
-        panelBorderColor = `rgba(255, 255, 255, 0.25)`;
-        panelBoxShadow = '0 8px 32px rgba(31, 38, 135, 0.06)';
+        const sColor = branding.panelColor || '#ffffff';
+        panelBg = hexToRgba(sColor, pOpacity / 100);
+        if (isDarkColor(sColor)) {
+          panelTextColor = '#ffffff';
+          panelSubtextColor = 'rgba(255, 255, 255, 0.7)';
+          panelCardBg = 'rgba(255, 255, 255, 0.05)';
+          panelBgInner = 'rgba(0, 0, 0, 0.2)';
+          panelAvatarBg = 'rgba(255, 255, 255, 0.15)';
+          panelBorderColor = 'rgba(255, 255, 255, 0.15)';
+        } else {
+          panelBorderColor = `rgba(238, 220, 208, ${pOpacity / 100})`;
+        }
       } else if (pStyle === 'slate') {
-        panelBg = '#2d4a6b';
-        panelTextColor = '#ffffff';
-        panelBorderColor = 'rgba(255, 255, 255, 0.15)';
+        const sColor = branding.panelColor || '#2d4a6b';
+        panelBg = hexToRgba(sColor, pOpacity / 100);
+        if (isDarkColor(sColor)) {
+          panelTextColor = '#ffffff';
+          panelSubtextColor = 'rgba(255, 255, 255, 0.7)';
+          panelCardBg = 'rgba(255, 255, 255, 0.05)';
+          panelBgInner = 'rgba(0, 0, 0, 0.2)';
+          panelAvatarBg = 'rgba(255, 255, 255, 0.15)';
+          panelBorderColor = 'rgba(255, 255, 255, 0.15)';
+        } else {
+          panelTextColor = '#4a2018';
+          panelSubtextColor = 'rgba(74, 32, 24, 0.6)';
+          panelBorderColor = `rgba(238, 220, 208, ${pOpacity / 100})`;
+        }
         panelBoxShadow = '0 8px 32px rgba(0, 0, 0, 0.2)';
         panelAccentColor = '#e58e26';
-        panelSubtextColor = 'rgba(255, 255, 255, 0.7)';
-        panelCardBg = 'rgba(255, 255, 255, 0.05)';
-        panelBgInner = 'rgba(0, 0, 0, 0.2)';
-        panelAvatarBg = 'rgba(255, 255, 255, 0.15)';
+      } else if (pStyle === 'glass') {
+        panelBg = `rgba(255, 255, 255, ${pOpacity / 100})`;
+        panelBackdropFilter = pBlur > 0 ? `blur(${pBlur}px)` : 'none';
+        panelBorderColor = `rgba(255, 255, 255, 0.25)`;
+        panelBoxShadow = '0 8px 32px rgba(31, 38, 135, 0.06)';
+      } else if (pStyle === 'image') {
+        let imgUrl = '';
+        if (branding.panelImageSource === 'upload' && branding.panelImageUpload) {
+          imgUrl = '/api/settings/branding/panel-image';
+        } else {
+          imgUrl = branding.panelImageUrl || '';
+        }
+        const overlayAlpha = (100 - pOpacity) / 100;
+        panelBg = `rgba(255, 255, 255, ${pOpacity / 100})`;
+        if (imgUrl) {
+          panelBgImage = `linear-gradient(rgba(255, 255, 255, ${overlayAlpha}), rgba(255, 255, 255, ${overlayAlpha})), url('${imgUrl}')`;
+          panelBgSize = branding.panelImageFit || 'cover';
+          panelBgPosition = 'center';
+        } else {
+          panelBgImage = 'none';
+        }
+        panelBackdropFilter = pBlur > 0 ? `blur(${pBlur}px)` : 'none';
+        panelBorderColor = `rgba(255, 255, 255, 0.3)`;
+        panelBoxShadow = '0 8px 32px rgba(31, 38, 135, 0.08)';
       } else if (pStyle === 'parchment') {
         panelBg = '#fdf5ea';
         panelBgImage = 'radial-gradient(#eedcd0 1px, transparent 0), radial-gradient(#eedcd0 1px, #fdf5ea 0)';
@@ -186,6 +249,7 @@ export class SettingsController {
 
       css += `  --panel-bg: ${panelBg};\n`;
       css += `  --panel-backdrop-filter: ${panelBackdropFilter};\n`;
+      css += `  --panel-filter: ${pStyle === 'image' && pBlur > 0 ? `blur(${pBlur}px)` : 'none'};\n`;
       css += `  --panel-text-color: ${panelTextColor};\n`;
       css += `  --panel-border-color: ${panelBorderColor};\n`;
       css += `  --panel-box-shadow: ${panelBoxShadow};\n`;
@@ -206,6 +270,13 @@ export class SettingsController {
       let bgPosition = '0 0';
       let bgOverlay = 'transparent';
 
+      const overlayPct = bg.imageOverlayOpacity !== undefined 
+        ? bg.imageOverlayOpacity 
+        : (bg.imageOverlay ? 45 : 0);
+      if (overlayPct > 0) {
+        bgOverlay = `rgba(0, 0, 0, ${(overlayPct / 100).toFixed(2)})`;
+      }
+
       if (bg.type === 'solid') {
         bgValue = bg.solidColor || '#fdf0e4';
       } else if (bg.type === 'gradient') {
@@ -218,27 +289,28 @@ export class SettingsController {
         bgValue = `linear-gradient(${direction}, ${stopsStr})`;
       } else if (bg.type === 'texture') {
         const texture = bg.texture || 'dots';
-        if (texture === 'dots') {
-          bgValue = 'radial-gradient(#eedcd0 15%, transparent 16%)';
-          bgSize = '16px 16px';
-          bgRepeat = 'repeat';
-        } else if (texture === 'grid') {
-          bgValue = 'linear-gradient(rgba(238, 220, 208, 0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(238, 220, 208, 0.4) 1px, transparent 1px)';
-          bgSize = '20px 20px';
-          bgRepeat = 'repeat';
+        const params = bg.textureParams || {};
+        const baseColor = params.baseColor || '#fdf0e4';
+        const patternColor = params.patternColor || '#c8854a';
+        const scale = params.scale || 100;
+        const opacity = params.opacity !== undefined ? params.opacity : 50;
+        const alpha = Math.max(0, Math.min(1, opacity / 100));
+
+        let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2" fill="${patternColor}" fill-opacity="${alpha}"/></svg>`;
+        let tileSize = Math.max(8, Math.round(16 * (scale / 100)));
+
+        if (texture === 'grid') {
+          tileSize = Math.max(10, Math.round(20 * (scale / 100)));
+          svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${tileSize}" height="${tileSize}" viewBox="0 0 20 20"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="${patternColor}" stroke-opacity="${alpha}" stroke-width="1"/></svg>`;
         } else if (texture === 'stripes') {
-          bgValue = 'repeating-linear-gradient(45deg, #fdf0e4, #fdf0e4 10px, #f5e4d7 10px, #f5e4d7 20px)';
-        } else if (texture === 'wood') {
-          bgValue = `url('https://lichess1.org/assets/images/board/maple.jpg')`;
-          bgSize = '200px 200px';
-          bgRepeat = 'repeat';
-        } else if (texture === 'stars') {
-          bgValue = '#0d1b2a';
-          bgValue = `radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 40px), radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 30px), radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 40px)`;
-          bgSize = '550px 550px, 350px 350px, 250px 250px';
-          bgPosition = '0 0, 40px 60px, 130px 270px';
-          bgRepeat = 'repeat';
+          tileSize = Math.max(10, Math.round(20 * (scale / 100)));
+          svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${tileSize}" height="${tileSize}" viewBox="0 0 20 20"><path d="M-5,5 L5,-5 M0,20 L20,0 M15,25 L25,15" fill="none" stroke="${patternColor}" stroke-opacity="${alpha}" stroke-width="4"/></svg>`;
         }
+
+        const encoded = encodeURIComponent(svg.replace(/\n/g, '').replace(/\s+/g, ' '));
+        bgValue = `${baseColor} url("data:image/svg+xml;charset=utf-8,${encoded}")`;
+        bgSize = `${tileSize}px ${tileSize}px`;
+        bgRepeat = 'repeat';
       } else if (bg.type === 'image') {
         // For uploads, serve via a dedicated endpoint to avoid embedding 5MB+ base64 in CSS
         const imgUrl = bg.imageSource === 'upload'
@@ -246,12 +318,9 @@ export class SettingsController {
           : (bg.imageUrl || '');
         if (imgUrl) {
           bgValue = `url('${imgUrl}')`;
-          bgSize = 'cover';
+          bgSize = bg.imageFit || 'cover';
           bgPosition = 'center';
           bgRepeat = 'no-repeat';
-          if (bg.imageOverlay) {
-            bgOverlay = 'rgba(0, 0, 0, 0.45)';
-          }
         }
       }
 

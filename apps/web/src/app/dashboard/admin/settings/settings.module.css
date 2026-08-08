@@ -2005,36 +2005,79 @@
 }
 
 .texturePresetCardActive {
-  border-color: var(--primary) !important;
-  box-shadow: 0 0 0 2px var(--primary) !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.2) !important;
 }
 
 .texturePresetPreview {
   height: 60px;
   width: 100%;
-  border-bottom: 1px solid var(--cream);
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .texturePresetLabel {
-  padding: 8px;
-  font-size: 0.75rem;
-  font-weight: 700;
+  padding: 6px 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
   text-align: center;
-  color: var(--primary);
+  color: #334155;
   text-transform: capitalize;
 }
 
-.imageSourceToggle {
-  display: flex;
-  gap: 8px;
+/* Background Type Segmented Control */
+.bgTypeSegmented {
+  display: inline-flex;
+  gap: 4px;
   background: #f1f5f9;
   padding: 4px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  width: 100%;
+  max-width: 480px;
+}
+
+.bgTypeSegmentItem {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 7px;
+  border: none;
+  font-weight: 500;
+  font-size: 0.82rem;
+  cursor: pointer;
+  background: transparent;
+  color: #64748b;
+  transition: all 0.15s ease;
+}
+
+.bgTypeSegmentItem:hover {
+  color: var(--primary);
+}
+
+.bgTypeSegmentItemActive {
+  background: #ffffff;
+  color: var(--primary);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Image Settings */
+.imageSourceToggle {
+  display: flex;
+  gap: 4px;
+  background: #f1f5f9;
+  padding: 3px;
   border-radius: 8px;
+  width: 100%;
+  max-width: 320px;
 }
 
 .imageSourceBtn {
   flex: 1;
-  padding: 8px 16px;
+  padding: 6px 14px;
   border-radius: 6px;
   border: none;
   font-weight: 600;
@@ -2048,13 +2091,13 @@
 .imageSourceBtnActive {
   background: white;
   color: var(--primary);
-  box-shadow: var(--shadow-subtle);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
 .uploadContainer {
   border: 2px dashed #eedcd0;
   border-radius: 12px;
-  padding: 24px;
+  padding: 20px;
   text-align: center;
   background: #faf8f6;
   cursor: pointer;
@@ -2079,51 +2122,203 @@
 }
 
 .imagePreviewBox {
-  margin-top: 16px;
+  margin-top: 12px;
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid #eedcd0;
   position: relative;
-  max-height: 200px;
+  max-height: 140px;
 }
 
 .imagePreview {
   width: 100%;
-  height: auto;
-  max-height: 200px;
+  height: 140px;
   object-fit: cover;
 }
 
+/* Texture Category Chips */
+.categoryChipsRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.categoryChip {
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  background: #ffffff;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.categoryChip:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.categoryChipActive {
+  background: #dbeafe !important;
+  color: #1d4ed8 !important;
+  border-color: #93c5fd !important;
+  font-weight: 600 !important;
+}
+
+/* Texture Card Grid */
+.textureGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.textureCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  overflow: hidden;
+}
+
+.textureCard:hover {
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+.textureCardActive {
+  border: 2px solid #2563eb !important;
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.15) !important;
+}
+
+.textureCardPreview {
+  width: 100%;
+  height: 60px;
+  border-radius: 8px;
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+.textureCardLabel {
+  padding: 6px 4px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #334155;
+  text-align: center;
+}
+
+/* Texture Customization Panel */
+.textureCustomizePanel {
+  background: #fcfbf9;
+  border: 1px solid #eee7dc;
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-top: 16px;
+}
+
+.customizeHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #1e293b;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eee7dc;
+}
+
+.customizeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px dashed #f0e9dd;
+}
+
+.customizeRow:last-child {
+  border-bottom: none;
+}
+
+.customizeLabel {
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: #475569;
+}
+
+.swatchGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.swatchCircle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.swatchCircle:hover {
+  transform: scale(1.1);
+}
+
+.swatchCircleActive {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.3) !important;
+  transform: scale(1.1);
+}
+
+.customizeSlider {
+  width: 140px;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+
+/* Classroom Live Preview */
 .livePreviewWrapper {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 24px;
-  border: 1px solid var(--cream);
+  margin-top: 0;
+  border: 1px solid #e2e8f0;
   border-radius: 16px;
-  padding: 20px;
+  padding: 16px;
   background: white;
-  box-shadow: var(--shadow-subtle);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
 }
 
 .livePreviewTitle {
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  color: var(--primary);
+  color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 8px;
 }
 
 .livePreviewBackgroundContainer {
-  height: 220px;
+  height: 210px;
   border-radius: 12px;
   position: relative;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid #eedcd0;
+  gap: 16px;
+  border: 1px solid #e2e8f0;
+  padding: 16px;
 }
 
 .livePreviewOverlay {
@@ -2131,29 +2326,145 @@
   inset: 0;
   pointer-events: none;
   z-index: 1;
-}
-
-.livePreviewInner {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  grid-template-columns: 100px 100px;
-  gap: 16px;
-  align-items: stretch;
+  transition: background-color 0.15s ease;
 }
 
 .miniBoard {
-  width: 100px;
-  height: 100px;
-  border-radius: 8px;
+  position: relative;
+  z-index: 2;
+  width: 110px;
+  height: 110px;
+  border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  border: 4px solid #FDF0E4;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.14);
+  flex-shrink: 0;
 }
 
 .miniPanel {
-  width: 100px;
-  height: 100px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  max-width: 170px;
+  height: 110px;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
+
+.miniPanelHeader {
+  height: 12px;
+  width: 60%;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.08);
+}
+
+.miniPanelLine {
+  height: 8px;
+  width: 100%;
+  border-radius: 3px;
+  background: rgba(0,0,0,0.04);
+}
+
+.miniPanelLineShort {
+  height: 8px;
+  width: 75%;
+  border-radius: 3px;
+  background: rgba(0,0,0,0.04);
+}
+
+/* Simplified Branding Styles */
+.singleLogoBox {
+  width: 80px;
+  height: 80px;
+  border-radius: 16px;
+  background-color: #fdf5ea;
+  border: 1px solid #eedcd0;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.smallUploadDropzone {
+  width: 220px;
+  height: 80px;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 12px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.smallUploadDropzone:hover,
+.uploadDropzoneActive {
+  border-color: #2563eb;
+  background: #f0f6ff;
+}
+
+.colorRoleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.colorRoleRow:last-child {
+  border-bottom: none;
+}
+
+.colorRoleMeta {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.colorRoleTitle {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2d1510;
+}
+
+.colorRoleSubtitle {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.colorSwatchesGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.customColorPickerPlus {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px dashed #cbd5e1;
+  background: #ffffff;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.customColorPickerPlus:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+
