@@ -148,6 +148,8 @@ export default function SettingsPage() {
     };
     pieceAnimation?: string;
     highlightLastMove?: boolean;
+    headingTextColor?: string;
+    bodyTextColor?: string;
   }>({
     headingFont: 'DM Sans (Default)',
     bodyFont: 'Inter (Default)',
@@ -827,7 +829,7 @@ export default function SettingsPage() {
   };
 
   const getPreviewOverlayColor = (): string => {
-    const bg = branding.classroomBackground || { type: 'solid', solidColor: '#fdf0e4' };
+    const bg = (branding.classroomBackground || { type: 'solid', solidColor: '#fdf0e4' }) as any;
     const opacityPct = bg.imageOverlayOpacity !== undefined 
       ? bg.imageOverlayOpacity 
       : (bg.imageOverlay ? 45 : 0);

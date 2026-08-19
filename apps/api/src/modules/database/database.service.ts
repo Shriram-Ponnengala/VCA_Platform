@@ -829,16 +829,27 @@ export class DatabaseService {
     userId: string,
     role: string,
     parentId: string | null,
-    itemIds: { id: string; type: 'folder' | 'collection' }[]
+    itemIds: { id: string; type: 'folder' | 'collection' | 'game' }[]
   ) {
     if (parentId) {
       const folder = await prisma.folder.findUnique({ where: { id: parentId } });
-      if (!folder) throw new Error('Target folder not found.');
-      if (folder.visibility === 'public' && role?.toUpperCase() !== 'ADMIN') {
-        throw new Error('Permission denied.');
-      }
-      if (folder.visibility === 'private' && folder.ownerId !== userId) {
-        throw new Error('Permission denied.');
+      const collection = await prisma.collection.findUnique({ where: { id: parentId } });
+      if (!folder && !collection) throw new Error('Target parent not found.');
+
+      if (folder) {
+        if (folder.visibility === 'public' && role?.toUpperCase() !== 'ADMIN') {
+          throw new Error('Permission denied.');
+        }
+        if (folder.visibility === 'private' && folder.ownerId !== userId) {
+          throw new Error('Permission denied.');
+        }
+      } else if (collection) {
+        if (collection.visibility === 'public' && role?.toUpperCase() !== 'ADMIN') {
+          throw new Error('Permission denied.');
+        }
+        if (collection.visibility === 'private' && collection.ownerId !== userId) {
+          throw new Error('Permission denied.');
+        }
       }
     }
 
@@ -894,6 +905,23 @@ export class DatabaseService {
             where: { id },
             data: {
               folderId: parentId,
+              orderIndex: i
+            }
+          });
+        } else if (type === 'game') {
+          const game = await tx.game.findUnique({ where: { id }, include: { collection: true } });
+          if (!game) throw new Error(`Game ${id} not found.`);
+          if (game.collection.visibility === 'public' && role?.toUpperCase() !== 'ADMIN') {
+            throw new Error('Permission denied.');
+          }
+          if (game.collection.visibility === 'private' && game.collection.ownerId !== userId) {
+            throw new Error('Permission denied.');
+          }
+
+          await tx.game.update({
+            where: { id },
+            data: {
+              collectionId: parentId as string,
               orderIndex: i
             }
           });

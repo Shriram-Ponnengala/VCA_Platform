@@ -4,6 +4,17 @@ import { useEffect } from 'react';
 
 import { renderTextureStyle } from '@/components/chess/textures.config';
 
+if (typeof window !== 'undefined' && window.performance && window.performance.measure) {
+  try {
+    const originalMeasure = window.performance.measure;
+    window.performance.measure = function (...args: any[]) {
+      try {
+        return (originalMeasure as any).apply(window.performance, args);
+      } catch (e) {}
+    };
+  } catch (e) {}
+}
+
 export default function BrandingProvider() {
   useEffect(() => {
     const applyVariables = (branding: any) => {

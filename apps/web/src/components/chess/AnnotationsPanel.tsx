@@ -81,21 +81,32 @@ const formatTagKey = (key: string) => {
   return mapping[key] || key;
 };
 
+const getDisplayTagValue = (val: any): string => {
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'object') {
+    if (val.value) return String(val.value);
+    if (val.year) return `${val.year}.${val.month !== undefined ? String(val.month).padStart(2, '0') : '??'}.${val.day !== undefined ? String(val.day).padStart(2, '0') : '??'}`;
+    return JSON.stringify(val);
+  }
+  return String(val);
+};
+
 const TagRow = ({ tagKey, initialValue, isCoach, onSave, onRemove }: {
   tagKey: string;
-  initialValue: string;
+  initialValue: any;
   isCoach: boolean;
   onSave: (k: string, v: string) => void;
   onRemove: (k: string) => void;
 }) => {
-  const [value, setValue] = useState(initialValue || '');
+  const [value, setValue] = useState(getDisplayTagValue(initialValue));
 
   useEffect(() => {
-    setValue(initialValue || '');
+    setValue(getDisplayTagValue(initialValue));
   }, [initialValue]);
 
   const handleSave = () => {
-    if (value !== initialValue) {
+    const currentDisplay = getDisplayTagValue(initialValue);
+    if (value !== currentDisplay) {
       onSave(tagKey, value);
     }
   };
@@ -367,14 +378,17 @@ export const AnnotationsPanel: React.FC<AnnotationsPanelProps> = ({
           overflow: hidden;
           color: var(--panel-text-color, #4a2018);
           height: 100%;
+          min-height: 0;
+          flex: 1;
         }
 
         .ap-tabs {
           display: flex;
           gap: 8px;
-          padding: 12px;
+          padding: 10px 12px;
           border-bottom: 1px solid rgba(0, 0, 0, 0.05);
           background: rgba(0, 0, 0, 0.02);
+          flex-shrink: 0;
         }
 
         .ap-tab {
@@ -407,6 +421,7 @@ export const AnnotationsPanel: React.FC<AnnotationsPanelProps> = ({
         .ap-content {
           padding: 12px;
           flex: 1;
+          min-height: 0;
           overflow-y: auto;
         }
 
